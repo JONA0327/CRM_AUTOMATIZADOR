@@ -44,12 +44,12 @@ body {
     flex-direction: column;
     padding: clamp(1.5rem, 2vw, 2.5rem);
     gap: clamp(1.5rem, 2vw, 2rem);
+    width: 100%;
 }
 
 .page-header,
 .page-container {
-    width: min(1120px, 100%);
-    margin: 0 auto;
+    width: 100%;
 }
 
 .page-header {
@@ -129,7 +129,7 @@ body {
 
 .page-container {
     flex: 1;
-    width: min(1120px, 100%);
+    width: 100%;
 }
 
 .page-stack {
@@ -379,21 +379,10 @@ body {
     }
 }
 
-@media (min-width: 1280px) {
-    .page-container,
-    .page-header {
-        width: min(1200px, 100%);
-    }
-}
-
 @media (min-width: 1024px) {
-    .app-shell {
-        padding-left: 240px;
-    }
-
     .main-content-area {
-        padding-right: clamp(2rem, 5vw, 4rem);
-        padding-left: clamp(2rem, 5vw, 4rem);
+        padding-right: clamp(1.5rem, 2vw, 2.5rem);
+        padding-left: clamp(1.5rem, 2vw, 2.5rem);
     }
 }
 
