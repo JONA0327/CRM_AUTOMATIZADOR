@@ -1,3 +1,6 @@
+/* Base: asegurar box-sizing coherente */
+:root, *, *::before, *::after { box-sizing: border-box; }
+
 /* Products Styles for CRM_AUTOMATIZADOR */
 
 /* Container principal */
@@ -5,12 +8,14 @@
     max-width: 1280px;
     margin: 0 auto;
     padding: 0 2rem; /* más aire en los extremos para que no se pegue */
+    width: 100%;
 }
 
 .products-container {
     padding: 1.25rem 1.5rem;
     max-width: 1280px;
     margin: 0 auto;
+    width: 100%;
 }
 
 /* Filtros */
@@ -20,7 +25,8 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
     padding: 1.25rem 1.5rem;
-    margin-bottom: 1rem;
+    margin: 0 auto 1rem;
+    width: 100%;
 }
 
 .filter-controls {
@@ -33,7 +39,7 @@
 
 .filter-inputs {
     display: grid;
-    grid-template-columns: minmax(260px, 360px) 1fr;
+    grid-template-columns: minmax(280px, 360px) 1fr;
     align-items: center;
     gap: 1rem 1.25rem;
     flex: 1 1 auto;
@@ -44,7 +50,7 @@
 .filter-input {
     border: 1px solid #d1d5db;
     border-radius: 0.5rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.75rem 0.875rem;
     font-size: 0.9375rem;
 }
 
@@ -73,9 +79,13 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
     padding: 2rem 1.5rem;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
     width: 100%;
     margin: 0.75rem auto;
+    min-height: 240px;
 }
 
 .empty-state-icon {
@@ -452,4 +462,12 @@
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: .5; }
+}
+
+/* Desktop refinements */
+@media (min-width: 1024px) {
+    .filter-inputs {
+        grid-template-columns: 320px minmax(480px, 1fr);
+    }
+    .products-filters { padding: 1.25rem 2rem; }
 }
