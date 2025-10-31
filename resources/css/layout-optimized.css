@@ -23,15 +23,16 @@
 
 body {
     margin: 0;
-    min-height: 100vh;
+    height: 100vh;
     background: linear-gradient(180deg, var(--blue-25) 0%, var(--blue-50) 100%);
     color: var(--ink-900);
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow: hidden;
 }
 
 .app-shell {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     align-items: stretch;
     background: transparent;
@@ -39,12 +40,40 @@ body {
 
 .main-content-area {
     flex: 1;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     padding: clamp(1.5rem, 2vw, 2.5rem);
     gap: clamp(1.5rem, 2vw, 2rem);
     width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizado para el área de contenido */
+.main-content-area::-webkit-scrollbar {
+    width: 8px;
+}
+
+.main-content-area::-webkit-scrollbar-track {
+    background: rgba(63, 127, 255, 0.08);
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.main-content-area::-webkit-scrollbar-thumb {
+    background: rgba(63, 127, 255, 0.3);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.main-content-area::-webkit-scrollbar-thumb:hover {
+    background: rgba(63, 127, 255, 0.5);
+}
+
+.main-content-area::-webkit-scrollbar-thumb:active {
+    background: rgba(63, 127, 255, 0.7);
 }
 
 .page-header,

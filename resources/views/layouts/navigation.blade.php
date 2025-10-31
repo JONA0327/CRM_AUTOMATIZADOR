@@ -29,11 +29,17 @@
                         </svg>
                         Prospectos
                     </a>
-                    <a href="#" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">
+                    <a href="{{ route('products.index') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out {{ request()->routeIs('products.*') ? 'text-blue-600 bg-blue-50' : '' }}">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
                         Productos
+                    </a>
+                    <a href="{{ route('scheduled-messages.index') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out {{ request()->routeIs('scheduled-messages.*') ? 'text-blue-600 bg-blue-50' : '' }}">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        Mensajes Programados
                     </a>
                     <a href="#" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +94,7 @@
                             <p class="text-sm font-medium text-gray-900">{{ Auth::user()->name }}</p>
                             <p class="text-sm text-gray-500">{{ Auth::user()->email }}</p>
                         </div>
-                        
+
                         @if(auth()->user()->isAdmin())
                         <x-dropdown-link :href="route('admin.dashboard')" class="flex items-center bg-red-50 text-red-700 font-semibold">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +103,7 @@
                             Panel de Administración
                         </x-dropdown-link>
                         @endif
-                        
+
                         <x-dropdown-link :href="route('profile.edit')" class="flex items-center">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -156,11 +162,17 @@
                 </svg>
                 {{ __('Prospectos') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link href="#" class="flex items-center">
+            <x-responsive-nav-link :href="route('products.index')" :active="request()->routeIs('products.*')" class="flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
                 {{ __('Productos') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('scheduled-messages.index')" :active="request()->routeIs('scheduled-messages.*')" class="flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                {{ __('Mensajes Programados') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link href="#" class="flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

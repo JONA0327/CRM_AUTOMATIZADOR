@@ -63,7 +63,8 @@ class Product extends Model
                 'TF Rite Start Men',
                 'TF Rite Start Women',
                 'TF Sleep Rite',
-                'TF Vista'
+                'TF Vista',
+                '4Life TF AG-Pro'
             ],
             '4Life Elements' => ['Gold Factor', 'Zinc Factor'],
             '4Life Transform' => [

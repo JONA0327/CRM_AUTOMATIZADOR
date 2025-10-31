@@ -52,7 +52,7 @@
                                  data-product-id="{{ $product->id }}"
                                  data-product-name="{{ strtolower($product->name) }}"
                                  data-category="{{ $category }}">
-                                
+
                                 <!-- Imagen del producto -->
                                 <div class="product-image">
                                     @if($product->image)
@@ -65,13 +65,13 @@
                                         </div>
                                     @endif
                                 </div>
-                                
+
                                 <!-- Información del producto -->
                                 <div class="product-info">
                                     <h4 class="product-name">{{ $product->name }}</h4>
                                     <p class="product-category">{{ $product->category }}</p>
-                                    
-                                    @if($product->key_points && count($product->key_points) > 0)
+
+                                    @if($product->key_points && is_array($product->key_points) && count($product->key_points) > 0)
                                         <div class="product-key-points">
                                             <div class="key-points-list">
                                                 @foreach(array_slice($product->key_points, 0, 2) as $point)
@@ -83,7 +83,7 @@
                                             </div>
                                         </div>
                                     @endif
-                                    
+
                                     <div class="product-footer">
                                         <span class="product-country">📍 {{ $product->country }}</span>
                                         <div class="product-actions">
@@ -125,7 +125,7 @@
 
     <!-- Modal para crear/editar producto -->
     @include('products.modals.create-edit')
-    
+
     <!-- Modal para ver detalles del producto -->
     @include('products.modals.details')
 

@@ -48,7 +48,7 @@
 
                 <main class="page-container">
                     <div class="page-stack">
-                        {{ $slot }}
+                        @yield('content')
                     </div>
                 </main>
             </div>

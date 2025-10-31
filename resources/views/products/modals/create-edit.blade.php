@@ -12,7 +12,7 @@
                 @csrf
                 <input type="hidden" id="productId" name="product_id">
                 <input type="hidden" id="formMethod" name="_method" value="POST">
-                
+
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
                         <div class="w-full">
@@ -194,25 +194,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelBtn = document.getElementById('cancelBtn');
     const categorySelect = document.getElementById('category');
     const nameSelect = document.getElementById('name');
-    
+
     // Cerrar modal
     closeBtn?.addEventListener('click', closeProductModal);
     cancelBtn?.addEventListener('click', closeProductModal);
-    
+
     // Cambio de categoría
     categorySelect?.addEventListener('change', function() {
         loadProductsByCategory(this.value);
     });
-    
+
     // Manejo de archivos
     setupFileHandlers();
-    
+
     // Puntos clave dinámicos
     setupKeyPointsHandlers();
-    
+
     // Submit del formulario
     form?.addEventListener('submit', handleFormSubmit);
-    
+
     // Cargar datos iniciales
     loadInitialData();
 });
@@ -223,14 +223,14 @@ function loadInitialData() {
         .then(data => {
             productCatalog = data.catalog;
             americanCountries = data.countries;
-            
+
             // Cargar categorías
             const categorySelect = document.getElementById('category');
             categorySelect.innerHTML = '<option value="">Seleccione una categoría</option>';
             Object.keys(productCatalog).forEach(category => {
                 categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
             });
-            
+
             // Cargar países
             const countrySelect = document.getElementById('country');
             countrySelect.innerHTML = '<option value="">Seleccione un país</option>';
@@ -243,16 +243,16 @@ function loadInitialData() {
 
 function loadProductsByCategory(category) {
     const nameSelect = document.getElementById('name');
-    
+
     if (!category) {
         nameSelect.innerHTML = '<option value="">Seleccione primero una categoría</option>';
         nameSelect.disabled = true;
         return;
     }
-    
+
     nameSelect.disabled = false;
     nameSelect.innerHTML = '<option value="">Seleccione un producto</option>';
-    
+
     if (productCatalog[category]) {
         productCatalog[category].forEach(product => {
             nameSelect.innerHTML += `<option value="${product}">${product}</option>`;
@@ -267,9 +267,9 @@ function setupFileHandlers() {
     const imagePreview = document.getElementById('imagePreview');
     const imagePlaceholder = document.getElementById('imagePlaceholder');
     const removeImageBtn = document.getElementById('removeImage');
-    
+
     selectImageBtn?.addEventListener('click', () => imageInput.click());
-    
+
     imageInput?.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -277,7 +277,7 @@ function setupFileHandlers() {
                 alert('La imagen es demasiado grande. Máximo 150MB.');
                 return;
             }
-            
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 document.getElementById('imagePreviewImg').src = e.target.result;
@@ -287,22 +287,22 @@ function setupFileHandlers() {
             reader.readAsDataURL(file);
         }
     });
-    
+
     removeImageBtn?.addEventListener('click', function() {
         imageInput.value = '';
         imagePreview.classList.add('hidden');
         imagePlaceholder.classList.remove('hidden');
     });
-    
+
     // Video
     const videoInput = document.getElementById('video');
     const selectVideoBtn = document.getElementById('selectVideoBtn');
     const videoPreview = document.getElementById('videoPreview');
     const videoPlaceholder = document.getElementById('videoPlaceholder');
     const removeVideoBtn = document.getElementById('removeVideo');
-    
+
     selectVideoBtn?.addEventListener('click', () => videoInput.click());
-    
+
     videoInput?.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -310,7 +310,7 @@ function setupFileHandlers() {
                 alert('El video es demasiado grande. Máximo 150MB.');
                 return;
             }
-            
+
             const url = URL.createObjectURL(file);
             document.getElementById('videoPreviewPlayer').src = url;
             document.getElementById('videoFileName').textContent = file.name;
@@ -318,7 +318,7 @@ function setupFileHandlers() {
             videoPlaceholder.classList.add('hidden');
         }
     });
-    
+
     removeVideoBtn?.addEventListener('click', function() {
         videoInput.value = '';
         videoPreview.classList.add('hidden');
@@ -327,58 +327,85 @@ function setupFileHandlers() {
 }
 
 function setupKeyPointsHandlers() {
-    const container = document.getElementById('keyPointsContainer');
-    const addBtn = document.getElementById('addKeyPointBtn');
+    // Usar un flag global para evitar múltiples ejecuciones
+    if (window.keyPointHandlersSetup) {
+        return;
+    }
+    window.keyPointHandlersSetup = true;
     
-    // Agregar punto clave
-    addBtn?.addEventListener('click', function() {
-        const newKeyPoint = document.createElement('div');
-        newKeyPoint.className = 'flex gap-2 mb-2';
-        newKeyPoint.innerHTML = `
-            <input type="text" name="key_points[]" placeholder="Ingrese un punto clave" class="flex-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
-            <button type="button" class="remove-key-point px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-            </button>
-        `;
+    // Solo usar event delegation en el documento para todos los botones de key points
+    document.addEventListener('click', function(e) {
+        // Botón principal "Agregar punto clave"
+        if (e.target.id === 'addKeyPointBtn') {
+            e.preventDefault();
+            e.stopPropagation();
+            addNewKeyPoint();
+            return;
+        }
         
-        container.appendChild(newKeyPoint);
+        // Botón + verde dentro del container
+        if (e.target.closest('.add-key-point') && !e.target.closest('#addKeyPointBtn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            addNewKeyPoint();
+            return;
+        }
         
-        // Event listener para remover
-        newKeyPoint.querySelector('.remove-key-point').addEventListener('click', function() {
-            newKeyPoint.remove();
-        });
-    });
-    
-    // Event listener para el botón + inicial
-    container.addEventListener('click', function(e) {
-        if (e.target.classList.contains('add-key-point')) {
-            addBtn.click();
+        // Botón de eliminar
+        if (e.target.closest('.remove-key-point')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const keyPointDiv = e.target.closest('.flex.gap-2.mb-2');
+            if (keyPointDiv) {
+                keyPointDiv.remove();
+            }
+            return;
         }
     });
+}function addNewKeyPoint() {
+    const container = document.getElementById('keyPointsContainer');
+    if (!container) return;
+
+    const newKeyPoint = document.createElement('div');
+    newKeyPoint.className = 'flex gap-2 mb-2';
+    newKeyPoint.innerHTML = `
+        <input type="text" name="key_points[]" placeholder="Ingrese un punto clave" class="flex-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
+        <button type="button" class="remove-key-point px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+        </button>
+    `;
+
+    container.appendChild(newKeyPoint);
+
+    // Enfocar el nuevo input
+    const newInput = newKeyPoint.querySelector('input');
+    if (newInput) {
+        newInput.focus();
+    }
 }
 
 function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(e.target);
     const productId = document.getElementById('productId').value;
-    
+
     let url = '/products';
     let method = 'POST';
-    
+
     if (isEditing && productId) {
         url = `/products/${productId}`;
         formData.append('_method', 'PUT');
     }
-    
+
     // Mostrar indicador de carga
     const saveBtn = document.getElementById('saveProductBtn');
     const originalText = saveBtn.innerHTML;
     saveBtn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Guardando...';
     saveBtn.disabled = true;
-    
+
     fetch(url, {
         method: method,
         body: formData,
@@ -414,13 +441,13 @@ function openCreateModal() {
     document.getElementById('productForm').reset();
     document.getElementById('productId').value = '';
     document.getElementById('formMethod').value = 'POST';
-    
+
     // Reset file previews
     document.getElementById('imagePreview').classList.add('hidden');
     document.getElementById('imagePlaceholder').classList.remove('hidden');
     document.getElementById('videoPreview').classList.add('hidden');
     document.getElementById('videoPlaceholder').classList.remove('hidden');
-    
+
     // Reset key points to initial state
     const container = document.getElementById('keyPointsContainer');
     container.innerHTML = `
@@ -433,7 +460,7 @@ function openCreateModal() {
             </button>
         </div>
     `;
-    
+
     document.getElementById('productModal').classList.remove('hidden');
 }
 
@@ -445,33 +472,33 @@ function closeProductModal() {
 function editProduct(productId) {
     isEditing = true;
     document.getElementById('modalTitle').textContent = 'Editar Producto';
-    
+
     fetch(`/products/${productId}/edit`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 const product = data.product;
-                
+
                 // Llenar formulario
                 document.getElementById('productId').value = product.id;
                 document.getElementById('category').value = product.category;
                 loadProductsByCategory(product.category);
-                
+
                 setTimeout(() => {
                     document.getElementById('name').value = product.name;
                 }, 100);
-                
+
                 document.getElementById('country').value = product.country;
                 document.getElementById('information').value = product.information || '';
                 document.getElementById('disease').value = product.disease || '';
-                
+
                 // Dosis
                 if (product.dosage) {
                     document.getElementById('dosage_preventivo').value = product.dosage.preventivo || '';
                     document.getElementById('dosage_correctivo').value = product.dosage.correctivo || '';
                     document.getElementById('dosage_cronico').value = product.dosage.cronico || '';
                 }
-                
+
                 // Puntos clave
                 const container = document.getElementById('keyPointsContainer');
                 container.innerHTML = '';
@@ -488,20 +515,32 @@ function editProduct(productId) {
                             </button>
                         `;
                         container.appendChild(newKeyPoint);
-                        
+
                         newKeyPoint.querySelector('.remove-key-point').addEventListener('click', function() {
                             newKeyPoint.remove();
                         });
                     });
+                } else {
+                    // Si no hay puntos clave, agregar el campo inicial
+                    container.innerHTML = `
+                        <div class="flex gap-2 mb-2">
+                            <input type="text" name="key_points[]" placeholder="Ingrese un punto clave" class="flex-1 border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500">
+                            <button type="button" class="add-key-point px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
                 }
-                
+
                 // Imagen
                 if (product.image_url) {
                     document.getElementById('imagePreviewImg').src = product.image_url;
                     document.getElementById('imagePreview').classList.remove('hidden');
                     document.getElementById('imagePlaceholder').classList.add('hidden');
                 }
-                
+
                 // Video
                 if (product.video_url) {
                     document.getElementById('videoPreviewPlayer').src = product.video_url;
@@ -509,7 +548,7 @@ function editProduct(productId) {
                     document.getElementById('videoPreview').classList.remove('hidden');
                     document.getElementById('videoPlaceholder').classList.add('hidden');
                 }
-                
+
                 document.getElementById('productModal').classList.remove('hidden');
             }
         })

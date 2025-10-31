@@ -63,6 +63,22 @@ return [
             ]) : [],
         ],
 
+        // Segunda base de datos PostgreSQL para el CRM
+        'pgsql_secondary' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_SECONDARY_URL'),
+            'host' => env('DB_SECONDARY_HOST', '127.0.0.1'),
+            'port' => env('DB_SECONDARY_PORT', '5432'),
+            'database' => env('DB_SECONDARY_DATABASE', 'messages'),
+            'username' => env('DB_SECONDARY_USERNAME', 'postgres'),
+            'password' => env('DB_SECONDARY_PASSWORD', ''),
+            'charset' => env('DB_SECONDARY_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

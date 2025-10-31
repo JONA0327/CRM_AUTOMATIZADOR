@@ -16,7 +16,7 @@ class ProductController extends Controller
         $products = Product::active()->get();
         $productsByCategory = $products->groupBy('category');
         $catalog = Product::getProductCatalog();
-        
+
         return view('products.index', compact('productsByCategory', 'catalog'));
     }
 
@@ -59,10 +59,10 @@ class ProductController extends Controller
         }
 
         $data = $request->only(['category', 'name', 'information', 'disease', 'country']);
-        
+
         // Procesar puntos clave
         $data['key_points'] = $request->key_points ?? [];
-        
+
         // Procesar dosis
         $data['dosage'] = [
             'preventivo' => $request->dosage_preventivo,
@@ -102,7 +102,10 @@ class ProductController extends Controller
     {
         return response()->json([
             'success' => true,
-            'product' => $product
+            'product' => $product->load([])->toArray() + [
+                'image_url' => $product->image_url,
+                'video_url' => $product->video_url
+            ]
         ]);
     }
 
@@ -113,7 +116,10 @@ class ProductController extends Controller
     {
         return response()->json([
             'success' => true,
-            'product' => $product,
+            'product' => $product->toArray() + [
+                'image_url' => $product->image_url,
+                'video_url' => $product->video_url
+            ],
             'catalog' => Product::getProductCatalog(),
             'countries' => Product::getAmericanCountries()
         ]);
@@ -147,10 +153,10 @@ class ProductController extends Controller
         }
 
         $data = $request->only(['category', 'name', 'information', 'disease', 'country']);
-        
+
         // Procesar puntos clave
         $data['key_points'] = $request->key_points ?? [];
-        
+
         // Procesar dosis
         $data['dosage'] = [
             'preventivo' => $request->dosage_preventivo,
@@ -203,7 +209,7 @@ class ProductController extends Controller
     {
         $category = $request->input('category');
         $catalog = Product::getProductCatalog();
-        
+
         return response()->json([
             'products' => $catalog[$category] ?? []
         ]);

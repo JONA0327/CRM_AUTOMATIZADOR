@@ -186,10 +186,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteFromDetailsBtn = document.getElementById('deleteFromDetailsBtn');
     const shareBtn = document.getElementById('shareProductBtn');
     const printBtn = document.getElementById('printProductBtn');
-    
+
     // Cerrar modal
     closeDetailsBtn?.addEventListener('click', closeDetailsModal);
-    
+
     // Editar desde detalles
     editFromDetailsBtn?.addEventListener('click', function() {
         closeDetailsModal();
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
             editProduct(currentProductId);
         }, 300);
     });
-    
+
     // Eliminar desde detalles
     deleteFromDetailsBtn?.addEventListener('click', function() {
         if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
@@ -205,13 +205,13 @@ document.addEventListener('DOMContentLoaded', function() {
             closeDetailsModal();
         }
     });
-    
+
     // Compartir producto
     shareBtn?.addEventListener('click', shareProduct);
-    
+
     // Imprimir ficha
     printBtn?.addEventListener('click', printProductSheet);
-    
+
     // Cerrar modal al hacer clic fuera
     detailsModal?.addEventListener('click', function(e) {
         if (e.target === detailsModal) {
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showProductDetails(productId) {
     currentProductId = productId;
-    
+
     fetch(`/products/${productId}`)
         .then(response => response.json())
         .then(data => {
@@ -241,14 +241,17 @@ function showProductDetails(productId) {
 }
 
 function populateDetailsModal(product) {
+    console.log('Product data:', product); // Debug
+
     // Información básica
     document.getElementById('detailProductName').textContent = product.name;
     document.getElementById('detailProductCategory').textContent = product.category;
     document.getElementById('detailInfoCategory').textContent = product.category;
     document.getElementById('detailCountryName').textContent = product.country;
-    
+
     // Imagen
-    if (product.image_url) {
+    console.log('Image URL:', product.image_url); // Debug
+    if (product.image_url && product.image_url !== null) {
         document.getElementById('detailProductImage').src = product.image_url;
         document.getElementById('detailProductImage').alt = product.name;
         document.getElementById('detailImageContainer').classList.remove('hidden');
@@ -257,16 +260,17 @@ function populateDetailsModal(product) {
         document.getElementById('detailImageContainer').classList.add('hidden');
         document.getElementById('detailNoImage').classList.remove('hidden');
     }
-    
-    // Video
-    if (product.video_url) {
+
+    // Video (solo mostrar si existe)
+    console.log('Video URL:', product.video_url); // Debug
+    if (product.video_url && product.video_url !== null) {
         document.getElementById('detailProductVideo').src = product.video_url;
         document.getElementById('detailVideoName').textContent = product.video_name || 'Video informativo';
         document.getElementById('detailVideoSection').classList.remove('hidden');
     } else {
         document.getElementById('detailVideoSection').classList.add('hidden');
     }
-    
+
     // Enfermedad asociada
     if (product.disease) {
         document.getElementById('detailInfoDisease').textContent = product.disease;
@@ -274,12 +278,12 @@ function populateDetailsModal(product) {
     } else {
         document.getElementById('detailDiseaseSection').classList.add('hidden');
     }
-    
+
     // Puntos clave
     if (product.key_points && product.key_points.length > 0) {
         const keyPointsList = document.getElementById('detailKeyPointsList');
         keyPointsList.innerHTML = '';
-        
+
         product.key_points.forEach((point, index) => {
             const pointElement = document.createElement('div');
             pointElement.className = 'flex items-start';
@@ -291,12 +295,12 @@ function populateDetailsModal(product) {
             `;
             keyPointsList.appendChild(pointElement);
         });
-        
+
         document.getElementById('detailKeyPointsSection').classList.remove('hidden');
     } else {
         document.getElementById('detailKeyPointsSection').classList.add('hidden');
     }
-    
+
     // Información del producto
     if (product.information) {
         document.getElementById('detailProductInformation').textContent = product.information;
@@ -304,7 +308,7 @@ function populateDetailsModal(product) {
     } else {
         document.getElementById('detailInformationSection').classList.add('hidden');
     }
-    
+
     // Dosis
     if (product.dosage) {
         // Preventivo
@@ -314,7 +318,7 @@ function populateDetailsModal(product) {
         } else {
             document.getElementById('detailDosagePreventivo').classList.add('hidden');
         }
-        
+
         // Correctivo
         if (product.dosage.correctivo) {
             document.getElementById('detailDosageCorrectext').textContent = product.dosage.correctivo;
@@ -322,7 +326,7 @@ function populateDetailsModal(product) {
         } else {
             document.getElementById('detailDosageCorrectivo').classList.add('hidden');
         }
-        
+
         // Crónico
         if (product.dosage.cronico) {
             document.getElementById('detailDosageCrontext').textContent = product.dosage.cronico;
@@ -363,16 +367,16 @@ function shareProduct() {
 
 function printProductSheet() {
     if (!currentProductId) return;
-    
+
     // Crear una ventana de impresión con el contenido del producto
     const printWindow = window.open('', '_blank');
-    
+
     fetch(`/products/${currentProductId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 const product = data.product;
-                
+
                 let keyPointsHtml = '';
                 if (product.key_points && product.key_points.length > 0) {
                     keyPointsHtml = `
@@ -384,14 +388,14 @@ function printProductSheet() {
                         </div>
                     `;
                 }
-                
+
                 let dosageHtml = '';
                 if (product.dosage) {
                     const dosageItems = [];
                     if (product.dosage.preventivo) dosageItems.push(`<strong>Preventivo:</strong> ${product.dosage.preventivo}`);
                     if (product.dosage.correctivo) dosageItems.push(`<strong>Correctivo:</strong> ${product.dosage.correctivo}`);
                     if (product.dosage.cronico) dosageItems.push(`<strong>Crónico:</strong> ${product.dosage.cronico}`);
-                    
+
                     if (dosageItems.length > 0) {
                         dosageHtml = `
                             <div style="margin-bottom: 20px;">
@@ -401,7 +405,7 @@ function printProductSheet() {
                         `;
                     }
                 }
-                
+
                 const printContent = `
                     <!DOCTYPE html>
                     <html>
@@ -423,30 +427,30 @@ function printProductSheet() {
                             <p><strong>País:</strong> ${product.country}</p>
                             ${product.disease ? `<p><strong>Enfermedad Asociada:</strong> ${product.disease}</p>` : ''}
                         </div>
-                        
+
                         ${product.image_url ? `<div class="image"><img src="${product.image_url}" alt="${product.name}"></div>` : ''}
-                        
+
                         ${keyPointsHtml}
-                        
+
                         ${product.information ? `
                             <div class="section">
                                 <h3 style="font-weight: bold; margin-bottom: 10px;">Descripción:</h3>
                                 <p style="line-height: 1.6;">${product.information.replace(/\n/g, '<br>')}</p>
                             </div>
                         ` : ''}
-                        
+
                         ${dosageHtml}
-                        
+
                         <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
                             <p>Ficha generada desde CRM_AUTOMATIZADOR - ${new Date().toLocaleDateString()}</p>
                         </div>
                     </body>
                     </html>
                 `;
-                
+
                 printWindow.document.write(printContent);
                 printWindow.document.close();
-                
+
                 // Esperar a que se cargue y luego imprimir
                 setTimeout(() => {
                     printWindow.print();
