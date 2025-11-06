@@ -246,6 +246,10 @@
                             <input type="file" id="audio-file-input" accept="audio/*" class="mx-auto" />
                         </div>
 
+                        <div id="recorder-unavailable-message" class="hidden mt-4 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+                            La grabación directa desde el navegador no está disponible porque el dispositivo o navegador no soporta la captura de audio. Utiliza el botón "Subir archivo de audio" como alternativa.
+                        </div>
+
                         <!-- Input oculto para el audio en base64 -->
                         <input type="hidden" id="audio_data" name="audio_data">
 
