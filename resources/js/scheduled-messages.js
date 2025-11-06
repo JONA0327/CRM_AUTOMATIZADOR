@@ -18,6 +18,17 @@ class ScheduledMessagesManager {
             console.error('CSRF token no encontrado');
         }
 
+        // Detectar si podemos usar la API de captura de audio en este contexto
+        try {
+            const hostname = window.location.hostname;
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+            const hasMediaDevices = !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+            const legacy = !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia);
+            this.canUseRecorder = (window.isSecureContext || isLocal) && (hasMediaDevices || legacy);
+        } catch (err) {
+            this.canUseRecorder = false;
+        }
+
         this.initializeEventListeners();
         this.initializeModalHandlers();
         this.initializeTabHandlers();
@@ -60,6 +71,35 @@ class ScheduledMessagesManager {
             console.error('Request error:', error);
             throw error;
         }
+    }
+
+    // =================== MEDIA (getUserMedia) HELPERS ===================
+
+    /**
+     * Cross-browser helper to obtain a user media stream for audio.
+     * Throws a descriptive Error when unavailable (insecure context or unsupported).
+     */
+    async getUserMediaStream(constraints = { audio: true }) {
+        // Ensure secure context (getUserMedia is only available in secure contexts except localhost)
+        const hostname = window.location.hostname;
+        if (!window.isSecureContext && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+            throw new Error('InsecureContext: getUserMedia requires HTTPS or localhost');
+        }
+
+        // Standard API
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        }
+
+        // Older prefixed implementations
+        const legacyGetUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (legacyGetUserMedia) {
+            return new Promise((resolve, reject) => {
+                legacyGetUserMedia.call(navigator, constraints, resolve, reject);
+            });
+        }
+
+        throw new Error('NotSupported: getUserMedia is not supported by this browser');
     }
 
     // =================== INICIALIZACIÓN ===================
@@ -150,9 +190,31 @@ class ScheduledMessagesManager {
     }
 
     initializeAudioRecording() {
+        const recordBtn = document.getElementById('record-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const deleteBtn = document.getElementById('delete-audio-btn');
+        const audioFileInput = document.getElementById('audio-file-input');
+        const audioFallback = document.getElementById('audio-fallback');
+
         document.getElementById('record-btn')?.addEventListener('click', () => this.toggleRecording());
         document.getElementById('stop-btn')?.addEventListener('click', () => this.stopRecording());
         document.getElementById('delete-audio-btn')?.addEventListener('click', () => this.deleteAudio());
+
+        // Si no se puede usar la API de grabación en este contexto, mostrar fallback de subida
+        if (!this.canUseRecorder) {
+            if (recordBtn) recordBtn.classList.add('hidden');
+            if (stopBtn) stopBtn.classList.add('hidden');
+            if (audioFallback) audioFallback.classList.remove('hidden');
+            if (audioFileInput) {
+                audioFileInput.addEventListener('change', (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (file) this.handleAudioFile(file);
+                });
+            }
+        } else {
+            // Asegurar que el fallback esté oculto si sí soporta grabación
+            if (audioFallback) audioFallback.classList.add('hidden');
+        }
     }
 
     initializeFilters() {
@@ -440,7 +502,7 @@ class ScheduledMessagesManager {
 
     async startRecording() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await this.getUserMediaStream({ audio: true });
             this.mediaRecorder = new MediaRecorder(stream);
             this.audioChunks = [];
             this.recordingSeconds = 0;
@@ -452,7 +514,7 @@ class ScheduledMessagesManager {
             this.mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(this.audioChunks, { type: 'audio/mpeg' });
                 this.processAudioBlob(audioBlob);
-                stream.getTracks().forEach(track => track.stop());
+                try { stream.getTracks().forEach(track => track.stop()); } catch (e) { /* ignore */ }
             };
 
             this.mediaRecorder.start();
@@ -461,7 +523,21 @@ class ScheduledMessagesManager {
 
         } catch (error) {
             console.error('Error al acceder al micrófono:', error);
-            this.showNotification('Error al acceder al micrófono', 'error');
+
+            // Mensajes más descriptivos según el tipo de error
+            let userMessage = 'Error al acceder al micrófono';
+            const msg = (error && error.message) ? error.message : '';
+            const name = (error && error.name) ? error.name : '';
+
+            if (msg.includes('InsecureContext')) {
+                userMessage = 'Acceso denegado: la grabación requiere HTTPS o uso en localhost.';
+            } else if (msg.includes('NotSupported')) {
+                userMessage = 'Tu navegador no soporta la grabación de audio.';
+            } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+                userMessage = 'Permiso de micrófono denegado. Por favor permite el acceso al micrófono en tu navegador.';
+            }
+
+            this.showNotification(userMessage, 'error');
         }
     }
 
@@ -497,6 +573,28 @@ class ScheduledMessagesManager {
         document.getElementById('audio_data').value = '';
         document.getElementById('audio-preview').src = '';
         document.getElementById('audio-visualizer').classList.add('hidden');
+        // Limpiar input de archivo si existe
+        const audioFileInput = document.getElementById('audio-file-input');
+        if (audioFileInput) {
+            audioFileInput.value = null;
+        }
+    }
+
+    // Manejar archivo de audio subido como fallback
+    handleAudioFile(file) {
+        try {
+            // Aceptar sólo archivos de tipo audio
+            if (!file.type.startsWith('audio/')) {
+                this.showNotification('El archivo seleccionado no es un audio válido.', 'error');
+                return;
+            }
+
+            // Procesar como blob (reutiliza processAudioBlob)
+            this.processAudioBlob(file);
+        } catch (err) {
+            console.error('Error procesando archivo de audio:', err);
+            this.showNotification('Error procesando el archivo de audio.', 'error');
+        }
     }
 
     updateRecordingUI(isRecording) {

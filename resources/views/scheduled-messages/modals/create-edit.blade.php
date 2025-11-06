@@ -240,6 +240,12 @@
                             </div>
                         </div>
 
+                        <!-- Fallback: Subir archivo de audio cuando la captura no esté disponible -->
+                        <div id="audio-fallback" class="hidden text-center mb-4">
+                            <label for="audio-file-input" class="block text-sm font-medium text-gray-700 mb-2">Subir archivo de audio (MP3, WAV)</label>
+                            <input type="file" id="audio-file-input" accept="audio/*" class="mx-auto" />
+                        </div>
+
                         <!-- Input oculto para el audio en base64 -->
                         <input type="hidden" id="audio_data" name="audio_data">
 
