@@ -200,20 +200,34 @@ class ScheduledMessagesManager {
         document.getElementById('stop-btn')?.addEventListener('click', () => this.stopRecording());
         document.getElementById('delete-audio-btn')?.addEventListener('click', () => this.deleteAudio());
 
-        // Si no se puede usar la API de grabación en este contexto, mostrar fallback de subida
+        // Mostrar siempre el fallback de subida para que el usuario pueda subir audios
+        if (audioFallback) audioFallback.classList.remove('hidden');
+
+        // Adjuntar manejador de archivo si existe
+        if (audioFileInput) {
+            audioFileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) this.handleAudioFile(file);
+            });
+        }
+
+        // Habilitar o deshabilitar el botón de grabar según la disponibilidad
         if (!this.canUseRecorder) {
-            if (recordBtn) recordBtn.classList.add('hidden');
-            if (stopBtn) stopBtn.classList.add('hidden');
-            if (audioFallback) audioFallback.classList.remove('hidden');
-            if (audioFileInput) {
-                audioFileInput.addEventListener('change', (e) => {
-                    const file = e.target.files && e.target.files[0];
-                    if (file) this.handleAudioFile(file);
-                });
+            if (recordBtn) {
+                recordBtn.removeAttribute('class');
+                recordBtn.className = 'bg-red-300 text-white px-6 py-3 rounded-full font-medium transition-all duration-200 flex items-center gap-2 cursor-not-allowed';
+                recordBtn.setAttribute('disabled', 'disabled');
+                recordBtn.setAttribute('title', 'La grabación requiere HTTPS o uso en localhost. Puedes subir un archivo de audio como alternativa.');
             }
+            if (stopBtn) stopBtn.classList.add('hidden');
         } else {
-            // Asegurar que el fallback esté oculto si sí soporta grabación
-            if (audioFallback) audioFallback.classList.add('hidden');
+            // Recorder disponible: ensure record button enabled
+            if (recordBtn) {
+                recordBtn.removeAttribute('disabled');
+                recordBtn.setAttribute('title', 'Grabar audio en el navegador');
+                // restore default styling if necessary
+            }
+            if (stopBtn) stopBtn.classList.add('hidden');
         }
     }
 
