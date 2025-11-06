@@ -20,11 +20,9 @@ class ScheduledMessagesManager {
 
         // Detectar si podemos usar la API de captura de audio en este contexto
         try {
-            const hostname = window.location.hostname;
-            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
             const hasMediaDevices = !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
             const legacy = !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia);
-            this.canUseRecorder = (window.isSecureContext || isLocal) && (hasMediaDevices || legacy);
+            this.canUseRecorder = hasMediaDevices || legacy;
         } catch (err) {
             this.canUseRecorder = false;
         }
@@ -80,12 +78,6 @@ class ScheduledMessagesManager {
      * Throws a descriptive Error when unavailable (insecure context or unsupported).
      */
     async getUserMediaStream(constraints = { audio: true }) {
-        // Ensure secure context (getUserMedia is only available in secure contexts except localhost)
-        const hostname = window.location.hostname;
-        if (!window.isSecureContext && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-            throw new Error('InsecureContext: getUserMedia requires HTTPS or localhost');
-        }
-
         // Standard API
         if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
             return await navigator.mediaDevices.getUserMedia(constraints);
@@ -224,7 +216,7 @@ class ScheduledMessagesManager {
                 recordBtn.classList.add('opacity-60', 'cursor-not-allowed');
                 recordBtn.classList.remove('hover:bg-red-600');
                 recordBtn.setAttribute('disabled', 'disabled');
-                recordBtn.setAttribute('title', 'La grabación requiere HTTPS o uso en localhost. Puedes subir un archivo de audio como alternativa.');
+                recordBtn.setAttribute('title', 'La grabación en navegador no es compatible en este dispositivo. Puedes subir un archivo de audio como alternativa.');
                 if (recordText) recordText.textContent = 'Grabación no disponible';
             }
             if (stopBtn) stopBtn.classList.add('hidden');
@@ -519,7 +511,7 @@ class ScheduledMessagesManager {
 
     async toggleRecording() {
         if (!this.canUseRecorder) {
-            this.showNotification('La grabación de audio no está disponible en este entorno. Utiliza la opción de subir un archivo o accede mediante HTTPS.', 'warning');
+            this.showNotification('La grabación de audio no está disponible en este dispositivo o navegador. Utiliza la opción de subir un archivo.', 'warning');
             return;
         }
 
@@ -559,12 +551,12 @@ class ScheduledMessagesManager {
             const msg = (error && error.message) ? error.message : '';
             const name = (error && error.name) ? error.name : '';
 
-            if (msg.includes('InsecureContext')) {
-                userMessage = 'Acceso denegado: la grabación requiere HTTPS o uso en localhost.';
-            } else if (msg.includes('NotSupported')) {
+            if (msg.includes('NotSupported')) {
                 userMessage = 'Tu navegador no soporta la grabación de audio.';
             } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
                 userMessage = 'Permiso de micrófono denegado. Por favor permite el acceso al micrófono en tu navegador.';
+            } else if (!window.isSecureContext && msg.toLowerCase().includes('secure')) {
+                userMessage = 'El navegador bloqueó la grabación porque el sitio no usa HTTPS. Considera habilitar HTTPS o utiliza la opción de subir un archivo.';
             }
 
             this.showNotification(userMessage, 'error');
