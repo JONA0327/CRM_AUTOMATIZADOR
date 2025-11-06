@@ -51,7 +51,11 @@
 
                 <main class="page-container">
                     <div class="page-stack">
-                        @yield('content')
+                        @isset($slot)
+                            {{ $slot }}
+                        @else
+                            @yield('content')
+                        @endisset
                     </div>
                 </main>
             </div>
