@@ -1,23 +1,24 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <div class="w-10 h-10 bg-gradient-to-r from-red-600 to-red-700 rounded-lg flex items-center justify-center mr-4">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="font-bold text-2xl text-gray-900">Panel de Administración</h2>
-                    <p class="text-sm text-gray-600">CRM_AUTOMATIZADOR - Gestión del Sistema</p>
-                </div>
-            </div>
-            <div class="text-right">
-                <p class="text-sm text-gray-500">Administrador</p>
-                <p class="font-semibold text-gray-900">{{ Auth::user()->name }}</p>
-            </div>
+@extends('layouts.app')
+
+@section('content')
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gradient-to-r from-red-600 to-red-700 rounded-lg flex items-center justify-center mr-4">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
         </div>
-    </x-slot>
+        <div>
+            <h2 class="font-bold text-2xl text-gray-900">Panel de Administración</h2>
+            <p class="text-sm text-gray-600">CRM_AUTOMATIZADOR - Gestión del Sistema</p>
+        </div>
+    </div>
+    <div class="text-right">
+        <p class="text-sm text-gray-500">Administrador</p>
+        <p class="font-semibold text-gray-900">{{ Auth::user()->name }}</p>
+    </div>
+</div>
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -99,7 +100,7 @@
                             <div>
                                 <h3 class="text-2xl font-bold mb-2">¡Bienvenido al Panel de Administración!</h3>
                                 <p class="text-red-100 mb-6">
-                                    Desde aquí puedes gestionar usuarios, roles, configuración del sistema y 
+                                    Desde aquí puedes gestionar usuarios, roles, configuración del sistema y
                                     monitorear el estado general del CRM_AUTOMATIZADOR.
                                 </p>
                                 <div class="flex space-x-4">
@@ -181,4 +182,4 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+@endsection

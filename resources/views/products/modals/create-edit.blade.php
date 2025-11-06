@@ -332,7 +332,7 @@ function setupKeyPointsHandlers() {
         return;
     }
     window.keyPointHandlersSetup = true;
-    
+
     // Solo usar event delegation en el documento para todos los botones de key points
     document.addEventListener('click', function(e) {
         // Botón principal "Agregar punto clave"
@@ -342,7 +342,7 @@ function setupKeyPointsHandlers() {
             addNewKeyPoint();
             return;
         }
-        
+
         // Botón + verde dentro del container
         if (e.target.closest('.add-key-point') && !e.target.closest('#addKeyPointBtn')) {
             e.preventDefault();
@@ -350,7 +350,7 @@ function setupKeyPointsHandlers() {
             addNewKeyPoint();
             return;
         }
-        
+
         // Botón de eliminar
         if (e.target.closest('.remove-key-point')) {
             e.preventDefault();

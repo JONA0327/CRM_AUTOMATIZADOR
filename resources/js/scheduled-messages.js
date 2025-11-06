@@ -12,11 +12,54 @@ class ScheduledMessagesManager {
         this.currentMessageId = null;
         this.isEditing = false;
 
+        // Configurar CSRF token globalmente
+        this.csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!this.csrfToken) {
+            console.error('CSRF token no encontrado');
+        }
+
         this.initializeEventListeners();
         this.initializeModalHandlers();
         this.initializeTabHandlers();
         this.initializeAudioRecording();
         this.initializeFilters();
+    }
+
+    // =================== HELPER FUNCTIONS ===================
+
+    async makeRequest(url, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': this.csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        };
+
+        const config = {
+            ...defaultOptions,
+            ...options,
+            headers: {
+                ...defaultOptions.headers,
+                ...options.headers
+            }
+        };
+
+        try {
+            const response = await fetch(url, config);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', response.status, errorText);
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Request error:', error);
+            throw error;
+        }
     }
 
     // =================== INICIALIZACIÓN ===================
@@ -137,10 +180,10 @@ class ScheduledMessagesManager {
 
     async editMessage(messageId) {
         try {
-            const response = await fetch(`/scheduled-messages/${messageId}/edit`);
-            if (!response.ok) throw new Error('Error al cargar el mensaje');
+            const data = await this.makeRequest(`/scheduled-messages/${messageId}/edit`, {
+                method: 'GET'
+            });
 
-            const data = await response.json();
             if (!data.success) throw new Error(data.message || 'Error desconocido');
 
             this.isEditing = true;
@@ -167,10 +210,10 @@ class ScheduledMessagesManager {
 
     async viewMessage(messageId) {
         try {
-            const response = await fetch(`/scheduled-messages/${messageId}`);
-            if (!response.ok) throw new Error('Error al cargar el mensaje');
+            const data = await this.makeRequest(`/scheduled-messages/${messageId}`, {
+                method: 'GET'
+            });
 
-            const data = await response.json();
             if (!data.success) throw new Error(data.message || 'Error desconocido');
 
             this.populateDetailsModal(data.message);
@@ -271,10 +314,16 @@ class ScheduledMessagesManager {
 
         // Validación de contenido
         if (!data.message_text && !data.audio_data) {
-            document.getElementById('content-validation').classList.remove('hidden');
+            document.getElementById('content-validation')?.classList.remove('hidden');
             return;
         } else {
-            document.getElementById('content-validation').classList.add('hidden');
+            document.getElementById('content-validation')?.classList.add('hidden');
+        }
+
+        // Verificar token CSRF
+        if (!this.csrfToken) {
+            this.showNotification('Error: Token CSRF no encontrado. Recarga la página.', 'error');
+            return;
         }
 
         // Preparar datos para envío
@@ -291,28 +340,19 @@ class ScheduledMessagesManager {
 
         try {
             let url = '/scheduled-messages';
-            let method = 'POST';
 
             if (this.isEditing && this.currentMessageId) {
                 url = `/scheduled-messages/${this.currentMessageId}`;
-                method = 'PUT';
+                submitData._method = 'PUT';
             }
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                },
+            const result = await this.makeRequest(url, {
+                method: 'POST',
                 body: JSON.stringify(submitData)
             });
 
-            if (!response.ok) throw new Error('Error en la petición');
-
-            const result = await response.json();
-
             if (result.success) {
-                this.showNotification(result.message, 'success');
+                this.showNotification(result.message || 'Mensaje guardado correctamente', 'success');
                 this.closeModal();
                 setTimeout(() => window.location.reload(), 1500);
             } else {
@@ -320,8 +360,18 @@ class ScheduledMessagesManager {
             }
 
         } catch (error) {
-            console.error('Error:', error);
-            this.showNotification('Error al guardar el mensaje', 'error');
+            console.error('Error completo:', error);
+
+            let errorMessage = 'Error al guardar el mensaje';
+            if (error.message.includes('419')) {
+                errorMessage = 'Error de sesión. Por favor, recarga la página.';
+            } else if (error.message.includes('422')) {
+                errorMessage = 'Datos de formulario inválidos';
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Error interno del servidor';
+            }
+
+            this.showNotification(errorMessage, 'error');
         }
     }
 
@@ -534,17 +584,9 @@ class ScheduledMessagesManager {
 
     async toggleMessageStatus(messageId) {
         try {
-            const response = await fetch(`/scheduled-messages/${messageId}/toggle-status`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                }
+            const result = await this.makeRequest(`/scheduled-messages/${messageId}/toggle-status`, {
+                method: 'POST'
             });
-
-            if (!response.ok) throw new Error('Error en la petición');
-
-            const result = await response.json();
 
             if (result.success) {
                 this.showNotification(result.message, 'success');
@@ -565,17 +607,9 @@ class ScheduledMessagesManager {
         }
 
         try {
-            const response = await fetch(`/scheduled-messages/${messageId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                }
+            const result = await this.makeRequest(`/scheduled-messages/${messageId}`, {
+                method: 'DELETE'
             });
-
-            if (!response.ok) throw new Error('Error en la petición');
-
-            const result = await response.json();
 
             if (result.success) {
                 this.showNotification(result.message, 'success');
@@ -612,10 +646,10 @@ class ScheduledMessagesManager {
         loading.classList.remove('hidden');
 
         try {
-            const response = await fetch('/scheduled-messages/current');
-            if (!response.ok) throw new Error('Error al cargar mensajes actuales');
+            const data = await this.makeRequest('/scheduled-messages/current', {
+                method: 'GET'
+            });
 
-            const data = await response.json();
             if (!data.success) throw new Error(data.message || 'Error desconocido');
 
             this.displayCurrentMessages(data);

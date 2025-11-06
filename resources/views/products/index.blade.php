@@ -1,22 +1,27 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="products-header">
-            <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-4">
-                    <span class="stat-icon">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                    </span>
-                    <div>
-                        <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Gestión de Productos</h2>
-                        <p class="text-sm font-medium text-blue-600">Catálogo completo de productos 4Life</p>
-                    </div>
-                </div>
-                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Catálogo actualizado</p>
+@extends('layouts.app')
+
+@push('styles')
+    @vite('resources/css/products.css')
+@endpush
+
+@section('content')
+<!-- Header -->
+<div class="products-header">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-4">
+            <span class="stat-icon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            </span>
+            <div>
+                <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Gestión de Productos</h2>
+                <p class="text-sm font-medium text-blue-600">Catálogo completo de productos 4Life</p>
             </div>
         </div>
-    </x-slot>
+        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Catálogo actualizado</p>
+    </div>
+</div>
 
     <div class="products-container">
         <!-- Filtros -->
@@ -123,13 +128,14 @@
         @endif
     </div>
 
-    <!-- Modal para crear/editar producto -->
-    @include('products.modals.create-edit')
+<!-- Modal para crear/editar producto -->
+@include('products.modals.create-edit')
 
-    <!-- Modal para ver detalles del producto -->
-    @include('products.modals.details')
+<!-- Modal para ver detalles del producto -->
+@include('products.modals.details')
+@endsection
 
-    @vite('resources/css/products.css')
+@push('scripts')
     @vite('resources/js/products.js')
-</x-app-layout>
+@endpush
 

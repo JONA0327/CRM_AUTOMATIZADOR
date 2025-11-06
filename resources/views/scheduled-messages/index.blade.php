@@ -1,36 +1,42 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="products-header">
-            <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-4">
-                    <span class="stat-icon">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 4h10M5 5a2 2 0 012-2h10a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V5z"></path>
-                        </svg>
-                    </span>
-                    <div>
-                        <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Mensajes Programados</h2>
-                        <p class="text-sm font-medium text-blue-600">Automatiza recordatorios y seguimientos 4Life</p>
-                    </div>
-                </div>
-                <div class="scheduled-header-actions">
-                    <p class="scheduled-header-subtitle">Panel actualizado</p>
-                    <button
-                        id="create-message-btn"
-                        class="scheduled-primary-btn"
-                        type="button"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path>
-                        </svg>
-                        Crear mensaje
-                    </button>
-                </div>
+@extends('layouts.app')
+
+@push('styles')
+    @vite('resources/css/products.css')
+    @vite('resources/css/scheduled-messages.css')
+@endpush
+
+@section('content')
+<!-- Header -->
+<div class="products-header">
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-4">
+            <span class="stat-icon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 4h10M5 5a2 2 0 012-2h10a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V5z"></path>
+                </svg>
+            </span>
+            <div>
+                <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Mensajes Programados</h2>
+                <p class="text-sm font-medium text-blue-600">Automatiza recordatorios y seguimientos 4Life</p>
             </div>
         </div>
-    </x-slot>
+        <div class="scheduled-header-actions">
+            <p class="scheduled-header-subtitle">Panel actualizado</p>
+            <button
+                id="create-message-btn"
+                class="scheduled-primary-btn"
+                type="button"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path>
+                </svg>
+                Crear mensaje
+            </button>
+        </div>
+    </div>
+</div>
 
-    <div class="products-container scheduled-messages-container">
+<div class="products-container scheduled-messages-container">
         <div class="products-filters">
             <div class="filter-controls scheduled-filter-controls">
                 <div class="filter-inputs scheduled-filter-inputs">
@@ -230,11 +236,11 @@
         </div>
     </div>
 
-    @include('scheduled-messages.modals.create-edit')
-    @include('scheduled-messages.modals.details')
-    @include('scheduled-messages.modals.current-messages')
+@include('scheduled-messages.modals.create-edit')
+@include('scheduled-messages.modals.details')
+@include('scheduled-messages.modals.current-messages')
+@endsection
 
-    @vite('resources/css/products.css')
-    @vite('resources/css/scheduled-messages.css')
+@push('scripts')
     @vite('resources/js/scheduled-messages.js')
-</x-app-layout>
+@endpush

@@ -14,6 +14,9 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/layout-optimized.css', 'resources/js/app.js', 'resources/js/sidebar.js'])
 
+        <!-- Additional Styles -->
+        @stack('styles')
+
         <style>
             :root {
                 color-scheme: light;
@@ -53,6 +56,9 @@
                 </main>
             </div>
         </div>
+
+        <!-- Additional Scripts -->
+        @stack('scripts')
     </body>
 </html>
 
