@@ -195,13 +195,20 @@ class ScheduledMessagesManager {
         const deleteBtn = document.getElementById('delete-audio-btn');
         const audioFileInput = document.getElementById('audio-file-input');
         const audioFallback = document.getElementById('audio-fallback');
+        const recorderUnavailableMessage = document.getElementById('recorder-unavailable-message');
+        const recordText = document.getElementById('record-text');
 
         document.getElementById('record-btn')?.addEventListener('click', () => this.toggleRecording());
         document.getElementById('stop-btn')?.addEventListener('click', () => this.stopRecording());
         document.getElementById('delete-audio-btn')?.addEventListener('click', () => this.deleteAudio());
 
-        // Mostrar siempre el fallback de subida para que el usuario pueda subir audios
-        if (audioFallback) audioFallback.classList.remove('hidden');
+        if (audioFallback) {
+            audioFallback.classList.toggle('hidden', this.canUseRecorder);
+        }
+
+        if (recorderUnavailableMessage) {
+            recorderUnavailableMessage.classList.toggle('hidden', this.canUseRecorder);
+        }
 
         // Adjuntar manejador de archivo si existe
         if (audioFileInput) {
@@ -214,17 +221,21 @@ class ScheduledMessagesManager {
         // Habilitar o deshabilitar el botón de grabar según la disponibilidad
         if (!this.canUseRecorder) {
             if (recordBtn) {
-                recordBtn.removeAttribute('class');
-                recordBtn.className = 'bg-red-300 text-white px-6 py-3 rounded-full font-medium transition-all duration-200 flex items-center gap-2 cursor-not-allowed';
+                recordBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                recordBtn.classList.remove('hover:bg-red-600');
                 recordBtn.setAttribute('disabled', 'disabled');
                 recordBtn.setAttribute('title', 'La grabación requiere HTTPS o uso en localhost. Puedes subir un archivo de audio como alternativa.');
+                if (recordText) recordText.textContent = 'Grabación no disponible';
             }
             if (stopBtn) stopBtn.classList.add('hidden');
         } else {
             // Recorder disponible: ensure record button enabled
             if (recordBtn) {
+                recordBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                recordBtn.classList.add('hover:bg-red-600');
                 recordBtn.removeAttribute('disabled');
                 recordBtn.setAttribute('title', 'Grabar audio en el navegador');
+                if (recordText) recordText.textContent = 'Grabar Audio';
                 // restore default styling if necessary
             }
             if (stopBtn) stopBtn.classList.add('hidden');
@@ -507,6 +518,11 @@ class ScheduledMessagesManager {
     // =================== GESTIÓN DE AUDIO ===================
 
     async toggleRecording() {
+        if (!this.canUseRecorder) {
+            this.showNotification('La grabación de audio no está disponible en este entorno. Utiliza la opción de subir un archivo o accede mediante HTTPS.', 'warning');
+            return;
+        }
+
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.stopRecording();
         } else {
