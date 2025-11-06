@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\DiseaseController;
+use App\Http\Controllers\DiseaseSuggestionController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +27,13 @@ Route::middleware('auth')->group(function () {
     // Rutas de productos
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::get('/products-by-category', [\App\Http\Controllers\ProductController::class, 'getProductsByCategory'])->name('products.by-category');
+
+    // Índice de enfermedades
+    Route::get('/diseases/list', [DiseaseController::class, 'list'])->name('diseases.list');
+    Route::post('/diseases/suggestions', [DiseaseSuggestionController::class, 'suggestProducts'])->name('diseases.suggestions');
+    Route::post('/diseases/information', [DiseaseSuggestionController::class, 'generateInformation'])->name('diseases.information');
+    Route::post('/diseases/suggestions/{suggestion}/approve', [DiseaseController::class, 'approveSuggestion'])->name('diseases.suggestions.approve');
+    Route::resource('diseases', DiseaseController::class);
 
     // Rutas de mensajes programados
     Route::resource('scheduled-messages', \App\Http\Controllers\ScheduledMessageController::class);
