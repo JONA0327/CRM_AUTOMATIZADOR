@@ -14,7 +14,6 @@
                         <div class="flex items-center justify-between mb-6">
                             <div>
                                 <h3 class="text-lg font-medium text-gray-900" id="detailDiseaseName">Condición</h3>
-                                <p class="text-sm text-gray-500" id="detailDiseaseCountry"></p>
                             </div>
                             <button type="button" id="closeDiseaseDetailsModal" class="bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors">
                                 <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

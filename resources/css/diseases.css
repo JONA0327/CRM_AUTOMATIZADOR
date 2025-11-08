@@ -2,39 +2,6 @@
     gap: clamp(1.5rem, 2vw, 2.5rem);
 }
 
-.country-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.country-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    border-bottom: 1px solid rgba(36, 96, 230, 0.15);
-    padding-bottom: 0.75rem;
-}
-
-.country-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--ink-700);
-}
-
-.country-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: 9999px;
-    background: rgba(63, 127, 255, 0.12);
-    color: var(--ink-500);
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
 .diseases-grid {
     width: 100%;
 }
@@ -116,16 +83,268 @@
     font-weight: 600;
 }
 
-.disease-country {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
 .empty-state-icon {
     width: 3.5rem;
     height: 3.5rem;
     color: var(--ink-400);
+}
+
+.product-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.85rem;
+}
+
+.product-selector-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 0.85rem;
+    background: #f8fafc;
+    border: 2px solid transparent;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.product-selector-card:hover {
+    background: #eff6ff;
+    border-color: rgba(37, 99, 235, 0.25);
+}
+
+.product-selector-card.is-active {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: rgba(37, 99, 235, 0.55);
+    box-shadow: 0 8px 18px -10px rgba(37, 99, 235, 0.6);
+}
+
+.product-selector-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: white;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.product-selector-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.product-selector-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ink-700);
+}
+
+.product-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: rgba(15, 23, 42, 0.35);
+}
+
+.ai-suggestion-card {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: white;
+}
+
+.ai-suggestion-figure {
+    width: 64px;
+    height: 64px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.ai-suggestion-figure img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ai-suggestion-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.ai-suggestion-info h6 {
+    font-weight: 600;
+    color: var(--ink-700);
+    margin: 0;
+}
+
+.ai-suggestion-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--ink-500);
+}
+
+.confidence-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    background: rgba(22, 163, 74, 0.12);
+    color: rgba(22, 163, 74, 0.85);
+    font-weight: 600;
+}
+
+.analysis-points {
+    margin: 0.25rem 0 0;
+    padding-left: 1rem;
+    font-size: 0.75rem;
+    color: rgba(15, 23, 42, 0.7);
+}
+
+.ai-suggestion-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ai-suggestion-actions button {
+    padding: 0.55rem 0.95rem;
+    border-radius: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.ai-suggestion-actions .add-suggestion-btn {
+    background: rgba(37, 99, 235, 0.08);
+    color: rgba(37, 99, 235, 1);
+}
+
+.ai-suggestion-actions .remove-ai-recommendation {
+    color: rgba(239, 68, 68, 0.95);
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.selected-ai-card {
+    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.selected-product-card {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 1rem;
+    align-items: stretch;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+}
+
+.selected-product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.selected-product-info h6 {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ink-700);
+}
+
+.manual-reason-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--ink-700);
+    resize: vertical;
+}
+
+.manual-reason-input:focus {
+    outline: none;
+    border-color: rgba(37, 99, 235, 0.55);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.selected-product-actions {
+    display: flex;
+    align-items: flex-start;
+}
+
+.selected-product-actions .remove-manual-recommendation {
+    padding: 0.55rem 0.9rem;
+    border-radius: 0.75rem;
+    background: rgba(239, 68, 68, 0.12);
+    color: rgba(239, 68, 68, 0.9);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.detail-product-card {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.85rem;
+    border-radius: 0.85rem;
+    background: #f9fafb;
+}
+
+.detail-product-image {
+    width: 56px;
+    height: 56px;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.detail-product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detail-product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.detail-product-info h6 {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ink-700);
+}
+
+.detail-product-info p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(15, 23, 42, 0.7);
 }
 
 @media (max-width: 768px) {
@@ -133,8 +352,12 @@
         gap: 1.5rem;
     }
 
-    .country-header {
-        flex-direction: column;
-        align-items: flex-start;
+    .ai-suggestion-card {
+        grid-template-columns: 48px 1fr;
+    }
+
+    .ai-suggestion-actions {
+        flex-direction: row;
+        justify-content: flex-end;
     }
 }

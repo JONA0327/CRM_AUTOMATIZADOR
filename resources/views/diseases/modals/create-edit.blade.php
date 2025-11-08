@@ -33,16 +33,7 @@
                         <div class="space-y-2">
                             <label for="diseaseName" class="block text-sm font-medium text-gray-700">Nombre de la condición <span class="text-red-500">*</span></label>
                             <input type="text" id="diseaseName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: Resistencia inmunológica baja">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label for="diseaseCountry" class="block text-sm font-medium text-gray-700">País principal <span class="text-red-500">*</span></label>
-                            <select id="diseaseCountry" name="country" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Selecciona un país</option>
-                                @foreach($availableCountries as $country)
-                                    <option value="{{ $country }}">{{ $country }}</option>
-                                @endforeach
-                            </select>
+                            <input type="hidden" id="diseaseCountry" name="country" value="Global">
                         </div>
 
                         <div class="space-y-2">
@@ -73,23 +64,30 @@
                     </div>
 
                     <div class="space-y-6">
-                        <div class="card-section">
+                        <div id="manualModeSection" class="card-section">
                             <div class="card-section-header">
                                 <h4>Productos añadidos manualmente</h4>
                                 <p>Selecciona productos y describe por qué apoyan esta condición.</p>
                             </div>
                             <div class="card-section-body space-y-4">
-                                <div class="flex flex-col gap-3">
-                                    <select id="manualProductSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="">Selecciona un producto</option>
-                                        @foreach($products as $product)
-                                            <option value="{{ $product->id }}" data-country="{{ $product->country }}" data-name="{{ $product->name }}">
-                                                {{ $product->name }} ({{ $product->country }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <textarea id="manualProductReason" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Describe cómo este producto apoya la condición."></textarea>
-                                    <button type="button" id="addManualProductBtn" class="add-manual-btn">Agregar producto manual</button>
+                                <p class="text-sm text-gray-600">Pulsa sobre uno o más productos para agregarlos a la condición.</p>
+                                <div id="manualProductGallery" class="product-selector-grid">
+                                    @foreach($products as $product)
+                                        <button type="button" class="product-selector-card" data-product-id="{{ $product->id }}">
+                                            <div class="product-selector-image">
+                                                @if($product->image)
+                                                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}">
+                                                @else
+                                                    <div class="product-image-placeholder">
+                                                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                                        </svg>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            <span class="product-selector-name">{{ $product->name }}</span>
+                                        </button>
+                                    @endforeach
                                 </div>
                                 <div id="manualRecommendationsList" class="recommendations-list empty">
                                     <p class="text-sm text-gray-500">No hay productos manuales agregados.</p>
@@ -97,44 +95,28 @@
                             </div>
                         </div>
 
-                        <div class="card-section">
+                        <div id="aiModeSection" class="card-section hidden">
                             <div class="card-section-header">
                                 <h4>Sugerencias con IA</h4>
                                 <p>Analiza el catálogo para proponer productos relevantes.</p>
                             </div>
                             <div class="card-section-body space-y-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                                        <input type="checkbox" id="onlySameCountry" class="text-blue-600 focus:ring-blue-500">
-                                        Solo productos del país seleccionado
-                                    </label>
-                                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                                        <input type="checkbox" id="includeOtherCountries" class="text-blue-600 focus:ring-blue-500" checked>
-                                        Incluir sugerencias de otros países
-                                    </label>
-                                </div>
                                 <textarea id="suggestionContext" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añade síntomas, contexto u objetivos específicos para el análisis."></textarea>
                                 <button type="button" id="generateSuggestionsBtn" class="generate-suggestions-btn">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                     </svg>
-                                    Generar sugerencias IA
+                                    Analizar con IA
                                 </button>
                                 <div id="aiSuggestionsContainer" class="space-y-4">
                                     <div>
-                                        <h5 class="suggestion-group-title">Coincidencias del mismo país</h5>
-                                        <div id="sameCountrySuggestions" class="recommendations-list empty">
+                                        <h5 class="suggestion-group-title">Coincidencias sugeridas</h5>
+                                        <div id="aiSuggestions" class="recommendations-list empty">
                                             <p class="text-sm text-gray-500">Aún no se han generado sugerencias.</p>
                                         </div>
                                     </div>
                                     <div>
-                                        <h5 class="suggestion-group-title">Sugerencias de otros países (requieren aprobación)</h5>
-                                        <div id="crossCountrySuggestions" class="recommendations-list empty">
-                                            <p class="text-sm text-gray-500">Aún no se han generado sugerencias.</p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h5 class="suggestion-group-title">Sugerencias aceptadas</h5>
+                                        <h5 class="suggestion-group-title">Productos seleccionados</h5>
                                         <div id="selectedAiRecommendations" class="recommendations-list empty">
                                             <p class="text-sm text-gray-500">Todavía no has aceptado sugerencias.</p>
                                         </div>
@@ -166,6 +148,7 @@
             'country' => $product->country,
             'key_points' => $product->key_points,
             'information' => $product->information,
+            'image_url' => $product->image_url,
         ];
     })->toJson() !!}</script>
     </div>
