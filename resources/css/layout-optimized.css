@@ -1559,6 +1559,13 @@ textarea.form-control {
     overflow-y: auto;
     display: grid;
     gap: clamp(1.5rem, 2vw, 2rem);
+    flex: 1;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.app-modal__body::-webkit-scrollbar {
+    display: none;
 }
 
 .app-modal__footer {
