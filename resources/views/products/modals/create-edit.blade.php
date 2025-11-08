@@ -491,7 +491,7 @@ function editProduct(productId) {
     isEditing = true;
     document.getElementById('modalTitle').textContent = 'Editar producto';
 
-    fetch(`/products/${productId}/edit`)
+    fetch(`/products/${productId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
