@@ -27,24 +27,20 @@ class DiseaseAiService
      * @param string|null $description
      * @param Collection<int, Product> $products
      * @param array $options
-     * @return array{same_country: array<int, array>, cross_country: array<int, array>}
+     * @return array<int, array{product_id:int, product_name:string, reason:string, analysis_points:array<int, string>, confidence:int}>
      */
     public function generateProductSuggestions(string $diseaseName, ?string $description, Collection $products, array $options = []): array
     {
         $options = array_merge([
-            'target_country' => null,
-            'only_same_country' => false,
-            'include_cross_country' => true,
             'limit' => 3,
+            'threshold' => 0.35,
         ], $options);
 
         $payload = [
             'disease_name' => $diseaseName,
             'description' => $description,
-            'target_country' => $options['target_country'],
-            'only_same_country' => (bool) $options['only_same_country'],
-            'include_cross_country' => (bool) $options['include_cross_country'],
             'limit' => (int) $options['limit'],
+            'threshold' => (float) $options['threshold'],
         ];
 
         $productDataset = $products->map(function (Product $product) {
@@ -194,31 +190,22 @@ class DiseaseAiService
 - Si no encuentras una coincidencia sólida, responde con una lista vacía.
 - Devuelve un JSON válido con la estructura:
 {
-  "same_country": [
-    {"product_name": "", "reason": "", "analysis_points": ["", ""]}
-  ],
-  "cross_country": [
-    {"product_name": "", "reason": "", "analysis_points": ["", ""], "country": ""}
+  "recommendations": [
+    {"product_id": 0, "reason": "", "analysis_points": ["", ""], "confidence": 0}
   ]
 }
-- Incluye productos de otros países solo si include_cross_country es verdadero.
-- Los productos de otros países deben explicitar por qué pueden ser útiles y deben considerarse como sugerencias sujetas a aprobación.
+- La propiedad confidence debe ser un número entre 0 y 100 que refleje la fuerza de la coincidencia.
+- Incluye solo los productos verdaderamente relevantes (1 a 3 máximo) y ordenados del más preciso al menos preciso.
 RULES;
 
         return sprintf(
             "Genera sugerencias de productos 4Life para apoyar la condición denominada '%s'.\n" .
             "Descripción proporcionada: %s\n" .
-            "País objetivo: %s\n" .
-            "¿Solo mismo país?: %s\n" .
-            "¿Incluir otros países?: %s\n" .
-            "Límite de sugerencias por grupo: %d\n" .
+            "Límite de sugerencias: %d\n" .
             "Base de datos de productos disponibles:\n- %s\n\n%s\n" .
             "Responde únicamente con el JSON solicitado sin texto adicional.",
             $payload['disease_name'],
             $payload['description'] ?: 'Sin descripción adicional',
-            $payload['target_country'] ?: 'Sin país especificado',
-            $payload['only_same_country'] ? 'Sí' : 'No',
-            $payload['include_cross_country'] ? 'Sí' : 'No',
             $payload['limit'],
             $datasetSummary,
             $rules
@@ -227,117 +214,169 @@ RULES;
 
     protected function mapAiResponseToProducts(array $response, Collection $products): array
     {
-        $sameCountry = collect(data_get($response, 'same_country', []))
-            ->map(fn ($item) => $this->mapSuggestionItem($item, $products, false))
+        return collect(data_get($response, 'recommendations', []))
+            ->map(fn ($item) => $this->mapSuggestionItem($item, $products))
             ->filter()
             ->values()
             ->all();
-
-        $crossCountry = collect(data_get($response, 'cross_country', []))
-            ->map(fn ($item) => $this->mapSuggestionItem($item, $products, true))
-            ->filter()
-            ->values()
-            ->all();
-
-        return [
-            'same_country' => $sameCountry,
-            'cross_country' => $crossCountry,
-        ];
     }
 
-    protected function mapSuggestionItem(array $item, Collection $products, bool $isCrossCountry): ?array
+    protected function mapSuggestionItem(array $item, Collection $products): ?array
     {
-        $name = data_get($item, 'product_name');
+        $product = null;
 
-        if (! $name) {
-            return null;
+        if ($productId = data_get($item, 'product_id')) {
+            $product = $products->firstWhere('id', (int) $productId);
         }
 
-        $product = $products->first(function (Product $product) use ($name) {
-            return Str::lower($product->name) === Str::lower($name);
-        }) ?? $products->first(function (Product $product) use ($name) {
-            return Str::of($product->name)->lower()->contains(Str::lower($name));
-        });
+        if (! $product && ($name = data_get($item, 'product_name'))) {
+            $product = $products->first(function (Product $candidate) use ($name) {
+                return Str::lower($candidate->name) === Str::lower($name);
+            }) ?? $products->first(function (Product $candidate) use ($name) {
+                return Str::of($candidate->name)->lower()->contains(Str::lower($name));
+            });
+        }
 
         if (! $product) {
             return null;
         }
 
+        $confidence = (int) round(min(100, max(0, data_get($item, 'confidence', 0))));
+
         return [
             'product_id' => $product->id,
             'product_name' => $product->name,
-            'country' => $product->country,
             'reason' => data_get($item, 'reason', ''),
             'analysis_points' => Arr::wrap(data_get($item, 'analysis_points', [])),
-            'is_cross_country' => $isCrossCountry,
+            'confidence' => $confidence,
         ];
     }
 
     protected function heuristicSuggestions(array $payload, Collection $products): array
     {
-        $limit = (int) $payload['limit'];
-        $country = $payload['target_country'];
-        $onlySameCountry = (bool) $payload['only_same_country'];
-        $includeCrossCountry = (bool) $payload['include_cross_country'];
-        $description = Str::lower($payload['description'] ?? '');
-        $keywords = collect(Str::of($payload['disease_name'])->lower()->explode(' '))
-            ->merge(Str::of($description)->explode(' '))
-            ->filter()
-            ->unique();
+        $limit = max(1, (int) $payload['limit']);
+        $threshold = isset($payload['threshold']) ? max(0, min(1, (float) $payload['threshold'])) : 0.35;
+        $keywords = $this->extractKeywords($payload['disease_name'], $payload['description'] ?? null);
+        $keywordsLower = $keywords->map(fn ($keyword) => Str::lower($keyword));
+        $diseasePhrase = Str::of($payload['disease_name'])->lower()->value();
 
-        $scored = $products->map(function (Product $product) use ($keywords) {
-            $haystack = Str::of(
-                strtolower(($product->information ?? '') . ' ' . implode(' ', Arr::wrap($product->key_points) ?: []))
-            );
+        $scored = $products->map(function (Product $product) use ($keywordsLower, $diseasePhrase) {
+            $infoText = Str::lower($product->information ?? '');
+            $keyPoints = collect(Arr::wrap($product->key_points ?? []))
+                ->map(fn ($point) => trim($point))
+                ->filter();
+            $keyPointsLower = $keyPoints->map(fn ($point) => Str::lower($point));
 
-            $score = $keywords->reduce(function ($carry, $keyword) use ($haystack) {
-                if (strlen($keyword) < 4) {
-                    return $carry;
+            $score = 0;
+            $matchedPoints = [];
+
+            foreach ($keywordsLower as $keyword) {
+                if (Str::length($keyword) < 4) {
+                    continue;
                 }
 
-                return $haystack->contains($keyword) ? $carry + 1 : $carry;
-            }, 0);
+                if (Str::contains(Str::lower($product->name), $keyword)) {
+                    $score += 6;
+                }
+
+                if ($infoText !== '' && Str::contains($infoText, $keyword)) {
+                    $score += 3.5;
+                }
+
+                foreach ($keyPointsLower as $index => $keyPoint) {
+                    if (Str::contains($keyPoint, $keyword)) {
+                        $score += 5.5;
+                        $matchedPoints[] = $keyPoints[$index];
+                    }
+                }
+            }
+
+            if ($diseasePhrase !== '') {
+                $referenceText = $keyPointsLower->implode(' ') . ' ' . $infoText;
+                $similarityBoost = 0;
+
+                if ($referenceText !== '') {
+                    similar_text($diseasePhrase, $referenceText, $percentage);
+                    $similarityBoost = $percentage / 18;
+                }
+
+                $score += $similarityBoost;
+            }
 
             return [
                 'product' => $product,
                 'score' => $score,
+                'matched_points' => collect($matchedPoints)->unique()->values()->all(),
             ];
-        })->sortByDesc('score')->values();
+        })->filter(fn (array $item) => $item['score'] > 0)->sortByDesc('score')->values();
 
-        $sameCountry = $scored->filter(function (array $item) use ($country) {
-            return $country ? $item['product']->country === $country : true;
-        })->take($limit)->map(function (array $item) {
-            return [
-                'product_id' => $item['product']->id,
-                'product_name' => $item['product']->name,
-                'country' => $item['product']->country,
-                'reason' => 'Sugerencia basada en coincidencias de palabras clave con la información registrada.',
-                'analysis_points' => Arr::wrap(array_slice($item['product']->key_points ?? [], 0, 2)),
-                'is_cross_country' => false,
-            ];
-        })->values()->all();
-
-        $crossCountry = [];
-
-        if (! $onlySameCountry && $includeCrossCountry) {
-            $crossCountry = $scored->reject(function (array $item) use ($country) {
-                return $country ? $item['product']->country === $country : false;
-            })->take($limit)->map(function (array $item) {
-                return [
-                    'product_id' => $item['product']->id,
-                    'product_name' => $item['product']->name,
-                    'country' => $item['product']->country,
-                    'reason' => 'Propuesta alternativa basada en atributos similares aunque el país sea distinto. Requiere aprobación manual.',
-                    'analysis_points' => Arr::wrap(array_slice($item['product']->key_points ?? [], 0, 2)),
-                    'is_cross_country' => true,
-                ];
-            })->values()->all();
+        if ($scored->isEmpty()) {
+            return [];
         }
 
-        return [
-            'same_country' => $sameCountry,
-            'cross_country' => $crossCountry,
-        ];
+        $maxScore = max(1, $scored->max('score'));
+
+        $mapped = $scored
+            ->take($limit)
+            ->map(function (array $item) use ($maxScore) {
+                /** @var Product $product */
+                $product = $item['product'];
+                $confidence = (int) round(($item['score'] / $maxScore) * 100);
+                $matchedPoints = collect($item['matched_points']);
+                $analysisPoints = $matchedPoints->take(3)->all();
+
+                if (empty($analysisPoints)) {
+                    $analysisPoints = array_slice(Arr::wrap($product->key_points ?? []), 0, 3);
+                }
+
+                $summaryFragments = [];
+
+                if (! empty($analysisPoints)) {
+                    $summaryFragments[] = 'puntos clave: ' . implode(', ', array_slice($analysisPoints, 0, 2));
+                }
+
+                if ($product->category) {
+                    $summaryFragments[] = 'categoría ' . $product->category;
+                }
+
+                $summary = $summaryFragments ? implode(' y ', $summaryFragments) : 'su perfil nutracéutico';
+
+                return [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'reason' => sprintf('Coincidencia del %d%% basada en %s.', $confidence, $summary),
+                    'analysis_points' => $analysisPoints,
+                    'confidence' => $confidence,
+                ];
+            })
+            ->values();
+
+        $filtered = $mapped
+            ->filter(fn (array $item) => ($item['confidence'] ?? 0) >= (int) round($threshold * 100))
+            ->values();
+
+        if ($filtered->isEmpty() && $mapped->isNotEmpty()) {
+            return [$mapped->first()];
+        }
+
+        return $filtered->all();
+    }
+
+    protected function extractKeywords(string $diseaseName, ?string $description): Collection
+    {
+        $raw = trim($diseaseName . ' ' . ($description ?? ''));
+
+        if ($raw === '') {
+            return collect();
+        }
+
+        $tokens = preg_split('/[\s,.;:\\-]+/u', Str::lower($raw), -1, PREG_SPLIT_NO_EMPTY);
+
+        return collect($tokens)
+            ->map(fn (string $token) => Str::of($token)->replaceMatches('/[^a-z0-9áéíóúñü]/u', '')->value())
+            ->filter(fn (?string $token) => $token && Str::length($token) >= 4)
+            ->unique()
+            ->values();
     }
 
     protected function buildInformationPrompt(string $diseaseName, string $productSummaries, array $options): string

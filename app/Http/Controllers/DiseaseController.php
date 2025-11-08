@@ -23,24 +23,14 @@ class DiseaseController extends Controller
             ? Product::orderBy('category')->orderBy('name')->get()
             : collect();
 
-        $diseasesByCountry = $diseases->groupBy('country')->sortKeys();
-        $countries = $diseases->pluck('country')->unique()->values()->sort()->all();
-        $availableCountries = Schema::hasTable('products')
-            ? Product::select('country')->distinct()->orderBy('country')->pluck('country')->all()
-            : [];
-
         return view('diseases.index', [
-            'diseasesByCountry' => $diseasesByCountry,
-            'countries' => $countries,
-            'availableCountries' => $availableCountries,
+            'diseases' => $diseases,
             'products' => $products,
         ]);
     }
 
     public function list(Request $request)
     {
-        $country = $request->query('country');
-
         if (! Schema::hasTable('diseases')) {
             return response()->json([
                 'data' => [],
@@ -48,7 +38,6 @@ class DiseaseController extends Controller
         }
 
         $diseases = Disease::with(['recommendations.product'])
-            ->byCountry($country)
             ->orderBy('name')
             ->get()
             ->map(function (Disease $disease) {
@@ -74,7 +63,10 @@ class DiseaseController extends Controller
 
         $disease = DB::transaction(function () use ($data) {
             /** @var Disease $disease */
-            $disease = Disease::create(Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']));
+            $payload = Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']);
+            $payload['country'] = $payload['country'] ?? 'Global';
+
+            $disease = Disease::create($payload);
 
             $this->syncRecommendations($disease, $data);
 
@@ -101,7 +93,10 @@ class DiseaseController extends Controller
         $data = $this->validateRequest($request, $disease->id);
 
         $disease = DB::transaction(function () use ($disease, $data) {
-            $disease->update(Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']));
+            $payload = Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']);
+            $payload['country'] = $payload['country'] ?? 'Global';
+
+            $disease->update($payload);
 
             $this->syncRecommendations($disease, $data);
 
@@ -142,7 +137,7 @@ class DiseaseController extends Controller
     {
         return $request->validate([
             'name' => 'required|string|max:255',
-            'country' => 'required|string|max:255',
+            'country' => 'nullable|string|max:255',
             'information_mode' => 'required|in:manual,ai',
             'information' => 'nullable|string',
             'metadata' => 'nullable|array',
@@ -152,9 +147,8 @@ class DiseaseController extends Controller
             'ai_recommendations' => 'array',
             'ai_recommendations.*.product_id' => 'required|exists:products,id',
             'ai_recommendations.*.reasoning' => 'required|string',
-            'ai_recommendations.*.is_cross_country' => 'boolean',
-            'ai_recommendations.*.is_approved' => 'boolean',
             'ai_recommendations.*.analysis_points' => 'array',
+            'ai_recommendations.*.confidence' => 'nullable|numeric|min:0|max:100',
         ]);
     }
 
@@ -182,11 +176,15 @@ class DiseaseController extends Controller
                 $analysis = ['analysis_points' => $item['analysis_points']];
             }
 
+            if (isset($item['confidence'])) {
+                $analysis = $analysis ? array_merge($analysis, ['confidence' => $item['confidence']]) : ['confidence' => $item['confidence']];
+            }
+
             $recommendations->push([
                 'product_id' => $item['product_id'],
                 'recommendation_type' => 'ai',
-                'is_cross_country' => (bool) ($item['is_cross_country'] ?? false),
-                'is_approved' => (bool) ($item['is_approved'] ?? ! ($item['is_cross_country'] ?? false)),
+                'is_cross_country' => false,
+                'is_approved' => true,
                 'reasoning' => $item['reasoning'],
                 'analysis' => $analysis,
             ]);
@@ -214,10 +212,9 @@ class DiseaseController extends Controller
                         'name' => $recommendation->product?->name,
                         'country' => $recommendation->product?->country,
                         'category' => $recommendation->product?->category,
+                        'image_url' => $recommendation->product?->image_url,
                     ],
                     'type' => $recommendation->recommendation_type,
-                    'is_cross_country' => $recommendation->is_cross_country,
-                    'is_approved' => $recommendation->is_approved,
                     'reasoning' => $recommendation->reasoning,
                     'analysis' => $recommendation->analysis,
                 ];
