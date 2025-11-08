@@ -29,7 +29,7 @@ body {
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
 }
 
 .guest-body {
@@ -1468,6 +1468,7 @@ body.modal-open {
     justify-content: center;
     padding: 1.5rem;
     background: transparent;
+    overflow-y: auto;
 }
 
 .app-modal.hidden {
@@ -1567,12 +1568,26 @@ body.modal-open {
     gap: clamp(1.5rem, 2vw, 2rem);
     flex: 1;
     min-height: 0;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(63, 127, 255, 0.4) rgba(63, 127, 255, 0.08);
 }
 
 .app-modal__body::-webkit-scrollbar {
-    display: none;
+    width: 8px;
+}
+
+.app-modal__body::-webkit-scrollbar-track {
+    background: rgba(63, 127, 255, 0.08);
+    border-radius: 4px;
+}
+
+.app-modal__body::-webkit-scrollbar-thumb {
+    background: rgba(63, 127, 255, 0.4);
+    border-radius: 4px;
+}
+
+.app-modal__body::-webkit-scrollbar-thumb:hover {
+    background: rgba(63, 127, 255, 0.6);
 }
 
 .app-modal__footer {
