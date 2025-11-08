@@ -1468,8 +1468,12 @@ textarea.form-control {
 /* Modales */
 html.modal-open,
 body.modal-open {
-    overflow: hidden;
-    height: 100%;
+    overflow: hidden !important;
+    height: 100% !important;
+    margin: 0;
+    padding: 0;
+    position: fixed;
+    width: 100%;
 }
 
 .app-modal {
@@ -1477,13 +1481,13 @@ body.modal-open {
     inset: 0;
     z-index: 60;
     display: flex;
-    /* center the modal by default so smaller viewports see it without zooming */
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    /* reduce default padding to give more viewport space to the dialog on small/zoomed screens */
     padding: clamp(0.5rem, 2vh, 1rem) 1rem;
     background: transparent;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 @media (min-height: 900px) {
@@ -1509,7 +1513,6 @@ body.modal-open {
 .app-modal__dialog {
     position: relative;
     z-index: 20;
-    /* smaller max width and use viewport-relative fallback so the dialog fits on zoomed/smaller screens */
     width: min(860px, 95vw);
     background: var(--white);
     border-radius: 1.25rem;
@@ -1518,10 +1521,10 @@ body.modal-open {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    /* Give slightly more room for the dialog inside the viewport so internal scrolling works reliably */
-    max-height: 95vh;
-    /* ensure dialog never touches viewport edges (provides visible margin when viewport is small) */
-    margin: 0.5rem;
+    max-height: calc(100vh - 2rem);
+    margin: 1rem auto;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .app-modal__dialog--sm { width: min(420px, 100%); }
@@ -1593,9 +1596,11 @@ body.modal-open {
     overflow-y: auto;
     display: grid;
     gap: clamp(1rem, 2vw, 1.5rem);
-    /* allow body to shrink/grow inside flex dialog and enable internal scroll */
     flex: 1 1 auto;
     min-height: 0;
+    max-height: calc(100vh - 12rem);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(63, 127, 255, 0.4) rgba(63, 127, 255, 0.08);
 }
