@@ -23,12 +23,13 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     background: linear-gradient(180deg, var(--blue-25) 0%, var(--blue-50) 100%);
     color: var(--ink-900);
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .guest-body {
