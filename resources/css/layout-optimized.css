@@ -31,6 +31,263 @@ body {
     overflow: hidden;
 }
 
+.guest-body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3.5rem);
+    background: radial-gradient(120% 120% at 10% 10%, rgba(79, 70, 229, 0.18) 0%, rgba(59, 130, 246, 0.08) 40%, rgba(226, 232, 240, 0.1) 100%),
+        linear-gradient(145deg, #f8fbff 0%, #eef4ff 45%, #f4f8ff 100%);
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+}
+
+.guest-body__background {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    background: radial-gradient(40% 50% at 90% 10%, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 65%),
+        radial-gradient(35% 45% at 15% 85%, rgba(14, 165, 233, 0.12) 0%, rgba(14, 165, 233, 0) 65%);
+    z-index: 0;
+}
+
+.guest-wrapper {
+    position: relative;
+    display: grid;
+    gap: clamp(2rem, 5vw, 3.5rem);
+    width: min(1100px, 100%);
+    z-index: 1;
+}
+
+.guest-brand {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    text-align: left;
+}
+
+.guest-brand__logo {
+    width: 4rem;
+    height: 4rem;
+    display: grid;
+    place-items: center;
+    border-radius: 1.5rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(14, 165, 233, 0.75) 100%);
+    box-shadow: 0 18px 42px rgba(30, 64, 175, 0.25);
+}
+
+.guest-brand__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    color: white;
+}
+
+.guest-brand__copy {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.guest-brand__title {
+    margin: 0;
+    font-size: clamp(1.9rem, 3vw, 2.4rem);
+    font-weight: 800;
+    color: rgba(15, 23, 42, 0.95);
+    letter-spacing: -0.02em;
+}
+
+.guest-brand__subtitle {
+    margin: 0;
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    color: rgba(15, 23, 42, 0.65);
+    max-width: 28rem;
+}
+
+.guest-card {
+    width: min(100%, 430px);
+    justify-self: center;
+}
+
+.guest-card__surface {
+    position: relative;
+    border-radius: 1.75rem;
+    border: 1px solid rgba(59, 130, 246, 0.12);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.82) 100%);
+    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
+    padding: clamp(2rem, 4vw, 2.75rem);
+    backdrop-filter: blur(18px);
+}
+
+.guest-card__surface::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    background: linear-gradient(140deg, rgba(59, 130, 246, 0.06) 0%, rgba(14, 165, 233, 0.02) 100%);
+    z-index: 0;
+}
+
+.guest-card__surface > * {
+    position: relative;
+    z-index: 1;
+}
+
+.guest-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: rgba(15, 23, 42, 0.55);
+}
+
+@media (min-width: 1024px) {
+    .guest-wrapper {
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 400px);
+        align-items: center;
+    }
+
+    .guest-brand {
+        align-items: flex-start;
+    }
+
+    .guest-footer {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .guest-brand {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .guest-card {
+        width: 100%;
+    }
+}
+
+.molecule {
+    position: absolute;
+    inset: auto;
+    filter: drop-shadow(0 25px 45px rgba(59, 130, 246, 0.18));
+    animation: molecule-float 18s ease-in-out infinite;
+    opacity: 0.55;
+}
+
+.molecule svg {
+    width: 100%;
+    height: 100%;
+}
+
+.molecule--one {
+    width: 22rem;
+    top: 8%;
+    right: 8%;
+    animation-delay: -3s;
+}
+
+.molecule--two {
+    width: 18rem;
+    bottom: 15%;
+    left: 6%;
+    animation-delay: -7s;
+}
+
+.molecule--three {
+    width: 14rem;
+    top: 55%;
+    left: 50%;
+    transform: translateX(-50%);
+    animation-delay: -11s;
+}
+
+.molecule__ring {
+    stroke: rgba(59, 130, 246, 0.22);
+    stroke-width: 2;
+    stroke-dasharray: 12 10;
+    animation: molecule-orbit 12s linear infinite;
+}
+
+.molecule__link {
+    stroke: rgba(59, 130, 246, 0.35);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    animation: molecule-link 6s ease-in-out infinite;
+}
+
+.molecule__node {
+    fill: rgba(37, 99, 235, 0.9);
+    stroke: rgba(255, 255, 255, 0.6);
+    stroke-width: 3;
+    filter: drop-shadow(0 12px 20px rgba(37, 99, 235, 0.4));
+    animation: molecule-node 8s ease-in-out infinite;
+}
+
+.molecule__core {
+    fill: rgba(14, 165, 233, 0.85);
+    stroke: rgba(255, 255, 255, 0.65);
+    stroke-width: 4;
+    filter: drop-shadow(0 18px 28px rgba(14, 165, 233, 0.4));
+    animation: molecule-core 10s ease-in-out infinite;
+}
+
+@keyframes molecule-float {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+        transform: translate3d(0, -20px, 0) scale(1.04);
+    }
+}
+
+@keyframes molecule-orbit {
+    0% {
+        stroke-dashoffset: 0;
+        transform: rotate(0deg);
+        transform-origin: center;
+    }
+    100% {
+        stroke-dashoffset: -180;
+        transform: rotate(360deg);
+        transform-origin: center;
+    }
+}
+
+@keyframes molecule-link {
+    0%,
+    100% {
+        opacity: 0.35;
+    }
+    50% {
+        opacity: 0.75;
+    }
+}
+
+@keyframes molecule-node {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+    50% {
+        transform: translate3d(4px, -6px, 0);
+    }
+}
+
+@keyframes molecule-core {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.08);
+    }
+    60% {
+        transform: scale(0.96);
+    }
+}
+
 .app-shell {
     height: 100vh;
     display: flex;
@@ -1075,6 +1332,25 @@ textarea.form-control {
     margin-bottom: 1.5rem;
 }
 
+.auth-header__badge {
+    justify-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    background: rgba(37, 99, 235, 0.12);
+    color: rgba(37, 99, 235, 0.85);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+}
+
+.auth-header__badge-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
 .auth-header__icon {
     justify-self: center;
 }
@@ -1090,6 +1366,43 @@ textarea.form-control {
     margin: 0;
     font-size: 0.95rem;
     color: rgba(15, 23, 42, 0.6);
+}
+
+.auth-highlights {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
+}
+
+.auth-highlights__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.12);
+}
+
+.auth-highlights__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.9rem;
+    display: grid;
+    place-items: center;
+    background: rgba(59, 130, 246, 0.12);
+    color: rgba(37, 99, 235, 0.9);
+}
+
+.auth-highlights__icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.auth-highlights__text {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: rgba(15, 23, 42, 0.7);
 }
 
 .auth-meta {
