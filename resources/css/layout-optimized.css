@@ -1464,9 +1464,11 @@ body.modal-open {
     inset: 0;
     z-index: 60;
     display: flex;
-    align-items: flex-start;
+    /* center the modal by default so smaller viewports see it without zooming */
+    align-items: center;
     justify-content: center;
-    padding: clamp(1rem, 4vh, 2rem) 1.5rem;
+    /* reduce default padding to give more viewport space to the dialog on small/zoomed screens */
+    padding: clamp(0.5rem, 2vh, 1rem) 1rem;
     background: transparent;
     overflow-y: auto;
 }
@@ -1494,15 +1496,19 @@ body.modal-open {
 .app-modal__dialog {
     position: relative;
     z-index: 20;
-    width: min(960px, 100%);
+    /* smaller max width and use viewport-relative fallback so the dialog fits on zoomed/smaller screens */
+    width: min(860px, 95vw);
     background: var(--white);
-    border-radius: 1.5rem;
+    border-radius: 1.25rem;
     border: 1px solid rgba(36, 96, 230, 0.14);
     box-shadow: 0 30px 70px rgba(15, 23, 42, 0.24);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 3rem);
+    /* Give slightly more room for the dialog inside the viewport so internal scrolling works reliably */
+    max-height: 95vh;
+    /* ensure dialog never touches viewport edges (provides visible margin when viewport is small) */
+    margin: 0.5rem;
 }
 
 .app-modal__dialog--sm { width: min(420px, 100%); }
@@ -1570,11 +1576,12 @@ body.modal-open {
 }
 
 .app-modal__body {
-    padding: clamp(1.5rem, 2vw, 2rem);
+    padding: clamp(1rem, 2vw, 1.5rem);
     overflow-y: auto;
     display: grid;
-    gap: clamp(1.5rem, 2vw, 2rem);
-    flex: 1;
+    gap: clamp(1rem, 2vw, 1.5rem);
+    /* allow body to shrink/grow inside flex dialog and enable internal scroll */
+    flex: 1 1 auto;
     min-height: 0;
     scrollbar-width: thin;
     scrollbar-color: rgba(63, 127, 255, 0.4) rgba(63, 127, 255, 0.08);
@@ -1599,13 +1606,17 @@ body.modal-open {
 }
 
 .app-modal__footer {
-    padding: clamp(1.25rem, 2vw, 1.75rem);
-    background: rgba(63, 127, 255, 0.05);
+    padding: clamp(0.75rem, 1.5vw, 1rem);
+    background: rgba(255, 255, 255, 0.98);
     border-top: 1px solid rgba(63, 127, 255, 0.12);
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 0.75rem;
+    /* keep footer visible when body scrolls */
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
 }
 
 .app-modal__footer .btn,
