@@ -64,7 +64,19 @@ class DiseaseController extends Controller
         $disease = DB::transaction(function () use ($data) {
             /** @var Disease $disease */
             $payload = Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']);
-            $payload['country'] = $payload['country'] ?? 'Global';
+            
+            // Obtener el país del primer producto recomendado
+            $firstProductId = collect($data['manual_recommendations'] ?? [])
+                ->merge($data['ai_recommendations'] ?? [])
+                ->pluck('product_id')
+                ->first();
+                
+            if ($firstProductId) {
+                $product = Product::find($firstProductId);
+                $payload['country'] = $product ? $product->country : 'Global';
+            } else {
+                $payload['country'] = 'Global';
+            }
 
             $disease = Disease::create($payload);
 
@@ -94,7 +106,19 @@ class DiseaseController extends Controller
 
         $disease = DB::transaction(function () use ($disease, $data) {
             $payload = Arr::only($data, ['name', 'country', 'information_mode', 'information', 'metadata']);
-            $payload['country'] = $payload['country'] ?? 'Global';
+            
+            // Obtener el país del primer producto recomendado
+            $firstProductId = collect($data['manual_recommendations'] ?? [])
+                ->merge($data['ai_recommendations'] ?? [])
+                ->pluck('product_id')
+                ->first();
+                
+            if ($firstProductId) {
+                $product = Product::find($firstProductId);
+                $payload['country'] = $product ? $product->country : 'Global';
+            } else {
+                $payload['country'] = 'Global';
+            }
 
             $disease->update($payload);
 
