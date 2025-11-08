@@ -401,10 +401,37 @@ function handleFormSubmit(e) {
     });
 }
 
+// Robust scroll lock: add/remove class + inline styles and capture wheel/touchmove to prevent page scroll
+window.__modalPreventScroll = function (e) {
+    const modal = document.getElementById('productModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+    // allow scrolling when the event target is inside the modal body
+    if (e.target && e.target.closest && e.target.closest('.app-modal__body')) return;
+    // otherwise prevent the document from scrolling
+    e.preventDefault();
+};
+
 function toggleBodyScroll(isLocked) {
-    const action = isLocked ? 'add' : 'remove';
-    document.body?.classList[action]('modal-open');
-    document.documentElement?.classList[action]('modal-open');
+    const html = document.documentElement;
+    const body = document.body;
+
+    if (isLocked) {
+        body.classList.add('modal-open');
+        html.classList.add('modal-open');
+        // inline styles are more robust across builds/tooling
+        body.style.overflow = 'hidden';
+        html.style.overflow = 'hidden';
+        // capture wheel/touchmove at document level to avoid scroll leaking to the page
+        document.addEventListener('wheel', window.__modalPreventScroll, { passive: false });
+        document.addEventListener('touchmove', window.__modalPreventScroll, { passive: false });
+    } else {
+        body.classList.remove('modal-open');
+        html.classList.remove('modal-open');
+        body.style.overflow = '';
+        html.style.overflow = '';
+        document.removeEventListener('wheel', window.__modalPreventScroll);
+        document.removeEventListener('touchmove', window.__modalPreventScroll);
+    }
 }
 
 function showProductModal() {
