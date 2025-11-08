@@ -9,17 +9,25 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DiseaseController extends Controller
 {
     public function index(Request $request)
     {
-        $diseases = Disease::with(['recommendations.product'])->orderBy('name')->get();
-        $products = Product::orderBy('category')->orderBy('name')->get();
+        $diseases = Schema::hasTable('diseases')
+            ? Disease::with(['recommendations.product'])->orderBy('name')->get()
+            : collect();
+
+        $products = Schema::hasTable('products')
+            ? Product::orderBy('category')->orderBy('name')->get()
+            : collect();
 
         $diseasesByCountry = $diseases->groupBy('country')->sortKeys();
         $countries = $diseases->pluck('country')->unique()->values()->sort()->all();
-        $availableCountries = Product::select('country')->distinct()->orderBy('country')->pluck('country')->all();
+        $availableCountries = Schema::hasTable('products')
+            ? Product::select('country')->distinct()->orderBy('country')->pluck('country')->all()
+            : [];
 
         return view('diseases.index', [
             'diseasesByCountry' => $diseasesByCountry,
@@ -32,6 +40,12 @@ class DiseaseController extends Controller
     public function list(Request $request)
     {
         $country = $request->query('country');
+
+        if (! Schema::hasTable('diseases')) {
+            return response()->json([
+                'data' => [],
+            ]);
+        }
 
         $diseases = Disease::with(['recommendations.product'])
             ->byCountry($country)
