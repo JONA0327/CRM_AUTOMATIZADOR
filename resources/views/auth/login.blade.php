@@ -1,7 +1,32 @@
 <x-guest-layout>
     <div class="auth-header">
+        <span class="auth-header__badge">
+            <svg class="auth-header__badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ __('Bienvenido de nuevo') }}
+        </span>
         <h2 class="auth-header__title">{{ __('Iniciar sesión') }}</h2>
-        <p class="auth-header__subtitle">{{ __('Ingresa a tu cuenta para continuar') }}</p>
+        <p class="auth-header__subtitle">{{ __('Accede al panel para dar seguimiento inteligente a tus clientes.') }}</p>
+    </div>
+
+    <div class="auth-highlights">
+        <div class="auth-highlights__item">
+            <span class="auth-highlights__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h6l7 10h5M14 7l7 10" />
+                </svg>
+            </span>
+            <span class="auth-highlights__text">{{ __('Automatiza seguimientos y mantén conversaciones fluidas con tus leads.') }}</span>
+        </div>
+        <div class="auth-highlights__item">
+            <span class="auth-highlights__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6m2 0a2 2 0 012 2v1H5v-1a2 2 0 012-2m6-8a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </span>
+            <span class="auth-highlights__text">{{ __('Colabora con tu equipo y centraliza la información clave de cada cliente.') }}</span>
+        </div>
     </div>
 
     <x-auth-session-status class="mb-4" :status="session('status')" />
