@@ -192,9 +192,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Editar desde detalles
     editFromDetailsBtn?.addEventListener('click', function() {
+        const productIdToEdit = currentProductId;
         closeDetailsModal();
         setTimeout(() => {
-            editProduct(currentProductId);
+            editProduct(productIdToEdit);
         }, 300);
     });
 
