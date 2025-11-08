@@ -10,10 +10,12 @@ export default defineConfig({
                 'resources/css/products.css',
                 'resources/css/layout-optimized.css',
                 'resources/css/scheduled-messages.css',
+                'resources/css/diseases.css',
                 'resources/js/app.js',
                 'resources/js/sidebar.js',
                 'resources/js/products.js',
-                'resources/js/scheduled-messages.js'
+                'resources/js/scheduled-messages.js',
+                'resources/js/diseases.js'
             ],
             refresh: true,
         }),
