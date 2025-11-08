@@ -1566,6 +1566,7 @@ body.modal-open {
     display: grid;
     gap: clamp(1.5rem, 2vw, 2rem);
     flex: 1;
+    min-height: 0;
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
