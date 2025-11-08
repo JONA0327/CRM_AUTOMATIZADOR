@@ -1464,11 +1464,19 @@ body.modal-open {
     inset: 0;
     z-index: 60;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 1.5rem;
+    padding: clamp(1rem, 4vh, 2rem) 1.5rem;
     background: transparent;
     overflow-y: auto;
+}
+
+@media (min-height: 900px) {
+    .app-modal {
+        align-items: center;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+    }
 }
 
 .app-modal.hidden {
