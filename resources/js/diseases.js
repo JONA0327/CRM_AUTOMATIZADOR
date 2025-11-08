@@ -52,6 +52,7 @@ class DiseaseManager {
         const closeModalBtn = document.getElementById('closeDiseaseModal');
         const cancelBtn = document.getElementById('cancelDiseaseBtn');
         const form = document.getElementById('diseaseForm');
+        const modal = document.getElementById('diseaseModal');
         const addManualBtn = document.getElementById('addManualProductBtn');
         const generateSuggestionsBtn = document.getElementById('generateSuggestionsBtn');
         const generateInfoBtn = document.getElementById('generateInformationBtn');
@@ -65,6 +66,18 @@ class DiseaseManager {
         cancelBtn?.addEventListener('click', () => this.closeModal());
         closeDetailBtn?.addEventListener('click', () => this.closeDetailsModal());
         closeDetailModalBtn?.addEventListener('click', () => this.closeDetailsModal());
+
+        modal?.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                this.closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && ! modal?.classList.contains('hidden')) {
+                this.closeModal();
+            }
+        });
 
         informationModeInputs.forEach((input) => {
             input.addEventListener('change', (event) => this.toggleInformationMode(event.target.value));
