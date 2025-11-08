@@ -1453,6 +1453,12 @@ textarea.form-control {
 }
 
 /* Modales */
+html.modal-open,
+body.modal-open {
+    overflow: hidden;
+    height: 100%;
+}
+
 .app-modal {
     position: fixed;
     inset: 0;
