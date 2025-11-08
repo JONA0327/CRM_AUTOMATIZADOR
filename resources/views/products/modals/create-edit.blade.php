@@ -401,6 +401,22 @@ function handleFormSubmit(e) {
     });
 }
 
+function toggleBodyScroll(isLocked) {
+    const action = isLocked ? 'add' : 'remove';
+    document.body?.classList[action]('modal-open');
+    document.documentElement?.classList[action]('modal-open');
+}
+
+function showProductModal() {
+    document.getElementById('productModal').classList.remove('hidden');
+    toggleBodyScroll(true);
+}
+
+function hideProductModal() {
+    document.getElementById('productModal').classList.add('hidden');
+    toggleBodyScroll(false);
+}
+
 function openCreateModal() {
     isEditing = false;
     document.getElementById('modalTitle').textContent = 'Crear nuevo producto';
@@ -425,11 +441,11 @@ function openCreateModal() {
         </div>
     `;
 
-    document.getElementById('productModal').classList.remove('hidden');
+    showProductModal();
 }
 
 function closeProductModal() {
-    document.getElementById('productModal').classList.add('hidden');
+    hideProductModal();
 }
 
 function editProduct(productId) {
@@ -502,7 +518,7 @@ function editProduct(productId) {
                     document.getElementById('videoPlaceholder').classList.add('hidden');
                 }
 
-                document.getElementById('productModal').classList.remove('hidden');
+                showProductModal();
             }
         })
         .catch(error => {
