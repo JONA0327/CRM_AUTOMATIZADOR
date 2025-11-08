@@ -19,7 +19,15 @@
                 <p class="text-sm font-medium text-blue-600">Catálogo completo de productos 4Life</p>
             </div>
         </div>
-        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Catálogo actualizado</p>
+        <div class="flex items-center gap-4">
+            <button id="createProductBtn" class="create-product-btn">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Nuevo producto
+            </button>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Catálogo actualizado</p>
+        </div>
     </div>
 </div>
 
@@ -118,12 +126,6 @@
                 </svg>
                 <h3>No hay productos disponibles</h3>
                 <p>Comienza creando tu primer producto para el catálogo 4Life</p>
-                <button id="createFirstProductBtn" class="empty-state-btn">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Crear Primer Producto
-                </button>
             </div>
         @endif
     </div>

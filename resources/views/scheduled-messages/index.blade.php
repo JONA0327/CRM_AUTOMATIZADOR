@@ -225,12 +225,7 @@
                     </svg>
                     <h3>Sin mensajes programados</h3>
                     <p>Comienza creando tu primer mensaje para nutrir a tus clientes automáticamente.</p>
-                    <button id="create-first-message-btn" class="empty-state-btn" type="button">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path>
-                        </svg>
-                        Crear primer mensaje
-                    </button>
+                    <!-- empty state: no large create button here; use header 'Crear mensaje' -->
                 </div>
             @endif
         </div>
