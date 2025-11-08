@@ -13,28 +13,16 @@ class DiseaseSuggestionController extends Controller
         $data = $request->validate([
             'disease_name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'country' => 'nullable|string|max:255',
-            'only_same_country' => 'boolean',
-            'include_cross_country' => 'boolean',
             'limit' => 'nullable|integer|min:1|max:6',
         ]);
 
-        $query = Product::query();
-
-        if (! empty($data['country']) && ($data['only_same_country'] ?? false)) {
-            $query->where('country', $data['country']);
-        }
-
-        $products = $query->orderBy('category')->orderBy('name')->get();
+        $products = Product::orderBy('category')->orderBy('name')->get();
 
         $suggestions = $service->generateProductSuggestions(
             $data['disease_name'],
             $data['description'] ?? null,
             $products,
             [
-                'target_country' => $data['country'] ?? null,
-                'only_same_country' => (bool) ($data['only_same_country'] ?? false),
-                'include_cross_country' => (bool) ($data['include_cross_country'] ?? true),
                 'limit' => $data['limit'] ?? 3,
             ]
         );
