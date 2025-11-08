@@ -1,26 +1,28 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- Header -->
-<div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between mb-6">
-    <div class="flex items-center gap-4">
-        <span class="stat-icon">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-            </svg>
-        </span>
-        <div>
-            <h1 class="text-2xl font-extrabold text-blue-900 tracking-tight">Panel de Control</h1>
-            <p class="text-sm font-medium text-blue-600">CRM_AUTOMATIZADOR</p>
+<div class="module-shell" data-module="dashboard">
+    <!-- Header -->
+    <header class="module-header">
+        <div class="module-header__headline">
+            <span class="stat-icon">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+            </span>
+            <div>
+                <h1 class="module-title">Panel de Control</h1>
+                <p class="module-subtitle">CRM_AUTOMATIZADOR</p>
+            </div>
         </div>
-    </div>
-    <div class="text-left lg:text-right space-y-1">
-        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Bienvenido</p>
-        <p class="text-lg font-semibold text-blue-900">{{ Auth::user()->name }}</p>
-    </div>
-</div>
+        <div class="module-actions">
+            <p class="module-tagline">Bienvenido</p>
+            <p class="text-lg font-semibold text-blue-900">{{ Auth::user()->name }}</p>
+        </div>
+    </header>
 
-    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <section class="module-section">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <article class="card-surface stat-card">
             <div class="stat-card-header">
                 <div class="stat-card-title">
@@ -166,6 +168,7 @@
             </div>
         </article>
     </section>
+</div>
 
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <article class="card-surface">

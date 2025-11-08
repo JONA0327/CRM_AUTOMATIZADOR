@@ -6,25 +6,25 @@
 @endpush
 
 @section('content')
-<!-- Header -->
-<div class="products-header">
-    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-4">
+<div class="module-shell" data-module="scheduled-messages">
+    <!-- Header -->
+    <header class="module-header">
+        <div class="module-header__headline">
             <span class="stat-icon">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6m-6 4h10M5 5a2 2 0 012-2h10a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V5z"></path>
                 </svg>
             </span>
             <div>
-                <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Mensajes Programados</h2>
-                <p class="text-sm font-medium text-blue-600">Automatiza recordatorios y seguimientos 4Life</p>
+                <h2 class="module-title">Mensajes Programados</h2>
+                <p class="module-subtitle">Automatiza recordatorios y seguimientos 4Life</p>
             </div>
         </div>
-        <div class="scheduled-header-actions">
-            <p class="scheduled-header-subtitle">Panel actualizado</p>
+        <div class="module-actions">
+            <p class="module-tagline">Panel actualizado</p>
             <button
                 id="create-message-btn"
-                class="scheduled-primary-btn"
+                class="module-btn module-btn--primary"
                 type="button"
             >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,16 +33,15 @@
                 Crear mensaje
             </button>
         </div>
-    </div>
-</div>
+    </header>
 
-<div class="products-container scheduled-messages-container">
-        <div class="products-filters">
-            <div class="filter-controls scheduled-filter-controls">
-                <div class="filter-inputs scheduled-filter-inputs">
-                    <div class="scheduled-filter-field">
+    <section class="module-section scheduled-messages-container">
+        <div class="module-panel module-panel--filters">
+            <div class="module-panel__controls scheduled-filter-controls">
+                <div class="module-panel__fields scheduled-filter-inputs">
+                    <div class="module-field scheduled-filter-field">
                         <label for="category-filter">Categoría</label>
-                        <select id="category-filter" class="filter-select">
+                        <select id="category-filter" class="module-input filter-select">
                             <option value="">Todas las categorías</option>
                             @foreach($categories as $key => $name)
                                 <option value="{{ $key }}" {{ $currentCategory == $key ? 'selected' : '' }}>{{ $name }}</option>
@@ -50,9 +49,9 @@
                         </select>
                     </div>
 
-                    <div class="scheduled-filter-field">
+                    <div class="module-field scheduled-filter-field">
                         <label for="time-period-filter">Período</label>
-                        <select id="time-period-filter" class="filter-select">
+                        <select id="time-period-filter" class="module-input filter-select">
                             <option value="">Todos los períodos</option>
                             @foreach($time_periods as $key => $name)
                                 <option value="{{ $key }}" {{ $currentTimePeriod == $key ? 'selected' : '' }}>{{ $name }}</option>
@@ -60,9 +59,9 @@
                         </select>
                     </div>
 
-                    <div class="scheduled-filter-field">
+                    <div class="module-field scheduled-filter-field">
                         <label for="status-filter">Estado</label>
-                        <select id="status-filter" class="filter-select">
+                        <select id="status-filter" class="module-input filter-select">
                             <option value="">Todos los estados</option>
                             <option value="active" {{ $currentStatus == 'active' ? 'selected' : '' }}>Activos</option>
                             <option value="inactive" {{ $currentStatus == 'inactive' ? 'selected' : '' }}>Inactivos</option>
@@ -71,12 +70,12 @@
                 </div>
 
                 <div class="scheduled-filter-meta">
-                    <div class="product-count">
+                    <div class="module-count">
                         Total: <span class="font-semibold text-blue-900">{{ $messages->total() }}</span> mensajes
                     </div>
                     <button
                         id="current-messages-btn"
-                        class="scheduled-secondary-btn"
+                        class="module-btn module-btn--ghost scheduled-secondary-btn"
                         type="button"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,10 +89,10 @@
 
         <div id="messages-container">
             @if($messages->count() > 0)
-                <div class="products-grid scheduled-messages-grid">
+                <div class="module-grid scheduled-messages-grid">
                     @foreach($messages as $message)
-                        <div class="product-card scheduled-message-card" data-message-id="{{ $message->id }}">
-                            <div class="product-info scheduled-card-body">
+                        <div class="module-card scheduled-message-card" data-message-id="{{ $message->id }}">
+                            <div class="module-card__body scheduled-card-body">
                                 <div class="scheduled-card-header">
                                     <div class="scheduled-card-title">
                                         <h3>{{ $message->title }}</h3>
@@ -153,7 +152,7 @@
                                     </span>
                                 </div>
 
-                                <div class="product-footer scheduled-card-footer">
+                                <div class="module-card__footer scheduled-card-footer">
                                     <span class="scheduled-footer-note">Actualizado {{ $message->updated_at->diffForHumans() }}</span>
                                     <div class="product-actions scheduled-actions">
                                         <button
@@ -219,7 +218,7 @@
                     </div>
                 @endif
             @else
-                <div class="empty-state">
+                <div class="module-empty empty-state">
                     <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                     </svg>
@@ -229,7 +228,8 @@
                 </div>
             @endif
         </div>
-    </div>
+    </section>
+</div>
 
 @include('scheduled-messages.modals.create-edit')
 @include('scheduled-messages.modals.details')

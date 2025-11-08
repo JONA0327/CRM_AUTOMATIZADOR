@@ -1,102 +1,11 @@
-:root,
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
-.products-header {
-    width: min(1120px, 100%);
-    margin: 0 auto;
-    padding: 0 clamp(1.5rem, 3vw, 2.5rem);
-}
-
 .products-container {
-    width: min(1120px, 100%);
-    margin: 0 auto;
-    padding: clamp(1.5rem, 3vw, 2.5rem);
-}
-
-.products-filters {
-    background: var(--white);
-    border: 1px solid var(--border-soft);
-    border-radius: 1.25rem;
-    box-shadow: var(--surface-shadow);
-    padding: clamp(1.25rem, 2vw, 1.75rem) clamp(1.5rem, 3vw, 2.25rem);
-    margin-bottom: clamp(1.5rem, 3vw, 2rem);
-}
-
-.filter-controls {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: clamp(1rem, 3vw, 2rem);
-    align-items: center;
-}
-
-.filter-inputs {
-    display: grid;
-    grid-template-columns: minmax(240px, 320px) 1fr;
-    gap: clamp(0.75rem, 2vw, 1.5rem);
-}
-
-.filter-select,
-.filter-input {
-    width: 100%;
-    border: 1px solid rgba(36, 96, 230, 0.25);
-    border-radius: 0.9rem;
-    padding: 0.75rem 1rem;
-    font-size: 0.95rem;
-    background: rgba(63, 127, 255, 0.05);
-    color: var(--ink-700);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.filter-select:focus,
-.filter-input:focus {
-    outline: none;
-    border-color: var(--blue-500);
-    box-shadow: 0 0 0 4px rgba(63, 127, 255, 0.15);
-    background: var(--white);
-}
-
-.filter-input::placeholder {
-    color: rgba(15, 23, 42, 0.5);
-}
-
-.product-count {
-    justify-self: end;
-    font-size: 0.9rem;
-    color: var(--ink-500);
-    padding: 0.35rem 0.85rem;
-    border-radius: 9999px;
-    background: rgba(63, 127, 255, 0.08);
-    font-weight: 600;
-}
-
-/* Create product button (header) */
-.create-product-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.6rem 1rem;
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(13, 148, 136, 0.9));
-    color: white;
-    border-radius: 0.9rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-    box-shadow: 0 18px 35px rgba(36, 96, 230, 0.18);
-}
-
-.create-product-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 24px 45px rgba(13, 148, 136, 0.18);
+    gap: clamp(1.5rem, 2vw, 2.5rem);
 }
 
 .category-section {
-    margin-top: clamp(1.5rem, 3vw, 2.5rem);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
 }
 
 .category-header {
@@ -127,41 +36,14 @@
 }
 
 .products-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: clamp(1.25rem, 2vw, 1.75rem);
+    width: 100%;
 }
 
 .product-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    background: var(--white);
-    border-radius: 1.25rem;
-    border: 1px solid var(--border-soft);
-    box-shadow: var(--surface-shadow);
+    padding: 0;
+    gap: 0;
     overflow: hidden;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
     min-height: 320px;
-}
-
-.product-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(63, 127, 255, 0.08), transparent 45%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.product-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 30px 55px rgba(36, 96, 230, 0.25);
-    border-color: rgba(36, 96, 230, 0.35);
-}
-
-.product-card:hover::before {
-    opacity: 1;
 }
 
 .product-image {
@@ -201,10 +83,10 @@
 }
 
 .product-info {
-    padding: 1.25rem 1.25rem 1.5rem;
+    padding: clamp(1.25rem, 2vw, 1.75rem);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.85rem;
 }
 
 .product-name {
@@ -220,7 +102,7 @@
 }
 
 .product-category {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--ink-500);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -257,9 +139,6 @@
 }
 
 .product-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     font-size: 0.85rem;
     color: var(--ink-500);
 }
@@ -305,88 +184,20 @@
     box-shadow: 0 12px 26px rgba(36, 96, 230, 0.2);
 }
 
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: clamp(2.5rem, 4vw, 3rem);
-    border-radius: 1.5rem;
-    border: 1px solid var(--border-soft);
-    box-shadow: var(--surface-shadow);
-    background: var(--white);
-    text-align: center;
-}
-
 .empty-state-icon {
     width: 3.5rem;
     height: 3.5rem;
     color: var(--ink-400);
 }
 
-.empty-state h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--ink-700);
-}
-
-.empty-state p {
-    margin: 0;
-    color: var(--ink-500);
-    font-size: 0.9rem;
-}
-
-.empty-state-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.75rem;
-    border-radius: 9999px;
-    border: none;
-    background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
-    color: var(--white);
-    font-weight: 700;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    box-shadow: 0 20px 35px rgba(36, 96, 230, 0.35);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.empty-state-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 24px 40px rgba(36, 96, 230, 0.4);
-}
-
-.empty-state-btn svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-@media (max-width: 1024px) {
-    .filter-controls {
-        grid-template-columns: 1fr;
-    }
-
-    .filter-inputs {
-        grid-template-columns: 1fr;
-    }
-
-    .product-count {
-        justify-self: start;
-    }
-}
-
 @media (max-width: 768px) {
-    .products-header,
     .products-container {
-        padding: 1.5rem;
+        gap: 1.5rem;
     }
 
-    .products-grid {
-        grid-template-columns: 1fr;
+    .category-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .product-image {
@@ -395,16 +206,7 @@
 }
 
 @media (max-width: 480px) {
-    .products-header,
-    .products-container {
-        padding: 1.25rem;
-    }
-
-    .products-filters {
-        padding: 1rem;
-    }
-
-    .product-info {
-        padding: 1rem;
+    .product-actions {
+        opacity: 1;
     }
 }

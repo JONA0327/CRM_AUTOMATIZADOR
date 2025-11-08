@@ -5,46 +5,51 @@
 @endpush
 
 @section('content')
-<!-- Header -->
-<div class="products-header">
-    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-4">
+<div class="module-shell" data-module="products">
+    <!-- Header -->
+    <header class="module-header">
+        <div class="module-header__headline">
             <span class="stat-icon">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
             </span>
             <div>
-                <h2 class="text-2xl font-extrabold text-blue-900 tracking-tight">Gestión de Productos</h2>
-                <p class="text-sm font-medium text-blue-600">Catálogo completo de productos 4Life</p>
+                <h2 class="module-title">Gestión de Productos</h2>
+                <p class="module-subtitle">Catálogo completo de productos 4Life</p>
             </div>
         </div>
-        <div class="flex items-center gap-4">
-            <button id="createProductBtn" class="create-product-btn">
+        <div class="module-actions">
+            <button id="createProductBtn" class="module-btn module-btn--primary">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
                 Nuevo producto
             </button>
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-blue-500">Catálogo actualizado</p>
+            <p class="module-tagline">Catálogo actualizado</p>
         </div>
-    </div>
-</div>
+    </header>
 
-    <div class="products-container">
+    <section class="module-section products-container">
         <!-- Filtros -->
-        <div class="products-filters">
-            <div class="filter-controls">
-                <div class="filter-inputs">
-                    <select id="categoryFilter" class="filter-select">
+        <div class="module-panel module-panel--filters products-filters">
+            <div class="module-panel__controls">
+                <div class="module-panel__fields">
+                    <div class="module-field">
+                        <label for="categoryFilter">Categoría</label>
+                        <select id="categoryFilter" class="module-input filter-select">
                             <option value="">Todas las categorías</option>
                             @foreach($catalog as $category => $products)
                                 <option value="{{ $category }}">{{ $category }}</option>
                             @endforeach
-                    </select>
-                    <input type="text" id="searchProducts" placeholder="Buscar productos..." class="filter-input">
+                        </select>
+                    </div>
+                    <div class="module-field">
+                        <label for="searchProducts">Buscar</label>
+                        <input type="text" id="searchProducts" placeholder="Buscar productos..." class="module-input filter-input">
+                    </div>
                 </div>
-                <div class="product-count">
+                <div class="module-count product-count">
                     Total: <span id="productCount" class="font-semibold text-blue-900">{{ $productsByCategory->flatten()->count() }}</span> productos
                 </div>
             </div>
@@ -59,9 +64,9 @@
                         <span class="category-badge">{{ $products->count() }} productos</span>
                     </div>
 
-                    <div class="products-grid">
+                    <div class="module-grid products-grid">
                         @foreach($products as $product)
-                            <div class="product-card cursor-pointer"
+                            <div class="module-card product-card cursor-pointer"
                                  data-product-id="{{ $product->id }}"
                                  data-product-name="{{ strtolower($product->name) }}"
                                  data-category="{{ $category }}">
@@ -80,7 +85,7 @@
                                 </div>
 
                                 <!-- Información del producto -->
-                                <div class="product-info">
+                                <div class="module-card__body product-info">
                                     <h4 class="product-name">{{ $product->name }}</h4>
                                     <p class="product-category">{{ $product->category }}</p>
 
@@ -97,7 +102,7 @@
                                         </div>
                                     @endif
 
-                                    <div class="product-footer">
+                                    <div class="module-card__footer product-footer">
                                         <span class="product-country">📍 {{ $product->country }}</span>
                                         <div class="product-actions">
                                             <button class="action-btn edit-product-btn" data-product-id="{{ $product->id }}">
@@ -120,7 +125,7 @@
             @endforeach
         @else
             <!-- Estado vacío -->
-            <div class="empty-state">
+            <div class="module-empty empty-state">
                 <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
@@ -128,7 +133,8 @@
                 <p>Comienza creando tu primer producto para el catálogo 4Life</p>
             </div>
         @endif
-    </div>
+    </section>
+</div>
 
 <!-- Modal para crear/editar producto -->
 @include('products.modals.create-edit')

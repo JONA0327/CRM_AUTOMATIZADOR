@@ -15,7 +15,7 @@
         <script src="https://cdn.jsdelivr.net/npm/heroicons@2.0.18/24/outline/index.js"></script>
 
         <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/css/layout-optimized.css', 'resources/js/app.js'])
         
         <style>
             body {
