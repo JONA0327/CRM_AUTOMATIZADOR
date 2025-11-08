@@ -73,13 +73,13 @@
                     </div>
 
                     <div class="space-y-6">
-                        <div class="card-section">
+                        <div id="manualModeSection" class="card-section">
                             <div class="card-section-header">
                                 <h4>Productos añadidos manualmente</h4>
                                 <p>Selecciona productos y describe por qué apoyan esta condición.</p>
                             </div>
                             <div class="card-section-body space-y-4">
-                                <div class="flex flex-col gap-3">
+                                <div id="manualProductForm" class="flex flex-col gap-3">
                                     <select id="manualProductSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Selecciona un producto</option>
                                         @foreach($products as $product)
@@ -97,13 +97,13 @@
                             </div>
                         </div>
 
-                        <div class="card-section">
+                        <div id="aiModeSection" class="card-section hidden">
                             <div class="card-section-header">
                                 <h4>Sugerencias con IA</h4>
                                 <p>Analiza el catálogo para proponer productos relevantes.</p>
                             </div>
                             <div class="card-section-body space-y-4">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div id="aiSuggestionControls" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="flex items-center gap-2 text-sm text-gray-700">
                                         <input type="checkbox" id="onlySameCountry" class="text-blue-600 focus:ring-blue-500">
                                         Solo productos del país seleccionado

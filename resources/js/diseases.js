@@ -20,6 +20,126 @@ class DiseaseManager {
         this.init();
     }
 
+    autoSelectAiRecommendations({ silent = false } = {}) {
+        const diseaseName = document.getElementById('diseaseName')?.value.trim() || '';
+
+        const combined = [
+            ...Array.from(this.lastSuggestions.same_country || []),
+            ...Array.from(this.lastSuggestions.cross_country || []),
+        ];
+
+        const seenProducts = new Set();
+        const recommendations = [];
+
+        combined.forEach((suggestion) => {
+            const product = this.getProductById(suggestion.product_id);
+            if (! product) {
+                return;
+            }
+
+            const productKey = `${product.id}`;
+            if (seenProducts.has(productKey)) {
+                return;
+            }
+
+            seenProducts.add(productKey);
+
+            const keyPoints = this.normaliseKeyPoints(product.key_points);
+            const analysisPoints = (Array.isArray(suggestion.analysis_points) && suggestion.analysis_points.length > 0)
+                ? suggestion.analysis_points
+                : keyPoints.slice(0, 3);
+
+            const reasoning = suggestion.reason && suggestion.reason.trim().length > 0
+                ? suggestion.reason.trim()
+                : this.buildReasonFromProduct(product, diseaseName);
+
+            recommendations.push({
+                productId: product.id,
+                productName: product.name,
+                country: product.country,
+                reasoning,
+                analysisPoints,
+                isCrossCountry: !! suggestion.is_cross_country,
+                isApproved: suggestion.is_cross_country ? false : true,
+            });
+        });
+
+        if (recommendations.length === 0) {
+            this.selectedAiRecommendations = [];
+            this.renderSelectedAiRecommendations();
+
+            if (! silent) {
+                this.showToast('No se encontraron productos relevantes para la condición especificada.', 'warning');
+            }
+
+            return;
+        }
+
+        this.selectedAiRecommendations = recommendations;
+        this.renderSelectedAiRecommendations();
+
+        if (! silent) {
+            this.showToast('Sugerencias generadas automáticamente.', 'success');
+        }
+    }
+
+    getProductById(id) {
+        return this.products.find((product) => `${product.id}` === `${id}`);
+    }
+
+    normaliseKeyPoints(raw) {
+        if (! raw) {
+            return [];
+        }
+
+        if (Array.isArray(raw)) {
+            return raw
+                .map((point) => (typeof point === 'string' ? point.trim() : ''))
+                .filter((point) => point.length > 0);
+        }
+
+        if (typeof raw === 'string') {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed
+                        .map((point) => (typeof point === 'string' ? point.trim() : ''))
+                        .filter((point) => point.length > 0);
+                }
+            } catch (error) {
+                // El valor no estaba serializado como JSON.
+            }
+
+            return raw
+                .split(/[\n;]+/)
+                .map((point) => point.trim())
+                .filter((point) => point.length > 0);
+        }
+
+        return [];
+    }
+
+    buildReasonFromProduct(product, diseaseName) {
+        const keyPoints = this.normaliseKeyPoints(product?.key_points) || [];
+        const topHighlights = keyPoints.slice(0, 3);
+
+        if (topHighlights.length > 0) {
+            const formatted = topHighlights.join('; ');
+            const context = diseaseName
+                ? `para apoyar la condición ${diseaseName}`
+                : 'como apoyo complementario';
+
+            return `Se recomienda ${product.name} ${context} gracias a sus puntos clave: ${formatted}.`;
+        }
+
+        const info = (product?.information || '').trim();
+        if (info.length > 0) {
+            return info.length > 220 ? `${info.slice(0, 217).trim()}…` : info;
+        }
+
+        return 'Sugerido automáticamente por similitudes con la condición especificada.';
+    }
+
     init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.setup());
@@ -32,6 +152,7 @@ class DiseaseManager {
         this.parseProducts();
         this.bindEvents();
         this.loadDiseases();
+        this.updateModeAvailability();
     }
 
     parseProducts() {
@@ -57,6 +178,8 @@ class DiseaseManager {
         const generateSuggestionsBtn = document.getElementById('generateSuggestionsBtn');
         const generateInfoBtn = document.getElementById('generateInformationBtn');
         const informationModeInputs = document.querySelectorAll('input[name="information_mode"]');
+        const diseaseNameInput = document.getElementById('diseaseName');
+        const diseaseCountrySelect = document.getElementById('diseaseCountry');
         const closeDetailBtn = document.getElementById('closeDiseaseDetailsBtn');
         const closeDetailModalBtn = document.getElementById('closeDiseaseDetailsModal');
 
@@ -80,7 +203,16 @@ class DiseaseManager {
         });
 
         informationModeInputs.forEach((input) => {
-            input.addEventListener('change', (event) => this.toggleInformationMode(event.target.value));
+            input.addEventListener('change', (event) => this.handleInformationModeChange(event.target.value));
+        });
+
+        diseaseNameInput?.addEventListener('input', () => this.updateModeAvailability());
+
+        diseaseCountrySelect?.addEventListener('change', () => {
+            const aiModeSelected = document.querySelector('input[name="information_mode"][value="ai"]')?.checked;
+            if (aiModeSelected) {
+                this.generateSuggestions({ autoSelect: true, silent: true });
+            }
         });
 
         addManualBtn?.addEventListener('click', () => this.addManualRecommendation());
@@ -164,6 +296,15 @@ class DiseaseManager {
                 this.approveSuggestion(suggestionId);
             }
         });
+
+        document.addEventListener('input', (event) => {
+            if (event.target.classList.contains('manual-reason-input')) {
+                const index = Number(event.target.closest('[data-index]')?.dataset.index);
+                if (! Number.isNaN(index) && this.manualRecommendations[index]) {
+                    this.manualRecommendations[index].reasoning = event.target.value;
+                }
+            }
+        });
     }
 
     loadDiseases() {
@@ -223,14 +364,75 @@ class DiseaseManager {
         counter.textContent = total;
     }
 
+    handleInformationModeChange(mode) {
+        if (! mode) {
+            return;
+        }
+
+        this.toggleInformationMode(mode);
+
+        if (
+            mode === 'ai'
+            && this.manualRecommendations.length === 0
+            && this.selectedAiRecommendations.length === 0
+        ) {
+            this.lastSuggestions = { same_country: [], cross_country: [] };
+            this.renderSuggestions();
+            this.generateSuggestions({ autoSelect: true, silent: true });
+        }
+    }
+
     toggleInformationMode(mode) {
         const generateInfoBtn = document.getElementById('generateInformationBtn');
-        if (! generateInfoBtn) return;
+        const manualSection = document.getElementById('manualModeSection');
+        const aiSection = document.getElementById('aiModeSection');
 
         if (mode === 'ai') {
-            generateInfoBtn.classList.remove('hidden');
+            generateInfoBtn?.classList.remove('hidden');
+            manualSection?.classList.add('hidden');
+            aiSection?.classList.remove('hidden');
+
+            if (this.manualRecommendations.length > 0) {
+                this.manualRecommendations = [];
+                this.renderManualRecommendations();
+            }
         } else {
-            generateInfoBtn.classList.add('hidden');
+            generateInfoBtn?.classList.add('hidden');
+            manualSection?.classList.remove('hidden');
+            aiSection?.classList.add('hidden');
+
+            if (
+                this.selectedAiRecommendations.length > 0
+                || this.lastSuggestions.same_country.length > 0
+                || this.lastSuggestions.cross_country.length > 0
+            ) {
+                this.selectedAiRecommendations = [];
+                this.lastSuggestions = { same_country: [], cross_country: [] };
+                this.renderSelectedAiRecommendations();
+                this.renderSuggestions();
+            }
+        }
+    }
+
+    updateModeAvailability() {
+        const diseaseNameInput = document.getElementById('diseaseName');
+        const informationModeInputs = document.querySelectorAll('input[name="information_mode"]');
+        const hasName = !! diseaseNameInput?.value.trim();
+
+        informationModeInputs.forEach((input) => {
+            input.disabled = ! hasName;
+            const label = input.closest('label');
+            if (label) {
+                label.classList.toggle('opacity-60', ! hasName);
+            }
+        });
+
+        if (! hasName) {
+            const manualInput = document.querySelector('input[name="information_mode"][value="manual"]');
+            if (manualInput) {
+                manualInput.checked = true;
+                this.toggleInformationMode('manual');
+            }
         }
     }
 
@@ -248,6 +450,7 @@ class DiseaseManager {
         this.renderManualRecommendations();
         this.renderSelectedAiRecommendations();
         this.renderSuggestions();
+        this.updateModeAvailability();
     }
 
     openCreateModal() {
@@ -336,15 +539,42 @@ class DiseaseManager {
             const wrapper = document.createElement('div');
             wrapper.className = 'recommendation-item';
             wrapper.dataset.index = index;
-            wrapper.innerHTML = `
-                <div class="recommendation-header">
-                    <span>${item.productName} <span class="text-xs text-gray-500">(${item.country})</span></span>
-                    <div class="recommendation-actions">
-                        <button type="button" class="remove-manual-recommendation">Quitar</button>
-                    </div>
-                </div>
-                <p class="text-sm text-gray-600">${item.reasoning}</p>
-            `;
+            const header = document.createElement('div');
+            header.className = 'recommendation-header';
+
+            const nameWrapper = document.createElement('span');
+            nameWrapper.textContent = `${item.productName} `;
+
+            const countryTag = document.createElement('span');
+            countryTag.className = 'text-xs text-gray-500';
+            countryTag.textContent = `(${item.country})`;
+            nameWrapper.appendChild(countryTag);
+
+            const actions = document.createElement('div');
+            actions.className = 'recommendation-actions';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-manual-recommendation';
+            removeBtn.textContent = 'Quitar';
+
+            actions.appendChild(removeBtn);
+            header.appendChild(nameWrapper);
+            header.appendChild(actions);
+
+            const label = document.createElement('label');
+            label.className = 'block text-xs text-gray-500 mt-2';
+            label.textContent = 'Información de apoyo';
+
+            const reasoningField = document.createElement('textarea');
+            reasoningField.className = 'manual-reason-input mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+            reasoningField.rows = 3;
+            reasoningField.value = item.reasoning || '';
+            reasoningField.placeholder = 'Describe por qué este producto es útil para la condición.';
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(label);
+            wrapper.appendChild(reasoningField);
             container.appendChild(wrapper);
         });
     }
@@ -425,7 +655,11 @@ class DiseaseManager {
 
         if (this.selectedAiRecommendations.length === 0) {
             container.classList.add('empty');
-            container.innerHTML = '<p class="text-sm text-gray-500">Todavía no has aceptado sugerencias.</p>';
+            const aiModeSelected = document.querySelector('input[name="information_mode"][value="ai"]')?.checked;
+            const message = aiModeSelected
+                ? 'La IA aún no encuentra coincidencias para la condición ingresada.'
+                : 'Todavía no has aceptado sugerencias.';
+            container.innerHTML = `<p class="text-sm text-gray-500">${message}</p>`;
             return;
         }
 
@@ -435,23 +669,66 @@ class DiseaseManager {
             const wrapper = document.createElement('div');
             wrapper.className = `recommendation-item ${item.isCrossCountry ? 'cross-country' : ''}`;
             wrapper.dataset.index = index;
-            const analysis = item.analysisPoints?.map((point) => `<li class="list-disc ml-5 text-xs text-gray-600">${point}</li>`).join('') || '';
-            wrapper.innerHTML = `
-                <div class="recommendation-header">
-                    <span>${item.productName} <span class="text-xs text-gray-500">(${item.country})</span></span>
-                    <div class="recommendation-actions">
-                        <button type="button" class="remove-ai-recommendation">Quitar</button>
-                    </div>
-                </div>
-                <p class="text-sm text-gray-600 mb-1">${item.reasoning}</p>
-                ${analysis ? `<ul class="space-y-1">${analysis}</ul>` : ''}
-                ${item.isCrossCountry ? '<p class="text-xs text-rose-500">Marcado como sugerencia de otro país. Se registrará como pendiente de aprobación.</p>' : ''}
-            `;
+            const header = document.createElement('div');
+            header.className = 'recommendation-header';
+
+            const nameWrapper = document.createElement('span');
+            nameWrapper.textContent = `${item.productName} `;
+
+            const countryTag = document.createElement('span');
+            countryTag.className = 'text-xs text-gray-500';
+            countryTag.textContent = `(${item.country})`;
+            nameWrapper.appendChild(countryTag);
+
+            const actions = document.createElement('div');
+            actions.className = 'recommendation-actions';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-ai-recommendation';
+            removeBtn.textContent = 'Quitar';
+            actions.appendChild(removeBtn);
+
+            header.appendChild(nameWrapper);
+            header.appendChild(actions);
+
+            const reasonParagraph = document.createElement('p');
+            reasonParagraph.className = 'text-sm text-gray-600 mb-1';
+            reasonParagraph.textContent = item.reasoning || '';
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(reasonParagraph);
+
+            const analysisPoints = Array.isArray(item.analysisPoints) ? item.analysisPoints : [];
+            if (analysisPoints.length > 0) {
+                const list = document.createElement('ul');
+                list.className = 'space-y-1';
+                analysisPoints.forEach((point) => {
+                    if (! point) return;
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-disc ml-5 text-xs text-gray-600';
+                    listItem.textContent = point;
+                    list.appendChild(listItem);
+                });
+
+                if (list.children.length > 0) {
+                    wrapper.appendChild(list);
+                }
+            }
+
+            if (item.isCrossCountry) {
+                const warning = document.createElement('p');
+                warning.className = 'text-xs text-rose-500';
+                warning.textContent = 'Marcado como sugerencia de otro país. Se registrará como pendiente de aprobación.';
+                wrapper.appendChild(warning);
+            }
+
             container.appendChild(wrapper);
         });
     }
 
-    async generateSuggestions() {
+    async generateSuggestions(options = {}) {
+        const { autoSelect = false, silent = false } = options;
         const diseaseName = document.getElementById('diseaseName')?.value.trim();
         const country = document.getElementById('diseaseCountry')?.value;
         const context = document.getElementById('suggestionContext')?.value.trim();
@@ -459,12 +736,15 @@ class DiseaseManager {
         const includeOthers = document.getElementById('includeOtherCountries')?.checked;
 
         if (! diseaseName) {
-            this.showToast('Indica el nombre de la condición para generar sugerencias.', 'warning');
+            if (! silent) {
+                this.showToast('Indica el nombre de la condición para generar sugerencias.', 'warning');
+            }
             return;
         }
 
         const button = document.getElementById('generateSuggestionsBtn');
-        if (button) {
+        const shouldShowLoading = ! silent;
+        if (button && shouldShowLoading) {
             button.disabled = true;
             button.classList.add('opacity-70');
             button.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8" stroke-width="4" stroke-linecap="round"></path></svg> Procesando...';
@@ -495,12 +775,21 @@ class DiseaseManager {
             const data = await response.json();
             this.lastSuggestions = data.data || { same_country: [], cross_country: [] };
             this.renderSuggestions();
-            this.showToast('Sugerencias generadas.', 'success');
+
+            if (autoSelect) {
+                this.autoSelectAiRecommendations({ silent });
+            }
+
+            if (! silent) {
+                this.showToast('Sugerencias generadas.', 'success');
+            }
         } catch (error) {
             console.error(error);
-            this.showToast(error.message || 'No se pudieron obtener sugerencias.', 'error');
+            if (! silent) {
+                this.showToast(error.message || 'No se pudieron obtener sugerencias.', 'error');
+            }
         } finally {
-            if (button) {
+            if (button && shouldShowLoading) {
                 button.disabled = false;
                 button.classList.remove('opacity-70');
                 button.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Generar sugerencias IA';
@@ -592,11 +881,11 @@ class DiseaseManager {
             },
             manual_recommendations: this.manualRecommendations.map((item) => ({
                 product_id: item.productId,
-                reasoning: item.reasoning,
+                reasoning: item.reasoning?.trim() || '',
             })),
             ai_recommendations: this.selectedAiRecommendations.map((item) => ({
                 product_id: item.productId,
-                reasoning: item.reasoning,
+                reasoning: item.reasoning?.trim() || '',
                 is_cross_country: item.isCrossCountry,
                 is_approved: item.isApproved,
                 analysis_points: item.analysisPoints || [],
@@ -664,6 +953,7 @@ class DiseaseManager {
             form.querySelector('#diseaseName').value = disease.name;
             form.querySelector('#diseaseCountry').value = disease.country;
             form.querySelector('#diseaseInformation').value = disease.information || '';
+            this.updateModeAvailability();
 
             const modeInput = form.querySelector(`input[name="information_mode"][value="${disease.information_mode}"]`);
             if (modeInput) {
