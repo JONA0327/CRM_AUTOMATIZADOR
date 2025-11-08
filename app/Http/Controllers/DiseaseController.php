@@ -178,44 +178,46 @@ class DiseaseController extends Controller
 
     protected function syncRecommendations(Disease $disease, array $data): void
     {
-        $disease->recommendations()->delete();
+        if (Schema::hasTable('disease_product_recommendations')) {
+            $disease->recommendations()->delete();
 
-        $recommendations = collect();
+            $recommendations = collect();
 
-        foreach (Arr::get($data, 'manual_recommendations', []) as $item) {
-            $recommendations->push([
-                'product_id' => $item['product_id'],
-                'recommendation_type' => 'manual',
-                'is_cross_country' => false,
-                'is_approved' => true,
-                'reasoning' => $item['reasoning'],
-                'analysis' => null,
-            ]);
-        }
-
-        foreach (Arr::get($data, 'ai_recommendations', []) as $item) {
-            $analysis = null;
-
-            if (! empty($item['analysis_points']) && is_array($item['analysis_points'])) {
-                $analysis = ['analysis_points' => $item['analysis_points']];
+            foreach (Arr::get($data, 'manual_recommendations', []) as $item) {
+                $recommendations->push([
+                    'product_id' => $item['product_id'],
+                    'recommendation_type' => 'manual',
+                    'is_cross_country' => false,
+                    'is_approved' => true,
+                    'reasoning' => $item['reasoning'],
+                    'analysis' => null,
+                ]);
             }
 
-            if (isset($item['confidence'])) {
-                $analysis = $analysis ? array_merge($analysis, ['confidence' => $item['confidence']]) : ['confidence' => $item['confidence']];
+            foreach (Arr::get($data, 'ai_recommendations', []) as $item) {
+                $analysis = null;
+
+                if (! empty($item['analysis_points']) && is_array($item['analysis_points'])) {
+                    $analysis = ['analysis_points' => $item['analysis_points']];
+                }
+
+                if (isset($item['confidence'])) {
+                    $analysis = $analysis ? array_merge($analysis, ['confidence' => $item['confidence']]) : ['confidence' => $item['confidence']];
+                }
+
+                $recommendations->push([
+                    'product_id' => $item['product_id'],
+                    'recommendation_type' => 'ai',
+                    'is_cross_country' => false,
+                    'is_approved' => true,
+                    'reasoning' => $item['reasoning'],
+                    'analysis' => $analysis,
+                ]);
             }
 
-            $recommendations->push([
-                'product_id' => $item['product_id'],
-                'recommendation_type' => 'ai',
-                'is_cross_country' => false,
-                'is_approved' => true,
-                'reasoning' => $item['reasoning'],
-                'analysis' => $analysis,
-            ]);
-        }
-
-        if ($recommendations->isNotEmpty()) {
-            $disease->recommendations()->createMany($recommendations->all());
+            if ($recommendations->isNotEmpty()) {
+                $disease->recommendations()->createMany($recommendations->all());
+            }
         }
     }
 
