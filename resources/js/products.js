@@ -220,24 +220,24 @@ class ProductManager {
     }
 
     openCreateModal() {
-        if (typeof openCreateModal === 'function') {
-            openCreateModal();
+        if (typeof window.openCreateModal === 'function') {
+            window.openCreateModal();
         } else {
             console.warn('openCreateModal function not found');
         }
     }
 
     showProductDetails(productId) {
-        if (typeof showProductDetails === 'function') {
-            showProductDetails(productId);
+        if (typeof window.showProductDetails === 'function') {
+            window.showProductDetails(productId);
         } else {
             console.warn('showProductDetails function not found');
         }
     }
 
     editProduct(productId) {
-        if (typeof editProduct === 'function') {
-            editProduct(productId);
+        if (typeof window.editProduct === 'function') {
+            window.editProduct(productId);
         } else {
             console.warn('editProduct function not found');
         }
