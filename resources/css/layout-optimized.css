@@ -1521,6 +1521,8 @@ body.modal-open {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: auto;
+    min-height: 200px;
     max-height: calc(100vh - 2rem);
     margin: 1rem auto;
     transform: translateZ(0);
@@ -1598,11 +1600,12 @@ body.modal-open {
     gap: clamp(1rem, 2vw, 1.5rem);
     flex: 1 1 auto;
     min-height: 0;
-    max-height: calc(100vh - 12rem);
+    max-height: calc(100vh - 14rem);
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(63, 127, 255, 0.4) rgba(63, 127, 255, 0.08);
+    padding-bottom: 2rem;
 }
 
 .app-modal__body::-webkit-scrollbar {
@@ -1624,17 +1627,20 @@ body.modal-open {
 }
 
 .app-modal__footer {
-    padding: clamp(0.75rem, 1.5vw, 1rem);
+    padding: clamp(1rem, 1.5vw, 1.25rem);
     background: rgba(255, 255, 255, 0.98);
     border-top: 1px solid rgba(63, 127, 255, 0.12);
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 0.75rem;
-    /* keep footer visible when body scrolls */
     position: sticky;
     bottom: 0;
+    left: 0;
+    right: 0;
     z-index: 5;
+    backdrop-filter: blur(8px);
+    margin-top: auto;
 }
 
 .app-modal__footer .btn,
