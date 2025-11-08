@@ -1478,11 +1478,14 @@ textarea.form-control {
 .app-modal__overlay {
     position: absolute;
     inset: 0;
+    z-index: 10;
     background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(6px);
 }
 
 .app-modal__dialog {
+    position: relative;
+    z-index: 20;
     width: min(960px, 100%);
     background: var(--white);
     border-radius: 1.5rem;
