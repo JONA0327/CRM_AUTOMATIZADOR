@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
+            $table->string('user_message');
+            $table->string('bot_response');
+            $table->string('status');
             $table->timestamps();
         });
     }
