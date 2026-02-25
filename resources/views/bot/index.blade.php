@@ -1,5 +1,192 @@
 <x-admin-layout title="Números Conectados">
 
+{{-- ══ MODAL CONFIGURACIÓN DE INSTANCIA ══ --}}
+<template x-teleport="body">
+    <div x-data="instanciaConfig()"
+         x-show="open"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style="display:none">
+
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="cerrar()"></div>
+
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             @click.stop>
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">Configurar instancia</h3>
+                        <p class="text-xs text-gray-400" x-text="instancia"></p>
+                    </div>
+                </div>
+                <button @click="cerrar()" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Cuerpo --}}
+            <div class="px-6 py-5 space-y-6">
+
+                {{-- Alerta de error --}}
+                <div x-show="errorMsg" x-transition
+                     class="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm">
+                    <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <span x-text="errorMsg"></span>
+                </div>
+
+                {{-- Alerta de éxito --}}
+                <div x-show="okMsg" x-transition
+                     class="flex items-start gap-3 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm">
+                    <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    <span x-text="okMsg"></span>
+                </div>
+
+                {{-- Skeleton de carga --}}
+                <template x-if="cargando">
+                    <div class="space-y-4 animate-pulse">
+                        <div class="h-4 bg-gray-100 rounded w-1/3"></div>
+                        <div class="h-10 bg-gray-100 rounded"></div>
+                        <div class="h-4 bg-gray-100 rounded w-1/4 mt-4"></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <template x-for="i in 6"><div class="h-8 bg-gray-100 rounded"></div></template>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!cargando">
+                    <div class="space-y-6">
+
+                        {{-- ── WEBHOOK ── --}}
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                </svg>
+                                Webhook
+                            </h4>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">URL del webhook</label>
+                            <input type="url" x-model="form.webhook_url"
+                                   placeholder="https://tu-app.com/webhook/whatsapp"
+                                   class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
+                            <p class="mt-1 text-xs text-gray-400">Laravel recibirá los eventos en esta URL (tu ruta de webhook).</p>
+                        </div>
+
+                        {{-- ── EVENTOS ── --}}
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                                Eventos a escuchar
+                            </h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <template x-for="ev in eventosDisponibles" :key="ev.value">
+                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                                           :class="form.events.includes(ev.value) ? 'border-blue-200 bg-blue-50/50' : ''">
+                                        <input type="checkbox"
+                                               :value="ev.value"
+                                               :checked="form.events.includes(ev.value)"
+                                               @change="toggleEvento(ev.value)"
+                                               class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"/>
+                                        <div>
+                                            <p class="text-xs font-semibold text-gray-700" x-text="ev.label"></p>
+                                            <p class="text-xs text-gray-400" x-text="ev.desc"></p>
+                                        </div>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        {{-- ── SETTINGS ── --}}
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                                </svg>
+                                Comportamiento de la instancia
+                            </h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <template x-for="s in settingsDisponibles" :key="s.key">
+                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                                           :class="form[s.key] ? 'border-emerald-200 bg-emerald-50/50' : ''">
+                                        <input type="checkbox"
+                                               :checked="form[s.key]"
+                                               @change="form[s.key] = !form[s.key]"
+                                               class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"/>
+                                        <div>
+                                            <p class="text-xs font-semibold text-gray-700" x-text="s.label"></p>
+                                            <p class="text-xs text-gray-400" x-text="s.desc"></p>
+                                        </div>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-b-2xl">
+                <button @click="seleccionarTodos()"
+                        class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                    Seleccionar todos los eventos
+                </button>
+                <div class="flex items-center gap-3">
+                    <button @click="cerrar()" type="button"
+                            class="px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                        Cancelar
+                    </button>
+                    <button @click="guardar()" :disabled="guardando"
+                            class="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                        <template x-if="guardando">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                        </template>
+                        <template x-if="!guardando">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                            </svg>
+                        </template>
+                        <span x-text="guardando ? 'Guardando...' : 'Guardar configuración'"></span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</template>
+
     {{-- Flash messages --}}
     @if (session('success'))
         <div class="mb-6 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-4">
@@ -178,20 +365,35 @@
 
                             {{-- Acciones --}}
                             <td class="px-6 py-4 text-right">
-                                <form method="POST"
-                                      action="{{ route('bot.eliminar', $nombre) }}"
-                                      onsubmit="return confirm('¿Eliminar la instancia «{{ $nombre }}»?\nEsta acción desconectará el número de WhatsApp.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="inline-flex items-center gap-2">
+                                    {{-- Botón configurar --}}
+                                    <button
+                                        onclick="window.dispatchEvent(new CustomEvent('abrir-config', { detail: '{{ $nombre }}' }))"
+                                        title="Configurar instancia"
+                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                         </svg>
-                                        Eliminar
                                     </button>
-                                </form>
+
+                                    {{-- Botón eliminar --}}
+                                    <form method="POST"
+                                          action="{{ route('bot.eliminar', $nombre) }}"
+                                          onsubmit="return confirm('¿Eliminar la instancia «{{ $nombre }}»?\nEsta acción desconectará el número de WhatsApp.')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -199,5 +401,141 @@
             </table>
         </div>
     @endif
+
+
+<script>
+function instanciaConfig() {
+    return {
+        open:      false,
+        instancia: '',
+        cargando:  false,
+        guardando: false,
+        errorMsg:  '',
+        okMsg:     '',
+
+        form: {
+            webhook_url:       '',
+            events:            [],
+            reject_call:       false,
+            groups_ignore:     false,
+            always_online:     false,
+            read_messages:     false,
+            read_status:       false,
+            sync_full_history: false,
+        },
+
+        eventosDisponibles: [
+            { value: 'MESSAGES_UPSERT',          label: 'Mensajes nuevos',         desc: 'Cuando llega un mensaje' },
+            { value: 'MESSAGES_UPDATE',           label: 'Mensajes actualizados',   desc: 'Leídos, entregados, etc.' },
+            { value: 'MESSAGES_DELETE',           label: 'Mensajes eliminados',     desc: 'Cuando se borra un mensaje' },
+            { value: 'SEND_MESSAGE',              label: 'Mensajes enviados',       desc: 'Confirmación de envío' },
+            { value: 'CONNECTION_UPDATE',         label: 'Estado de conexión',      desc: 'Conectado, desconectado...' },
+            { value: 'QRCODE_UPDATED',            label: 'QR actualizado',          desc: 'Nuevo código QR generado' },
+            { value: 'CONTACTS_UPSERT',           label: 'Contactos nuevos',        desc: 'Cuando se añade un contacto' },
+            { value: 'CONTACTS_UPDATE',           label: 'Contactos actualizados',  desc: 'Cambios en un contacto' },
+            { value: 'CHATS_UPSERT',              label: 'Chats nuevos',            desc: 'Cuando se abre un chat nuevo' },
+            { value: 'CHATS_UPDATE',              label: 'Chats actualizados',      desc: 'Cambios en un chat existente' },
+            { value: 'GROUPS_UPSERT',             label: 'Grupos nuevos',           desc: 'Cuando se une a un grupo' },
+            { value: 'GROUP_PARTICIPANTS_UPDATE', label: 'Participantes de grupo',  desc: 'Entradas y salidas de grupo' },
+            { value: 'PRESENCE_UPDATE',           label: 'Presencia',               desc: 'En línea / escribiendo...' },
+            { value: 'CALL',                      label: 'Llamadas',                desc: 'Cuando recibe una llamada' },
+        ],
+
+        settingsDisponibles: [
+            { key: 'reject_call',       label: 'Rechazar llamadas',            desc: 'Rechaza automáticamente las llamadas entrantes' },
+            { key: 'groups_ignore',     label: 'Ignorar grupos',               desc: 'No procesa mensajes de grupos' },
+            { key: 'always_online',     label: 'Siempre en línea',             desc: 'Mantiene el estado como activo' },
+            { key: 'read_messages',     label: 'Leer mensajes automáticamente',desc: 'Marca como leído al recibir' },
+            { key: 'read_status',       label: 'Leer estados',                 desc: 'Visualiza los estados/historias' },
+            { key: 'sync_full_history', label: 'Sincronizar historial',        desc: 'Descarga el historial completo' },
+        ],
+
+        init() {
+            window.addEventListener('abrir-config', (e) => this.abrir(e.detail));
+        },
+
+        async abrir(nombre) {
+            this.instancia = nombre;
+            this.errorMsg  = '';
+            this.okMsg     = '';
+            this.cargando  = true;
+            this.open      = true;
+            document.body.style.overflow = 'hidden';
+
+            try {
+                const res  = await fetch(`{{ url('/bot/config') }}/${encodeURIComponent(nombre)}`, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Webhook
+                    this.form.webhook_url = data.webhook?.url ?? '';
+                    this.form.events      = data.webhook?.events ?? [];
+
+                    // Settings
+                    const s = data.settings ?? {};
+                    this.form.reject_call       = s.reject_call       ?? false;
+                    this.form.groups_ignore     = s.groups_ignore     ?? false;
+                    this.form.always_online     = s.always_online     ?? false;
+                    this.form.read_messages     = s.read_messages     ?? false;
+                    this.form.read_status       = s.read_status       ?? false;
+                    this.form.sync_full_history = s.sync_full_history ?? false;
+                }
+            } catch (e) {
+                this.errorMsg = 'No se pudo cargar la configuración actual.';
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        toggleEvento(valor) {
+            const idx = this.form.events.indexOf(valor);
+            if (idx === -1) this.form.events.push(valor);
+            else this.form.events.splice(idx, 1);
+        },
+
+        seleccionarTodos() {
+            const todos = this.eventosDisponibles.map(e => e.value);
+            this.form.events = this.form.events.length === todos.length ? [] : [...todos];
+        },
+
+        async guardar() {
+            this.guardando = true;
+            this.errorMsg  = '';
+            this.okMsg     = '';
+
+            try {
+                const res  = await fetch(`{{ url('/bot/config') }}/${encodeURIComponent(this.instancia)}`, {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept':       'application/json',
+                    },
+                    body: JSON.stringify(this.form),
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    this.okMsg = 'Configuración guardada correctamente.';
+                    setTimeout(() => this.cerrar(), 1500);
+                } else {
+                    this.errorMsg = data.message ?? 'Error al guardar la configuración.';
+                }
+            } catch (e) {
+                this.errorMsg = 'Error de red. Verifica tu conexión.';
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        cerrar() {
+            this.open = false;
+            document.body.style.overflow = '';
+        },
+    };
+}
+</script>
 
 </x-admin-layout>

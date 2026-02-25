@@ -444,22 +444,9 @@
                                            placeholder="Escribe un producto..."
                                            class="flex-1 min-w-[140px] text-sm border-0 outline-none focus:ring-0 p-0 bg-transparent placeholder-gray-400 py-1"/>
                                     <datalist id="productos-sugeridos-lista">
-                                        <option value="4Life® Plus">
-                                        <option value="4Life Avanzado®">
-                                        <option value="4Life Masticable®">
-                                        <option value="4Life TF Boost®">
-                                        <option value="4Life Renewal®">
-                                        <option value="4Life RioVida Jugo®">
-                                        <option value="4Life RioVida Burst®">
-                                        <option value="4Life RioVida Stix®">
-                                        <option value="4Life BCV®">
-                                        <option value="4Life Belle Vie®">
-                                        <option value="4Life GL-Coach®">
-                                        <option value="4Life Collagen®">
-                                        <option value="4Life Reflexion®">
-                                        <option value="4Life Respari®">
-                                        <option value="4Life Pre/O Biotics®">
-                                        <option value="4Life Renuvo®">
+                                        @foreach ($productos as $producto)
+                                            <option value="{{ $producto }}">
+                                        @endforeach
                                     </datalist>
                                 </div>
                                 <p class="mt-1.5 text-xs text-gray-400">

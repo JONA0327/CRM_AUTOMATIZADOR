@@ -11,6 +11,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Webhook público — Evolution API hace POST aquí cuando llega un mensaje
+Route::post('/webhook/whatsapp', [BotController::class, 'recibirWebhook'])->name('webhook.whatsapp');
+
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -45,6 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/eliminar/{instancia}', [BotController::class, 'eliminarInstancia'])->name('eliminar');
         Route::post('/toggle',                 [BotController::class, 'toggleBot'])->name('toggle');
         Route::get('/diagnostico',             [BotController::class, 'diagnostico'])->name('diagnostico');
+        Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
+        Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
     });
 });
 

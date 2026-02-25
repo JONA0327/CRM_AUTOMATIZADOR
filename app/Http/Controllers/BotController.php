@@ -108,10 +108,34 @@ class BotController extends Controller
             $msg = implode('. ', $msg);
         }
 
-        return $msg
+        $msg = $msg
             ?? data_get($body, 'error')
             ?? data_get($body, 'response.message')
-            ?? ("HTTP {$response->status()}: " . $response->body());
+            ?? null;
+
+        // Siempre incluir el body completo para facilitar diagnóstico
+        $rawBody = $response->body();
+        $detail  = $rawBody !== '' ? " | Respuesta: {$rawBody}" : '';
+
+        return ($msg ?? "HTTP {$response->status()}") . $detail;
+    }
+
+    /**
+     * Recibe eventos de Evolution API (webhook público, sin auth).
+     * Evolution API hace POST aquí cuando ocurre un evento en WhatsApp.
+     */
+    public function recibirWebhook(Request $request)
+    {
+        // Responde 200 inmediatamente para que Evolution API no reintente
+        // La lógica del bot se procesará aquí más adelante
+        $event    = $request->input('event');
+        $instance = $request->input('instance');
+        $data     = $request->input('data');
+
+        // Por ahora solo registramos el evento recibido (logs de Laravel)
+        \Log::info("Webhook Evolution API recibido: evento={$event} instancia={$instance}");
+
+        return response()->json(['status' => 'ok']);
     }
 
     /**
@@ -177,6 +201,24 @@ class BotController extends Controller
                 }
             }
 
+            // ── Configurar webhook automáticamente ──────────────────────
+            try {
+                Http::withHeaders(['apikey' => $this->apiKey])
+                    ->timeout(10)
+                    ->post("{$this->apiUrl}/webhook/set/{$nombre}", [
+                        'url'              => route('webhook.whatsapp'),
+                        'webhook_by_events'=> false,
+                        'webhook_base64'   => false,
+                        'events'           => [
+                            'MESSAGES_UPSERT',
+                            'CONNECTION_UPDATE',
+                            'MESSAGES_UPDATE',
+                        ],
+                    ]);
+            } catch (\Exception) {
+                // No bloquea la creación si el webhook falla
+            }
+
             return response()->json([
                 'success'   => true,
                 'qr'        => $qr,
@@ -195,10 +237,11 @@ class BotController extends Controller
      */
     public function estadoConexion(string $instancia)
     {
+        $enc = rawurlencode($instancia);
         try {
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(10)
-                ->get("{$this->apiUrl}/instance/connectionState/{$instancia}");
+                ->get("{$this->apiUrl}/instance/connectionState/{$enc}");
 
             if ($response->successful()) {
                 $data  = $response->json();
@@ -226,10 +269,11 @@ class BotController extends Controller
      */
     public function refrescarQr(string $instancia)
     {
+        $enc = rawurlencode($instancia);
         try {
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
-                ->get("{$this->apiUrl}/instance/connect/{$instancia}");
+                ->get("{$this->apiUrl}/instance/connect/{$enc}");
 
             if ($response->successful()) {
                 $qr = data_get($response->json(), 'base64')
@@ -245,14 +289,120 @@ class BotController extends Controller
     }
 
     /**
+     * Obtiene la configuración actual de webhook y settings de una instancia (JSON).
+     */
+    public function getConfig(string $instancia)
+    {
+        $enc = rawurlencode($instancia);
+        try {
+            $webhookRes  = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(10)
+                ->get("{$this->apiUrl}/webhook/find/{$enc}");
+
+            $settingsRes = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(10)
+                ->get("{$this->apiUrl}/settings/find/{$enc}");
+
+            return response()->json([
+                'success'  => true,
+                'webhook'  => $webhookRes->successful()  ? $webhookRes->json()  : null,
+                'settings' => $settingsRes->successful() ? $settingsRes->json() : null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Guarda la configuración de webhook y settings de una instancia (JSON).
+     */
+    public function setConfig(Request $request, string $instancia)
+    {
+        $request->validate([
+            'webhook_url'       => ['nullable', 'string', 'max:500'],
+            'events'            => ['nullable', 'array'],
+            'events.*'          => ['string'],
+            'reject_call'       => ['nullable'],
+            'groups_ignore'     => ['nullable'],
+            'always_online'     => ['nullable'],
+            'read_messages'     => ['nullable'],
+            'read_status'       => ['nullable'],
+            'sync_full_history' => ['nullable'],
+        ]);
+
+        $enc    = rawurlencode($instancia);
+        $errors = [];
+
+        // ── Webhook (solo si se proporcionó una URL) ──────────────────────
+        $webhookUrl = trim($request->input('webhook_url', ''));
+        if ($webhookUrl !== '') {
+            try {
+                $webhookPayload = [
+                    'url'              => $webhookUrl,
+                    'webhook_by_events'=> false,
+                    'webhook_base64'   => false,
+                    'events'           => $request->input('events', []),
+                ];
+
+                $wRes = Http::withHeaders(['apikey' => $this->apiKey])
+                    ->timeout(10)
+                    ->post("{$this->apiUrl}/webhook/set/{$enc}", $webhookPayload);
+
+                if (! $wRes->successful()) {
+                    $errors[] = 'Webhook: ' . $this->extraerMensajeError($wRes);
+                }
+            } catch (\Exception $e) {
+                $errors[] = 'Webhook: ' . $e->getMessage();
+            }
+        }
+
+        // ── Settings ─────────────────────────────────────────────────────
+        try {
+            $rejectCall = $request->boolean('reject_call');
+            $settingsPayload = [
+                'reject_call'       => $rejectCall,
+                'msg_call'          => $rejectCall ? ($request->input('msg_call', '') ?: 'Llamadas no disponibles.') : '',
+                'groups_ignore'     => $request->boolean('groups_ignore'),
+                'always_online'     => $request->boolean('always_online'),
+                'read_messages'     => $request->boolean('read_messages'),
+                'read_status'       => $request->boolean('read_status'),
+                'sync_full_history' => $request->boolean('sync_full_history'),
+            ];
+
+            \Log::info('[setConfig] URL: ' . "{$this->apiUrl}/settings/set/{$enc}");
+            \Log::info('[setConfig] Payload: ' . json_encode($settingsPayload));
+
+            $sRes = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(10)
+                ->post("{$this->apiUrl}/settings/set/{$enc}", $settingsPayload);
+
+            \Log::info('[setConfig] Status: ' . $sRes->status() . ' Body: ' . $sRes->body());
+
+            if (! $sRes->successful()) {
+                $errors[] = 'Settings: ' . $this->extraerMensajeError($sRes);
+            }
+        } catch (\Exception $e) {
+            \Log::error('[setConfig] Excepción: ' . $e->getMessage());
+            $errors[] = 'Settings: ' . $e->getMessage();
+        }
+
+        if ($errors) {
+            return response()->json(['success' => false, 'message' => implode(' | ', $errors)], 422);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * Elimina una instancia de Evolution API.
      */
     public function eliminarInstancia(string $instancia)
     {
+        $enc = rawurlencode($instancia);
         try {
             Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(10)
-                ->delete("{$this->apiUrl}/instance/delete/{$instancia}");
+                ->delete("{$this->apiUrl}/instance/delete/{$enc}");
         } catch (\Exception) {
             // Si falla la petición aún así redirigimos con error
             return redirect()->route('bot.index')

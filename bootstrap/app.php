@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Excluir el webhook de Evolution API de la verificación CSRF
+        // (Evolution API hace POST sin token CSRF)
+        $middleware->validateCsrfTokens(except: [
+            'webhook/whatsapp',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

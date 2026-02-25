@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Disease;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,8 +25,9 @@ class DiseaseController extends Controller
 
         $enfermedades = $query->latest()->paginate(12)->withQueryString();
         $categorias   = Disease::whereNotNull('category')->distinct()->pluck('category')->sort()->values();
+        $productos    = Product::orderBy('name')->pluck('name');
 
-        return view('enfermedades.index', compact('enfermedades', 'categorias'));
+        return view('enfermedades.index', compact('enfermedades', 'categorias', 'productos'));
     }
 
     public function store(Request $request)
