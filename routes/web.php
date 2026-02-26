@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BotController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DiseaseController;
 use App\Http\Controllers\ProductController;
@@ -27,7 +28,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->except(['show', 'create', 'edit'])
         ->parameters(['enfermedades' => 'enfermedad']);
 
-    Route::get('/clientes',       fn () => view('dashboard'))->name('clientes.index');
+    // Clientes
+    Route::resource('clientes', ClientController::class)
+        ->except(['show', 'create', 'edit'])
+        ->parameters(['clientes' => 'cliente']);
+
     Route::get('/conversaciones', fn () => view('dashboard'))->name('conversaciones.index');
     Route::get('/usuarios',       fn () => view('dashboard'))->name('usuarios.index');
 
