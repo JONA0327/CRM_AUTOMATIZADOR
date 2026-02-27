@@ -38,7 +38,7 @@
             </button>
         </div>
 
-        {{-- ── BARRA DE BÚSQUEDA Y FILTROS ── --}}
+        {{-- ── BÚSQUEDA Y FILTROS ── --}}
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
             <form method="GET" action="{{ route('clientes.index') }}"
                   class="flex items-stretch divide-x divide-gray-100">
@@ -49,7 +49,7 @@
                               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                     <input type="text" name="buscar" value="{{ request('buscar') }}"
-                           placeholder="Buscar por nombre, teléfono u observación..."
+                           placeholder="Buscar por nombre, teléfono o folio..."
                            class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent border-0 outline-none focus:ring-0 p-0"/>
                     @if (request('buscar'))
                         <a href="{{ route('clientes.index', array_merge(request()->except('buscar'), ['estado' => request('estado')])) }}"
@@ -136,17 +136,26 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b border-gray-100 bg-gray-50/60">
+                                <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Folio</th>
                                 <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                                 <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
                                 <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
                                 <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                                <th class="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Observación</th>
+                                <th class="text-center px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Observaciones</th>
                                 <th class="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
                             @foreach ($clientes as $cliente)
                                 <tr class="hover:bg-gray-50/50 transition-colors">
+
+                                    {{-- Folio --}}
+                                    <td class="px-5 py-4">
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-mono font-bold rounded-lg border border-blue-100">
+                                            {{ $cliente->folio ?? '—' }}
+                                        </span>
+                                    </td>
+
                                     {{-- Nombre --}}
                                     <td class="px-5 py-4">
                                         <div class="flex items-center gap-3">
@@ -205,28 +214,46 @@
                                         @endif
                                     </td>
 
-                                    {{-- Observación --}}
-                                    <td class="px-5 py-4 text-gray-500 max-w-xs">
-                                        @if ($cliente->observation)
-                                            <span class="line-clamp-1" title="{{ $cliente->observation }}">
-                                                {{ $cliente->observation }}
-                                            </span>
-                                        @else
-                                            <span class="text-gray-300">—</span>
-                                        @endif
+                                    {{-- Observaciones count --}}
+                                    <td class="px-5 py-4 text-center">
+                                        <button @click="abrirObservaciones({{ json_encode([
+                                            'id'    => $cliente->id,
+                                            'name'  => $cliente->name,
+                                            'folio' => $cliente->folio,
+                                        ]) }})"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors
+                                                       {{ $cliente->observations_count > 0
+                                                            ? 'text-purple-700 bg-purple-50 hover:bg-purple-100'
+                                                            : 'text-gray-400 bg-gray-50 hover:bg-gray-100' }}">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                            </svg>
+                                            {{ $cliente->observations_count }}
+                                            {{ $cliente->observations_count === 1 ? 'registro' : 'registros' }}
+                                        </button>
                                     </td>
 
                                     {{-- Acciones --}}
                                     <td class="px-5 py-4">
                                         <div class="flex items-center justify-end gap-2">
+                                            <a href="{{ route('clientes.show', $cliente) }}"
+                                               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                Ver historial
+                                            </a>
                                             <button @click="abrirEditar({{ json_encode([
-                                                'id'          => $cliente->id,
-                                                'name'        => $cliente->name,
-                                                'phone'       => $cliente->phone,
-                                                'date'        => $cliente->date?->format('Y-m-d'),
-                                                'status'      => $cliente->status,
-                                                'observation' => $cliente->observation,
-                                                'update_url'  => route('clientes.update', $cliente),
+                                                'id'         => $cliente->id,
+                                                'name'       => $cliente->name,
+                                                'phone'      => $cliente->phone,
+                                                'date'       => $cliente->date?->format('Y-m-d'),
+                                                'status'     => $cliente->status,
+                                                'update_url' => route('clientes.update', $cliente),
                                             ]) }})"
                                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,7 +290,7 @@
             </div>
         @endif
 
-        {{-- ══ MODAL ══ --}}
+        {{-- ══ MODAL CREAR / EDITAR CLIENTE ══ --}}
         <template x-teleport="body">
             <div x-show="open"
                  x-transition:enter="transition ease-out duration-200"
@@ -286,7 +313,6 @@
                      x-transition:leave-end="opacity-0 scale-95"
                      @click.stop>
 
-                    {{-- Header --}}
                     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -306,14 +332,12 @@
                         </button>
                     </div>
 
-                    {{-- Form --}}
                     <form :action="formAction" method="POST">
                         @csrf
                         <input type="hidden" name="_method" :value="modo === 'editar' ? 'PUT' : 'POST'">
 
                         <div class="px-6 py-5 space-y-4">
 
-                            {{-- Nombre --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                                     Nombre <span class="text-red-500 normal-case font-normal">*</span>
@@ -323,7 +347,6 @@
                                        class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
                             </div>
 
-                            {{-- Teléfono + Fecha --}}
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Teléfono</label>
@@ -338,7 +361,6 @@
                                 </div>
                             </div>
 
-                            {{-- Estado --}}
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Estado</label>
                                 <select name="status" x-model="form.status"
@@ -351,17 +373,8 @@
                                 </select>
                             </div>
 
-                            {{-- Observación --}}
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Observación</label>
-                                <textarea name="observation" x-model="form.observation" rows="3"
-                                          placeholder="Notas, seguimiento, motivo de contacto..."
-                                          class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none"></textarea>
-                            </div>
-
                         </div>
 
-                        {{-- Footer --}}
                         <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50 rounded-b-2xl">
                             <button type="button" @click="cerrar()"
                                     class="px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
@@ -381,31 +394,389 @@
             </div>
         </template>
 
+        {{-- ══ MODAL OBSERVACIONES ══ --}}
+        <template x-teleport="body">
+            <div x-show="obsModal"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                 style="display:none">
+
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="cerrarObs()"></div>
+
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     @click.stop>
+
+                    {{-- Header del modal --}}
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900"
+                                    x-text="'Historial de ' + (clienteActual?.name ?? '')"></h3>
+                                <p class="text-xs text-gray-400 mt-0.5"
+                                   x-text="clienteActual?.folio ?? ''"></p>
+                            </div>
+                        </div>
+                        <button @click="cerrarObs()"
+                                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    {{-- Cuerpo scrollable --}}
+                    <div class="flex-1 overflow-y-auto">
+
+                        {{-- Tabla de observaciones existentes --}}
+                        <div class="px-6 pt-5">
+                            <div x-show="loadingObs" class="flex items-center justify-center py-10 text-gray-400 gap-3">
+                                <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                <span class="text-sm">Cargando registros...</span>
+                            </div>
+
+                            <template x-if="!loadingObs && observaciones.length === 0">
+                                <div class="flex flex-col items-center py-10 text-center">
+                                    <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-3">
+                                        <svg class="w-6 h-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                        </svg>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-700 mb-1">Sin registros aún</p>
+                                    <p class="text-xs text-gray-400">Añade el primer registro de este cliente.</p>
+                                </div>
+                            </template>
+
+                            <template x-if="!loadingObs && observaciones.length > 0">
+                                <div>
+                                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                        Historial (<span x-text="observaciones.length"></span> registros)
+                                    </h4>
+                                    <div class="rounded-xl border border-gray-100 overflow-hidden mb-2">
+                                        <table class="w-full text-sm">
+                                            <thead>
+                                                <tr class="bg-gray-50/80 border-b border-gray-100">
+                                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
+                                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Peso</th>
+                                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Edad</th>
+                                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Observación</th>
+                                                    <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Productos sugeridos</th>
+                                                    <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-50">
+                                                <template x-for="obs in observaciones" :key="obs.id">
+                                                    <tr class="hover:bg-gray-50/60 transition-colors">
+                                                        <td class="px-4 py-3 text-gray-500 whitespace-nowrap text-xs" x-text="formatFecha(obs.created_at)"></td>
+                                                        <td class="px-4 py-3 whitespace-nowrap">
+                                                            <template x-if="obs.weight">
+                                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                                                                    <span x-text="obs.weight"></span> kg
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="!obs.weight">
+                                                                <span class="text-gray-300 text-xs">—</span>
+                                                            </template>
+                                                        </td>
+                                                        <td class="px-4 py-3 whitespace-nowrap">
+                                                            <template x-if="obs.age">
+                                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                                                    <span x-text="obs.age"></span> años
+                                                                </span>
+                                                            </template>
+                                                            <template x-if="!obs.age">
+                                                                <span class="text-gray-300 text-xs">—</span>
+                                                            </template>
+                                                        </td>
+                                                        <td class="px-4 py-3 text-gray-600 text-xs max-w-xs">
+                                                            <span x-text="obs.observation || '—'" class="line-clamp-2"></span>
+                                                        </td>
+                                                        <td class="px-4 py-3 text-xs max-w-[200px]">
+                                                            <template x-if="obs.suggested_products">
+                                                                <div class="flex flex-wrap gap-1.5">
+                                                                    <template x-for="nombre in splitProds(obs.suggested_products)" :key="nombre">
+                                                                        <div class="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-100 rounded-lg shadow-sm max-w-[150px]">
+                                                                            {{-- Imagen del producto --}}
+                                                                            <div class="w-7 h-7 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                                                                                <template x-if="getProducto(nombre)?.image_url">
+                                                                                    <img :src="getProducto(nombre).image_url"
+                                                                                         :alt="nombre"
+                                                                                         class="w-full h-full object-cover"/>
+                                                                                </template>
+                                                                                <template x-if="!getProducto(nombre)?.image_url">
+                                                                                    <svg class="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                                                    </svg>
+                                                                                </template>
+                                                                            </div>
+                                                                            <span x-text="nombre" class="text-xs font-medium text-gray-700 truncate"></span>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <template x-if="!obs.suggested_products">
+                                                                <span class="text-gray-300">—</span>
+                                                            </template>
+                                                        </td>
+                                                        <td class="px-4 py-3">
+                                                            <div class="flex items-center justify-end gap-1.5">
+                                                                <button @click="editarObs(obs)"
+                                                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                                    </svg>
+                                                                    Editar
+                                                                </button>
+                                                                <button @click="eliminarObs(obs.id)"
+                                                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                                    </svg>
+                                                                    Eliminar
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        {{-- Formulario nueva / editar observación --}}
+                        <div class="px-6 pb-6 pt-4">
+                            <div class="bg-gray-50/70 rounded-xl border border-gray-100 p-5">
+                                <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4 flex items-center gap-2">
+                                    <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    <span x-text="modoObs === 'crear' ? 'Nuevo registro' : 'Editar registro'"></span>
+                                </h4>
+
+                                {{-- Peso + Edad --}}
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+                                                Peso (kg)
+                                            </span>
+                                        </label>
+                                        <input type="number" x-model="formObs.weight"
+                                               step="0.01" min="0" max="999"
+                                               placeholder="Ej. 75.5"
+                                               class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white"/>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-indigo-400 inline-block"></span>
+                                                Edad (años)
+                                            </span>
+                                        </label>
+                                        <input type="number" x-model="formObs.age"
+                                               min="0" max="120"
+                                               placeholder="Ej. 35"
+                                               class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white"/>
+                                    </div>
+                                </div>
+
+                                {{-- Observación --}}
+                                <div class="mb-4">
+                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Observaciones</label>
+                                    <textarea x-model="formObs.observation" rows="3"
+                                              placeholder="Notas clínicas, seguimiento, síntomas, historial..."
+                                              class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-none bg-white"></textarea>
+                                </div>
+
+                                {{-- Productos sugeridos (selector visual) --}}
+                                <div class="mb-4">
+                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                                            Productos sugeridos
+                                        </span>
+                                    </label>
+
+                                    {{-- Buscador --}}
+                                    <div class="relative mb-2">
+                                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                        </svg>
+                                        <input type="text" x-model="obsProductSearch"
+                                               placeholder="Buscar producto..."
+                                               class="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition bg-white"/>
+                                    </div>
+
+                                    {{-- Grid de productos --}}
+                                    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-44 overflow-y-auto p-1 rounded-lg border border-gray-100 bg-gray-50/50">
+                                        <template x-for="prod in filtrarProductos()" :key="prod.id">
+                                            <button type="button"
+                                                    @click="toggleProducto(prod.name)"
+                                                    :class="esProdSeleccionado(prod.name)
+                                                        ? 'ring-2 ring-purple-500 bg-purple-50 border-purple-200'
+                                                        : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'"
+                                                    class="relative flex flex-col items-center p-2 rounded-xl border transition-all text-center cursor-pointer">
+
+                                                {{-- Checkmark si está seleccionado --}}
+                                                <template x-if="esProdSeleccionado(prod.name)">
+                                                    <div class="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+                                                        <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                                        </svg>
+                                                    </div>
+                                                </template>
+
+                                                {{-- Imagen --}}
+                                                <div class="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 mb-1.5 flex items-center justify-center flex-shrink-0">
+                                                    <template x-if="prod.image_url">
+                                                        <img :src="prod.image_url" :alt="prod.name"
+                                                             class="w-full h-full object-cover"/>
+                                                    </template>
+                                                    <template x-if="!prod.image_url">
+                                                        <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                        </svg>
+                                                    </template>
+                                                </div>
+
+                                                {{-- Nombre --}}
+                                                <span x-text="prod.name"
+                                                      :class="esProdSeleccionado(prod.name) ? 'text-purple-700 font-semibold' : 'text-gray-600'"
+                                                      class="text-[10px] leading-tight line-clamp-2 w-full"></span>
+                                            </button>
+                                        </template>
+
+                                        {{-- Sin resultados en búsqueda --}}
+                                        <template x-if="filtrarProductos().length === 0">
+                                            <div class="col-span-4 py-6 text-center text-xs text-gray-400">
+                                                Sin productos que coincidan
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- Productos seleccionados (chips con ×) --}}
+                                    <div x-show="selectedProdNames().length > 0" class="flex flex-wrap gap-1.5 mt-2.5">
+                                        <template x-for="nombre in selectedProdNames()" :key="nombre">
+                                            <div class="flex items-center gap-1.5 pl-1 pr-2 py-1 bg-white border border-purple-200 rounded-full shadow-sm">
+                                                <div class="w-5 h-5 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                                                    <template x-if="getProducto(nombre)?.image_url">
+                                                        <img :src="getProducto(nombre).image_url" class="w-full h-full object-cover"/>
+                                                    </template>
+                                                    <template x-if="!getProducto(nombre)?.image_url">
+                                                        <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/>
+                                                        </svg>
+                                                    </template>
+                                                </div>
+                                                <span x-text="nombre" class="text-xs font-semibold text-purple-700"></span>
+                                                <button type="button" @click="toggleProducto(nombre)"
+                                                        class="text-purple-400 hover:text-purple-700 transition-colors leading-none">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- Botones --}}
+                                <div class="flex items-center justify-end gap-3">
+                                    <template x-if="modoObs === 'editar'">
+                                        <button type="button" @click="resetFormObs()"
+                                                class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors">
+                                            Cancelar edición
+                                        </button>
+                                    </template>
+                                    <button type="button" @click="guardarObs()"
+                                            :disabled="savingObs"
+                                            class="inline-flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                                        <svg x-show="!savingObs" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                        </svg>
+                                        <svg x-show="savingObs" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        <span x-text="modoObs === 'crear' ? 'Guardar registro' : 'Actualizar registro'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
     </div>
 
     <script>
     function clientesApp() {
         return {
+            // ── Modal cliente ──
             open: false,
             modo: 'crear',
             formAction: '{{ route('clientes.store') }}',
-            form: { name: '', phone: '', date: '', status: '', observation: '' },
+            form: { name: '', phone: '', date: '', status: '' },
+
+            // ── Modal observaciones ──
+            obsModal: false,
+            clienteActual: null,
+            observaciones: [],
+            loadingObs: false,
+            savingObs: false,
+            modoObs: 'crear',
+            obsEditId: null,
+            formObs: { weight: '', age: '', observation: '', suggested_products: '' },
+            todosProductos: @json($productos),
+            obsProductSearch: '',
 
             init() {
                 @if ($errors->any())
                     this.abrirCrear();
-                    this.form.name        = @json(old('name', ''));
-                    this.form.phone       = @json(old('phone', ''));
-                    this.form.date        = @json(old('date', ''));
-                    this.form.status      = @json(old('status', ''));
-                    this.form.observation = @json(old('observation', ''));
+                    this.form.name   = @json(old('name', ''));
+                    this.form.phone  = @json(old('phone', ''));
+                    this.form.date   = @json(old('date', ''));
+                    this.form.status = @json(old('status', ''));
                 @endif
             },
 
+            // ── Clientes ──
             abrirCrear() {
                 this.modo = 'crear';
                 this.formAction = '{{ route('clientes.store') }}';
-                this.form = { name: '', phone: '', date: '', status: '', observation: '' };
+                this.form = { name: '', phone: '', date: '', status: '' };
                 this.open = true;
                 document.body.style.overflow = 'hidden';
             },
@@ -414,11 +785,10 @@
                 this.modo = 'editar';
                 this.formAction = c.update_url;
                 this.form = {
-                    name:        c.name        ?? '',
-                    phone:       c.phone       ?? '',
-                    date:        c.date        ?? '',
-                    status:      c.status      ?? '',
-                    observation: c.observation ?? '',
+                    name:   c.name   ?? '',
+                    phone:  c.phone  ?? '',
+                    date:   c.date   ?? '',
+                    status: c.status ?? '',
                 };
                 this.open = true;
                 document.body.style.overflow = 'hidden';
@@ -427,6 +797,131 @@
             cerrar() {
                 this.open = false;
                 document.body.style.overflow = '';
+            },
+
+            // ── Observaciones ──
+            async abrirObservaciones(cliente) {
+                this.clienteActual = cliente;
+                this.observaciones = [];
+                this.resetFormObs();
+                this.obsModal = true;
+                document.body.style.overflow = 'hidden';
+                await this.cargarObservaciones();
+            },
+
+            cerrarObs() {
+                this.obsModal = false;
+                this.clienteActual = null;
+                this.observaciones = [];
+                document.body.style.overflow = '';
+            },
+
+            async cargarObservaciones() {
+                this.loadingObs = true;
+                try {
+                    const res = await axios.get(`/clientes/${this.clienteActual.id}/observaciones`);
+                    this.observaciones = res.data;
+                } catch (e) {
+                    console.error('Error al cargar observaciones:', e);
+                } finally {
+                    this.loadingObs = false;
+                }
+            },
+
+            async guardarObs() {
+                this.savingObs = true;
+                try {
+                    if (this.modoObs === 'crear') {
+                        const res = await axios.post(
+                            `/clientes/${this.clienteActual.id}/observaciones`,
+                            this.formObs
+                        );
+                        this.observaciones.unshift(res.data);
+                    } else {
+                        const res = await axios.put(
+                            `/clientes/${this.clienteActual.id}/observaciones/${this.obsEditId}`,
+                            this.formObs
+                        );
+                        const idx = this.observaciones.findIndex(o => o.id === this.obsEditId);
+                        if (idx !== -1) this.observaciones.splice(idx, 1, res.data);
+                    }
+                    this.resetFormObs();
+                } catch (e) {
+                    console.error('Error al guardar observación:', e);
+                    alert('Ocurrió un error al guardar. Intenta de nuevo.');
+                } finally {
+                    this.savingObs = false;
+                }
+            },
+
+            async eliminarObs(id) {
+                if (!confirm('¿Eliminar este registro de observación?')) return;
+                try {
+                    await axios.delete(`/clientes/${this.clienteActual.id}/observaciones/${id}`);
+                    this.observaciones = this.observaciones.filter(o => o.id !== id);
+                } catch (e) {
+                    console.error('Error al eliminar:', e);
+                    alert('No se pudo eliminar el registro.');
+                }
+            },
+
+            editarObs(obs) {
+                this.modoObs  = 'editar';
+                this.obsEditId = obs.id;
+                this.formObs  = {
+                    weight:             obs.weight             ?? '',
+                    age:                obs.age                ?? '',
+                    observation:        obs.observation        ?? '',
+                    suggested_products: obs.suggested_products ?? '',
+                };
+            },
+
+            resetFormObs() {
+                this.modoObs   = 'crear';
+                this.obsEditId = null;
+                this.formObs   = { weight: '', age: '', observation: '', suggested_products: '' };
+            },
+
+            // ── Helpers ──
+            formatFecha(isoStr) {
+                if (!isoStr) return '—';
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            },
+
+            splitProds(str) {
+                if (!str) return [];
+                return str.split(',').map(s => s.trim()).filter(Boolean);
+            },
+
+            // ── Productos helpers ──
+            getProducto(nombre) {
+                return this.todosProductos.find(p => p.name === nombre) ?? null;
+            },
+
+            filtrarProductos() {
+                if (!this.obsProductSearch) return this.todosProductos;
+                const q = this.obsProductSearch.toLowerCase();
+                return this.todosProductos.filter(p => p.name.toLowerCase().includes(q));
+            },
+
+            selectedProdNames() {
+                return this.splitProds(this.formObs.suggested_products);
+            },
+
+            esProdSeleccionado(nombre) {
+                return this.selectedProdNames().includes(nombre);
+            },
+
+            toggleProducto(nombre) {
+                const seleccionados = this.selectedProdNames();
+                const idx = seleccionados.indexOf(nombre);
+                if (idx === -1) {
+                    seleccionados.push(nombre);
+                } else {
+                    seleccionados.splice(idx, 1);
+                }
+                this.formObs.suggested_products = seleccionados.join(', ');
             },
         };
     }

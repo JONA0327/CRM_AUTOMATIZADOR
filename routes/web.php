@@ -12,8 +12,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Webhook público — Evolution API hace POST aquí cuando llega un mensaje
-Route::post('/webhook/whatsapp', [BotController::class, 'recibirWebhook'])->name('webhook.whatsapp');
+// Webhook público por instancia — Evolution API hace POST aquí cuando llega un mensaje
+Route::post('/webhook/whatsapp/{instancia}', [BotController::class, 'recibirWebhook'])
+    ->name('webhook.whatsapp')
+    ->where('instancia', '.+');
+
+// Consulta pública de historial para clientes (sin autenticación)
+Route::get('/consulta', [ClientController::class, 'consulta'])->name('consulta');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -30,8 +35,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Clientes
     Route::resource('clientes', ClientController::class)
-        ->except(['show', 'create', 'edit'])
+        ->except(['create', 'edit'])
         ->parameters(['clientes' => 'cliente']);
+
+    // Observaciones de clientes (API JSON)
+    Route::get('/clientes/{cliente}/observaciones',                          [ClientController::class, 'getObservaciones'])->name('clientes.observaciones.index');
+    Route::post('/clientes/{cliente}/observaciones',                         [ClientController::class, 'storeObservacion'])->name('clientes.observaciones.store');
+    Route::put('/clientes/{cliente}/observaciones/{observacion}',            [ClientController::class, 'updateObservacion'])->name('clientes.observaciones.update');
+    Route::delete('/clientes/{cliente}/observaciones/{observacion}',         [ClientController::class, 'destroyObservacion'])->name('clientes.observaciones.destroy');
 
     Route::get('/conversaciones', fn () => view('dashboard'))->name('conversaciones.index');
     Route::get('/usuarios',       fn () => view('dashboard'))->name('usuarios.index');
@@ -55,6 +66,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/diagnostico',             [BotController::class, 'diagnostico'])->name('diagnostico');
         Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
         Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
+        Route::get('/conversaciones',          [BotController::class, 'conversaciones'])->name('conversaciones');
     });
 });
 

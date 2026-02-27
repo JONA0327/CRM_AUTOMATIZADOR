@@ -85,11 +85,16 @@ class ConfiguracionController extends Controller
         }
 
         $systemPrompt = Configuracion::get('system_prompt', '');
+        $botProveedor = Configuracion::get('bot_ia_proveedor', 'openai');
+        $botRecursos  = json_decode(Configuracion::get('bot_recursos', '["clientes","productos"]'), true)
+                        ?? ['clientes', 'productos'];
 
         return view('configuracion.index', [
             'grupos'       => $this->campos,
             'estado'       => $estado,
             'systemPrompt' => $systemPrompt,
+            'botProveedor' => $botProveedor,
+            'botRecursos'  => $botRecursos,
         ]);
     }
 
@@ -102,19 +107,34 @@ class ConfiguracionController extends Controller
     {
         $guardados = 0;
 
-        // Guardar system_prompt (texto plano visible, se cifra igual en BD)
+        // Guardar system_prompt
         if ($request->has('system_prompt')) {
             $prompt = $request->input('system_prompt', '');
             if (trim($prompt) !== '') {
-                Configuracion::set(
-                    clave:       'system_prompt',
-                    valor:       $prompt,
-                    grupo:       'bot',
-                    descripcion: 'Prompt del sistema para el bot',
-                );
+                Configuracion::set('system_prompt', $prompt, 'bot', 'Prompt del sistema para el bot');
             } else {
                 Configuracion::clear('system_prompt');
             }
+            $guardados++;
+        }
+
+        // Guardar proveedor de IA seleccionado
+        if ($request->filled('bot_ia_proveedor')) {
+            $proveedor = $request->input('bot_ia_proveedor');
+            if (in_array($proveedor, ['openai', 'deepseek', 'gemini'])) {
+                Configuracion::set('bot_ia_proveedor', $proveedor, 'bot', 'Proveedor de IA activo para el bot');
+                $guardados++;
+            }
+        }
+
+        // Guardar recursos habilitados (array → JSON)
+        if ($request->has('bot_recursos')) {
+            $recursosValidos = ['clientes', 'productos', 'enfermedades'];
+            $recursos = array_values(array_intersect(
+                (array) $request->input('bot_recursos', []),
+                $recursosValidos
+            ));
+            Configuracion::set('bot_recursos', json_encode($recursos), 'bot', 'Recursos de BD habilitados para el bot');
             $guardados++;
         }
 
@@ -148,7 +168,7 @@ class ConfiguracionController extends Controller
     {
         $clavesValidas = collect($this->campos)
             ->flatMap(fn($g) => array_keys($g['claves']))
-            ->push('system_prompt')
+            ->push('system_prompt', 'bot_ia_proveedor', 'bot_recursos')
             ->toArray();
 
         if (in_array($clave, $clavesValidas)) {

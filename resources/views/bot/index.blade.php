@@ -88,11 +88,25 @@
                                 </svg>
                                 Webhook
                             </h4>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">URL del webhook</label>
-                            <input type="url" x-model="form.webhook_url"
-                                   placeholder="https://tu-app.com/webhook/whatsapp"
-                                   class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
-                            <p class="mt-1 text-xs text-gray-400">Laravel recibirá los eventos en esta URL (tu ruta de webhook).</p>
+                            {{-- URL predefinida (solo lectura) --}}
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">URL del webhook (asignada automáticamente)</label>
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span class="text-xs font-mono text-gray-600 truncate" x-text="webhookUrl"></span>
+                                </div>
+                                <button type="button"
+                                        @click="navigator.clipboard.writeText(webhookUrl).then(() => { copied = true; setTimeout(() => copied = false, 2000) })"
+                                        class="flex-shrink-0 px-3 py-2.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg transition-colors">
+                                    <span x-show="!copied">Copiar</span>
+                                    <span x-show="copied">✓ Copiado</span>
+                                </button>
+                            </div>
+                            <p class="mt-1.5 text-xs text-gray-400">
+                                Esta URL es única para esta instancia. Se configura automáticamente al guardar.
+                            </p>
                         </div>
 
                         {{-- ── EVENTOS ── --}}
@@ -406,15 +420,16 @@
 <script>
 function instanciaConfig() {
     return {
-        open:      false,
-        instancia: '',
-        cargando:  false,
-        guardando: false,
-        errorMsg:  '',
-        okMsg:     '',
+        open:       false,
+        instancia:  '',
+        cargando:   false,
+        guardando:  false,
+        errorMsg:   '',
+        okMsg:      '',
+        webhookUrl: '',
+        copied:     false,
 
         form: {
-            webhook_url:       '',
             events:            [],
             reject_call:       false,
             groups_ignore:     false,
@@ -469,18 +484,19 @@ function instanciaConfig() {
                 const data = await res.json();
 
                 if (data.success) {
-                    // Webhook
-                    this.form.webhook_url = data.webhook?.url ?? '';
-                    this.form.events      = data.webhook?.events ?? [];
+                    // URL predefinida del webhook
+                    this.webhookUrl  = data.webhook_url ?? data.webhook?.url ?? '';
+                    // Evolution v2 devuelve events dentro de webhook.webhook.events o webhook.events
+                    this.form.events = data.webhook?.webhook?.events ?? data.webhook?.events ?? [];
 
-                    // Settings
+                    // Settings — Evolution v2 devuelve camelCase
                     const s = data.settings ?? {};
-                    this.form.reject_call       = s.reject_call       ?? false;
-                    this.form.groups_ignore     = s.groups_ignore     ?? false;
-                    this.form.always_online     = s.always_online     ?? false;
-                    this.form.read_messages     = s.read_messages     ?? false;
-                    this.form.read_status       = s.read_status       ?? false;
-                    this.form.sync_full_history = s.sync_full_history ?? false;
+                    this.form.reject_call       = s.rejectCall      ?? s.reject_call       ?? false;
+                    this.form.groups_ignore     = s.groupsIgnore    ?? s.groups_ignore     ?? false;
+                    this.form.always_online     = s.alwaysOnline    ?? s.always_online     ?? false;
+                    this.form.read_messages     = s.readMessages    ?? s.read_messages     ?? false;
+                    this.form.read_status       = s.readStatus      ?? s.read_status       ?? false;
+                    this.form.sync_full_history = s.syncFullHistory ?? s.sync_full_history ?? false;
                 }
             } catch (e) {
                 this.errorMsg = 'No se pudo cargar la configuración actual.';

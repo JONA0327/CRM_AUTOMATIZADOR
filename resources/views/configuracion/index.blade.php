@@ -24,6 +24,104 @@
 
         <div class="space-y-6">
 
+            {{-- ── PROVEEDOR DE IA ── --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm">Proveedor de Inteligencia Artificial</p>
+                            <p class="text-xs text-gray-400">El bot usará solo este proveedor para generar respuestas</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                        {{ strtoupper($botProveedor) }}
+                    </span>
+                </div>
+                <div class="px-6 py-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        @foreach([
+                            ['value' => 'openai',   'label' => 'ChatGPT (OpenAI)',  'desc' => 'GPT-4o, GPT-4o-mini',      'color' => 'teal',   'icon' => 'openai'],
+                            ['value' => 'deepseek', 'label' => 'DeepSeek',          'desc' => 'deepseek-chat',            'color' => 'blue',   'icon' => 'deepseek'],
+                            ['value' => 'gemini',   'label' => 'Google Gemini',     'desc' => 'gemini-1.5-flash/pro',     'color' => 'orange', 'icon' => 'gemini'],
+                        ] as $prov)
+                            <label class="relative flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
+                                          {{ $botProveedor === $prov['value'] ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:border-gray-200' }}">
+                                <input type="radio"
+                                       name="bot_ia_proveedor"
+                                       value="{{ $prov['value'] }}"
+                                       {{ $botProveedor === $prov['value'] ? 'checked' : '' }}
+                                       class="mt-0.5 text-blue-600 border-gray-300 focus:ring-blue-500"/>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900">{{ $prov['label'] }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">{{ $prov['desc'] }}</p>
+                                </div>
+                                @if ($botProveedor === $prov['value'])
+                                    <svg class="absolute top-3 right-3 w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                @endif
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="mt-3 text-xs text-gray-400">
+                        Asegúrate de tener configurada la API Key del proveedor seleccionado en las secciones de abajo.
+                    </p>
+                </div>
+            </div>
+
+            {{-- ── RECURSOS DEL BOT ── --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900 text-sm">Recursos de Base de Datos</p>
+                            <p class="text-xs text-gray-400">El bot solo accederá a las tablas seleccionadas</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        {{ count($botRecursos) }} activo{{ count($botRecursos) !== 1 ? 's' : '' }}
+                    </span>
+                </div>
+                <div class="px-6 py-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        @foreach([
+                            ['value' => 'clientes',     'label' => 'Clientes',     'desc' => 'Historial y observaciones del cliente que escribe'],
+                            ['value' => 'productos',    'label' => 'Productos',     'desc' => 'Catálogo de productos disponibles con precio e imagen'],
+                            ['value' => 'enfermedades', 'label' => 'Enfermedades', 'desc' => 'Padecimientos, síntomas y tratamientos'],
+                        ] as $rec)
+                            @php $activo = in_array($rec['value'], $botRecursos); @endphp
+                            <label class="flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
+                                          {{ $activo ? 'border-green-400 bg-green-50/40' : 'border-gray-100 hover:border-gray-200' }}">
+                                <input type="checkbox"
+                                       name="bot_recursos[]"
+                                       value="{{ $rec['value'] }}"
+                                       {{ $activo ? 'checked' : '' }}
+                                       class="mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500"/>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900">{{ $rec['label'] }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5 leading-relaxed">{{ $rec['desc'] }}</p>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="mt-3 text-xs text-gray-400">
+                        Si no seleccionas ninguno, el bot responderá solo con el prompt base sin contexto de datos.
+                    </p>
+                </div>
+            </div>
+
             {{-- ── PROMPT DEL SISTEMA ── --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
                  x-data="{ chars: {{ strlen($systemPrompt ?? '') }}, max: 8000 }">
