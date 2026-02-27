@@ -129,10 +129,16 @@ class BotController extends Controller
         $event = $request->input('event');
         $data  = $request->input('data', []);
 
-        Log::info("[Bot] Webhook recibido — instancia={$instancia} evento={$event}");
+        Log::info("[Bot] Webhook recibido — instancia={$instancia} evento={$event}", [
+            'fromMe'    => data_get($data, 'key.fromMe'),
+            'remoteJid' => data_get($data, 'key.remoteJid'),
+            'tipo'      => array_keys(data_get($data, 'message', []) ?: []),
+        ]);
 
         // Solo procesamos mensajes nuevos
-        if ($event !== 'MESSAGES_UPSERT') {
+        // Evolution API puede enviar el evento como 'MESSAGES_UPSERT' o 'messages.upsert'
+        $eventNorm = strtolower(str_replace(['_', '.'], '', $event ?? ''));
+        if ($eventNorm !== 'messagesupsert') {
             return response()->json(['status' => 'ignored']);
         }
 
