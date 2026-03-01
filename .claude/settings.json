@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan storage:link:*)"
+      "Bash(php artisan storage:link:*)",
+      "Bash(composer require laravel/reverb --no-interaction)",
+      "Bash(npm run build)"
     ]
   }
 }

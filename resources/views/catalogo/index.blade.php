@@ -1,0 +1,647 @@
+<x-admin-layout :title="($modulo->icono ?? '📋') . ' ' . $modulo->nombre">
+
+    <div x-data="catalogoCrud(@js([
+        'module'                  => $modulo->slug,
+        'campos'                  => $fields->toArray(),
+        'records'                 => $records->items(),
+        'tienePromptVerificacion' => $tienePromptVerificacion,
+    ]))" x-init="init()">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            {{-- Notificación flash --}}
+            <div x-show="flash.msg" x-cloak
+                 :class="flash.ok ? 'bg-green-100 border-green-400 text-green-800' : 'bg-red-100 border-red-400 text-red-800'"
+                 class="mb-4 border px-4 py-3 rounded-lg flex justify-between items-center">
+                <span x-text="flash.msg"></span>
+                <button @click="flash.msg=''" class="ml-4 font-bold">✕</button>
+            </div>
+
+            {{-- Errores de validación --}}
+            <div x-show="errores.length > 0" x-cloak class="mb-4 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
+                <ul class="list-disc list-inside text-sm">
+                    <template x-for="err in errores" :key="err">
+                        <li x-text="err"></li>
+                    </template>
+                </ul>
+            </div>
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-sm text-gray-500">{{ $records->total() }} registro(s)</span>
+                <button @click="abrirModal(null)"
+                        class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                    + Nuevo registro
+                </button>
+            </div>
+
+            {{-- Tabla --}}
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                                @foreach($fields as $field)
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        {{ $field->nombre }}
+                                    </th>
+                                @endforeach
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @forelse($records as $record)
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-750 transition">
+                                    <td class="px-4 py-3 text-gray-400 text-xs">#{{ $record->id }}</td>
+                                    @foreach($fields as $field)
+                                        <td class="px-4 py-3 text-gray-800 dark:text-gray-200">
+                                            @php $val = $record->datos[$field->slug] ?? null; @endphp
+
+                                            @if($field->tipo === 'id' && $val)
+                                                <code class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded font-mono">
+                                                    {{ $val }}
+                                                </code>
+
+                                            @elseif($field->tipo === 'date' && $val)
+                                                {{ \Carbon\Carbon::parse($val)->format('d/m/Y') }}
+
+                                            @elseif($field->tipo === 'multiselect' && $val)
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach((array)$val as $item)
+                                                        <span class="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                                                            {{ $item }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+
+                                            @elseif($field->tipo === 'tags' && $val)
+                                                <div class="flex flex-wrap gap-1">
+                                                    @foreach((array)$val as $tag)
+                                                        <span class="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
+                                                            {{ $tag }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+
+                                            @elseif($field->tipo === 'relation' && $val)
+                                                @if(is_array($val))
+                                                    <div class="flex flex-wrap gap-1">
+                                                        @foreach($val as $rid)
+                                                            <span class="inline-block bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">
+                                                                ID: {{ $rid }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <span class="inline-block bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">
+                                                        ID: {{ $val }}
+                                                    </span>
+                                                @endif
+
+                                            @elseif($field->tipo === 'phone' && $val)
+                                                <div class="flex items-center gap-2">
+                                                    <span>{{ $val }}</span>
+                                                    @if($tienePromptVerificacion)
+                                                        <button @click="verificarWhatsapp({{ $record->id }}, '{{ $field->slug }}')"
+                                                                title="Verificar por WhatsApp"
+                                                                class="text-green-500 hover:text-green-700 transition flex-shrink-0">
+                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                                                            </svg>
+                                                        </button>
+                                                    @endif
+                                                </div>
+
+                                            @elseif($field->tipo === 'url' && $val)
+                                                <a href="{{ $val }}" target="_blank" rel="noopener"
+                                                   class="text-blue-600 hover:text-blue-800 hover:underline text-xs flex items-center gap-1">
+                                                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                                    </svg>
+                                                    {{ Str::limit($val, 40) }}
+                                                </a>
+
+                                            @elseif($field->tipo === 'file' && $val)
+                                                @php $ext = strtolower(pathinfo($val, PATHINFO_EXTENSION)); @endphp
+                                                @if(in_array($ext, ['jpg','jpeg','png','gif','webp','svg','bmp']))
+                                                    <a href="{{ asset('storage/' . $val) }}" target="_blank" rel="noopener">
+                                                        <img src="{{ asset('storage/' . $val) }}"
+                                                             class="h-12 w-12 object-cover rounded border border-gray-200 hover:opacity-80 transition"
+                                                             loading="lazy" alt="{{ $field->nombre }}">
+                                                    </a>
+                                                @elseif(in_array($ext, ['mp4','webm','mov','avi','mkv']))
+                                                    <video src="{{ asset('storage/' . $val) }}"
+                                                           class="h-12 w-20 object-cover rounded border border-gray-200"
+                                                           muted playsinline></video>
+                                                @else
+                                                    <a href="{{ asset('storage/' . $val) }}" target="_blank" rel="noopener"
+                                                       class="text-blue-600 hover:underline text-xs flex items-center gap-1">
+                                                        📎 Descargar
+                                                    </a>
+                                                @endif
+
+                                            @else
+                                                {{ is_array($val) ? implode(', ', $val) : (Str::limit($val, 60) ?? '—') }}
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                    <td class="px-4 py-3 text-right">
+                                        <button @click="abrirModal({{ $record->id }}, {{ json_encode($record->datos) }})"
+                                                class="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-3">
+                                            Editar
+                                        </button>
+                                        <button @click="eliminar({{ $record->id }})"
+                                                class="text-red-500 hover:text-red-700 text-xs font-medium">
+                                            Eliminar
+                                        </button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ $fields->count() + 2 }}" class="px-4 py-12 text-center text-gray-400">
+                                        <div class="text-4xl mb-2">{{ $modulo->icono ?? '📋' }}</div>
+                                        <p>No hay registros aún. Crea el primero.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if($records->hasPages())
+                    <div class="px-4 py-3 border-t dark:border-gray-700">
+                        {{ $records->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- ═══ MODAL: Formulario dinámico ═══ --}}
+        <div x-show="modal" x-cloak
+             class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+             @click.self="modal=false">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+
+                <div class="flex justify-between items-center p-5 border-b dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200"
+                        x-text="editId ? 'Editar registro' : 'Nuevo registro'"></h3>
+                    <button @click="modal=false" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                </div>
+
+                <div class="overflow-y-auto p-5 space-y-4">
+                    @foreach($fields as $field)
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                {{ $field->nombre }}
+                                @if($field->obligatorio)
+                                    <span class="text-red-500">*</span>
+                                @endif
+                            </label>
+
+                            @if($field->tipo === 'textarea')
+                                <textarea x-model="form['{{ $field->slug }}']" rows="3"
+                                          class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                          placeholder="{{ $field->nombre }}..."></textarea>
+
+                            @elseif($field->tipo === 'select')
+                                <select x-model="form['{{ $field->slug }}']"
+                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <option value="">-- Selecciona --</option>
+                                    @foreach($field->opciones ?? [] as $opcion)
+                                        <option value="{{ $opcion }}">{{ $opcion }}</option>
+                                    @endforeach
+                                </select>
+
+                            @elseif($field->tipo === 'multiselect')
+                                {{-- Lista de opciones con multi-selección por checkboxes --}}
+                                <div class="border dark:border-gray-600 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 dark:bg-gray-700">
+                                    @forelse($field->opciones ?? [] as $opcion)
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 px-1 py-0.5 rounded">
+                                            <input type="checkbox"
+                                                   value="{{ $opcion }}"
+                                                   :checked="(form['{{ $field->slug }}'] || []).includes('{{ $opcion }}')"
+                                                   @change="toggleMultiselect('{{ $field->slug }}', '{{ $opcion }}')"
+                                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            <span class="dark:text-gray-200">{{ $opcion }}</span>
+                                        </label>
+                                    @empty
+                                        <p class="text-xs text-gray-400">Sin opciones definidas.</p>
+                                    @endforelse
+                                </div>
+                                <p x-show="(form['{{ $field->slug }}'] || []).length > 0"
+                                   class="text-xs text-blue-600 mt-1"
+                                   x-text="(form['{{ $field->slug }}'] || []).length + ' seleccionado(s)'"></p>
+
+                            @elseif($field->tipo === 'relation' && ($field->meta['multiple'] ?? false))
+                                {{-- Relación múltiple: checkboxes --}}
+                                <div x-init="cargarRelacion('{{ $field->slug }}', '{{ $field->modulo_relacion }}')"
+                                     class="border dark:border-gray-600 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 dark:bg-gray-700">
+                                    <template x-if="!relaciones['{{ $field->slug }}']">
+                                        <p class="text-xs text-gray-400">Cargando opciones...</p>
+                                    </template>
+                                    <template x-for="opt in relaciones['{{ $field->slug }}'] || []" :key="opt.id">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 px-1 rounded">
+                                            <input type="checkbox"
+                                                   :value="opt.id"
+                                                   :checked="(form['{{ $field->slug }}'] || []).map(Number).includes(opt.id)"
+                                                   @change="toggleRelacion('{{ $field->slug }}', opt.id)"
+                                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                            <span x-text="opt.label" class="dark:text-gray-200"></span>
+                                        </label>
+                                    </template>
+                                    <p x-show="(relaciones['{{ $field->slug }}'] || []).length === 0 && relaciones['{{ $field->slug }}'] !== undefined"
+                                       class="text-xs text-gray-400">Sin registros disponibles.</p>
+                                </div>
+                                {{-- Resumen de seleccionados --}}
+                                <p x-show="(form['{{ $field->slug }}'] || []).length > 0"
+                                   class="text-xs text-indigo-600 mt-1"
+                                   x-text="(form['{{ $field->slug }}'] || []).length + ' seleccionado(s)'"></p>
+
+                            @elseif($field->tipo === 'relation')
+                                <select x-model="form['{{ $field->slug }}']"
+                                        x-init="cargarRelacion('{{ $field->slug }}', '{{ $field->modulo_relacion }}')"
+                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <option value="">-- Cargando... --</option>
+                                    <template x-for="opt in relaciones['{{ $field->slug }}'] || []" :key="opt.id">
+                                        <option :value="opt.id" x-text="opt.label"></option>
+                                    </template>
+                                </select>
+
+                            @elseif($field->tipo === 'tags')
+                                {{-- Input de texto para las etiquetas (smart comma parsing) --}}
+                                <input type="text"
+                                       x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="Etiqueta1, Etiqueta2, Etiqueta3...">
+                                {{-- Vista previa de chips --}}
+                                <template x-if="parseTags(form['{{ $field->slug }}']).length > 0">
+                                    <div class="mt-1.5 flex flex-wrap gap-1">
+                                        <template x-for="tag in parseTags(form['{{ $field->slug }}'])" :key="tag">
+                                            <span class="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full" x-text="tag"></span>
+                                        </template>
+                                    </div>
+                                </template>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Separa las etiquetas con comas. Las comas dentro de paréntesis o corchetes no se cuentan como separadores.
+                                </p>
+
+                            @elseif($field->tipo === 'date')
+                                <input type="date" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+
+                            @elseif($field->tipo === 'number')
+                                <input type="number" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="{{ $field->nombre }}">
+
+                            @elseif($field->tipo === 'email')
+                                <input type="email" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="correo@ejemplo.com">
+
+                            @elseif($field->tipo === 'phone')
+                                <input type="tel" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="+52 55 1234 5678">
+
+                            @elseif($field->tipo === 'url')
+                                <input type="url" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="https://ejemplo.com">
+                                {{-- Vista previa de URL --}}
+                                <template x-if="form['{{ $field->slug }}']">
+                                    <a :href="form['{{ $field->slug }}']" target="_blank" rel="noopener"
+                                       class="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                        </svg>
+                                        Abrir enlace
+                                    </a>
+                                </template>
+
+                            @elseif($field->tipo === 'file')
+                                {{-- Vista previa del archivo actual --}}
+                                <template x-if="form['{{ $field->slug }}']">
+                                    <div class="mb-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                        <template x-if="esImagen(form['{{ $field->slug }}'])">
+                                            <img :src="urlArchivo(form['{{ $field->slug }}'])"
+                                                 class="max-h-48 w-auto rounded object-contain mx-auto"
+                                                 alt="{{ $field->nombre }}">
+                                        </template>
+                                        <template x-if="esVideo(form['{{ $field->slug }}'])">
+                                            <video :src="urlArchivo(form['{{ $field->slug }}'])"
+                                                   class="max-h-48 w-full rounded" controls muted></video>
+                                        </template>
+                                        <template x-if="!esImagen(form['{{ $field->slug }}']) && !esVideo(form['{{ $field->slug }}'])">
+                                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                                <span class="text-2xl">📎</span>
+                                                <a :href="urlArchivo(form['{{ $field->slug }}'])" target="_blank"
+                                                   class="text-blue-600 hover:underline text-sm">Ver archivo actual</a>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                {{-- Input de subida --}}
+                                <div class="relative">
+                                    <input type="file"
+                                           accept="{{ match($field->meta['accept'] ?? 'all') {
+                                               'image' => 'image/*',
+                                               'video' => 'video/*',
+                                               default => 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip'
+                                           } }}"
+                                           @change="subirArchivo('{{ $field->slug }}', $event)"
+                                           :disabled="subiendo['{{ $field->slug }}']"
+                                           class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm
+                                                  file:mr-3 file:py-1 file:px-3 file:rounded file:border-0
+                                                  file:text-sm file:bg-indigo-50 file:text-indigo-700
+                                                  hover:file:bg-indigo-100 cursor-pointer
+                                                  disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <div x-show="subiendo['{{ $field->slug }}']"
+                                         class="absolute inset-0 bg-white/80 dark:bg-gray-800/80 rounded-lg flex items-center justify-center">
+                                        <span class="text-sm text-indigo-600 font-medium flex items-center gap-2">
+                                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                            </svg>
+                                            Subiendo...
+                                        </span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Máx: {{ ($field->meta['max_mb'] ?? 10) }} MB ·
+                                    {{ match($field->meta['accept'] ?? 'all') {
+                                        'image' => 'Solo imágenes',
+                                        'video' => 'Solo videos',
+                                        default => 'Imágenes, videos y documentos'
+                                    } }}
+                                </p>
+
+                            @elseif($field->tipo === 'id')
+                                {{-- Auto-generado — solo lectura --}}
+                                <div class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700/50 font-mono flex items-center gap-2 min-h-[38px]">
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                                    </svg>
+                                    <span x-show="!form['{{ $field->slug }}']" class="text-gray-400 italic text-xs not-italic" style="font-style:italic">
+                                        Se generará automáticamente
+                                    </span>
+                                    <span x-show="form['{{ $field->slug }}']"
+                                          x-text="form['{{ $field->slug }}']"
+                                          class="text-gray-700 dark:text-gray-200"></span>
+                                </div>
+
+                            @else
+                                <input type="text" x-model="form['{{ $field->slug }}']"
+                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       placeholder="{{ $field->nombre }}...">
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="p-5 border-t dark:border-gray-700 flex justify-end gap-3">
+                    <button @click="modal=false"
+                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900">
+                        Cancelar
+                    </button>
+                    <button @click="guardar()" :disabled="Object.values(subiendo).some(v => v)"
+                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60">
+                        <span x-text="editId ? 'Guardar cambios' : 'Crear registro'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+    function catalogoCrud(config) {
+        return {
+            module:                  config.module,
+            campos:                  config.campos,
+            tienePromptVerificacion: config.tienePromptVerificacion,
+            modal:   false,
+            editId:  null,
+            form:    {},
+            relaciones: {},
+            subiendo:   {},
+            flash:   { msg: '', ok: true },
+            errores: [],
+
+            init() {
+                this.resetForm();
+            },
+
+            resetForm() {
+                this.form    = {};
+                this.subiendo = {};
+                this.campos.forEach(c => {
+                    if ((c.tipo === 'relation' && c.meta?.multiple) || c.tipo === 'multiselect') {
+                        this.form[c.slug] = [];
+                    } else {
+                        this.form[c.slug] = '';
+                    }
+                });
+            },
+
+            abrirModal(id, datos = null) {
+                this.editId  = id;
+                this.errores = [];
+                this.subiendo = {};
+                this.form    = {};
+                if (datos) {
+                    this.campos.forEach(c => {
+                        if (c.tipo === 'tags' && Array.isArray(datos[c.slug])) {
+                            this.form[c.slug] = datos[c.slug].join(', ');
+                        } else if (c.tipo === 'multiselect' && Array.isArray(datos[c.slug])) {
+                            this.form[c.slug] = datos[c.slug];
+                        } else if (c.tipo === 'relation' && c.meta?.multiple && Array.isArray(datos[c.slug])) {
+                            this.form[c.slug] = (datos[c.slug] || []).map(Number);
+                        } else {
+                            this.form[c.slug] = datos[c.slug] ?? '';
+                        }
+                    });
+                } else {
+                    this.campos.forEach(c => {
+                        this.form[c.slug] = ((c.tipo === 'relation' && c.meta?.multiple) || c.tipo === 'multiselect') ? [] : '';
+                    });
+                }
+                this.modal = true;
+            },
+
+            async cargarRelacion(slug, moduloRelacion) {
+                if (!moduloRelacion || this.relaciones[slug] !== undefined) return;
+                // Mark as loading (undefined → null means "in progress")
+                this.relaciones = { ...this.relaciones, [slug]: null };
+                const res = await fetch(
+                    `/catalogo/${this.module}/opciones-relation?modulo_relacion=${encodeURIComponent(moduloRelacion)}`,
+                    { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    this.relaciones = { ...this.relaciones, [slug]: data };
+                }
+            },
+
+            // ── Relation multiple ─────────────────────────────────────────
+            toggleRelacion(slug, id) {
+                const arr = Array.isArray(this.form[slug]) ? [...this.form[slug]] : [];
+                const idx = arr.indexOf(id);
+                if (idx === -1) arr.push(id);
+                else arr.splice(idx, 1);
+                this.form = { ...this.form, [slug]: arr };
+            },
+
+            // ── Multiselect (opciones fijas) ──────────────────────────────
+            toggleMultiselect(slug, value) {
+                const arr = Array.isArray(this.form[slug]) ? [...this.form[slug]] : [];
+                const idx = arr.indexOf(value);
+                if (idx === -1) arr.push(value);
+                else arr.splice(idx, 1);
+                this.form = { ...this.form, [slug]: arr };
+            },
+
+            // ── Tags parsing ─────────────────────────────────────────────
+            /**
+             * Split by comma, ignoring commas inside (), [], "", ''
+             */
+            parseTags(text) {
+                if (!text || typeof text !== 'string') return [];
+                const result = [];
+                let current  = '';
+                let depth    = 0;
+                let inSingle = false;
+                let inDouble = false;
+                for (const ch of text) {
+                    if      (ch === "'" && !inDouble) { inSingle = !inSingle; current += ch; }
+                    else if (ch === '"' && !inSingle) { inDouble = !inDouble; current += ch; }
+                    else if (!inSingle && !inDouble) {
+                        if      (ch === '(' || ch === '[') { depth++; current += ch; }
+                        else if (ch === ')' || ch === ']') { depth--; current += ch; }
+                        else if (ch === ',' && depth === 0) {
+                            const tag = current.trim();
+                            if (tag) result.push(tag);
+                            current = '';
+                        } else { current += ch; }
+                    } else { current += ch; }
+                }
+                const last = current.trim();
+                if (last) result.push(last);
+                return result;
+            },
+
+            // ── Helpers de archivo ───────────────────────────────────────
+            urlArchivo(path) {
+                if (!path) return null;
+                if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path;
+                return '/storage/' + path;
+            },
+            esImagen(path) {
+                return path && /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(path);
+            },
+            esVideo(path) {
+                return path && /\.(mp4|webm|mov|avi|mkv)(\?.*)?$/i.test(path);
+            },
+
+            async subirArchivo(slug, event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.subiendo = { ...this.subiendo, [slug]: true };
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('field_slug', slug);
+                fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
+                try {
+                    const res  = await fetch(`/catalogo/${this.module}/upload-file`, { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (!res.ok) { this.errores = [data.message || 'Error al subir el archivo.']; return; }
+                    this.form = { ...this.form, [slug]: data.path };
+                } catch (e) {
+                    this.errores = ['Error inesperado al subir: ' + e.message];
+                } finally {
+                    this.subiendo = { ...this.subiendo, [slug]: false };
+                }
+            },
+
+            // ── WhatsApp verify ─────────────────────────────────────────
+            async verificarWhatsapp(recordId, fieldSlug) {
+                if (!confirm('¿Enviar mensaje de verificación por WhatsApp al número registrado?')) return;
+                const res = await fetch(`/catalogo/${this.module}/${recordId}/whatsapp-verify/${fieldSlug}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Accept':       'application/json',
+                    },
+                });
+                const data = await res.json();
+                this.mostrarFlash(data.message || (res.ok ? 'Mensaje enviado.' : 'Error al enviar.'), res.ok);
+            },
+
+            // ── CRUD ─────────────────────────────────────────────────────
+            async guardar() {
+                this.errores = [];
+                // Prepare payload: convert tags text → array
+                const sendForm = { ...this.form };
+                this.campos.forEach(c => {
+                    if (c.tipo === 'tags' && typeof sendForm[c.slug] === 'string') {
+                        sendForm[c.slug] = this.parseTags(sendForm[c.slug]);
+                    }
+                });
+
+                const url    = this.editId ? `/catalogo/${this.module}/${this.editId}` : `/catalogo/${this.module}`;
+                const method = this.editId ? 'PUT' : 'POST';
+                try {
+                    const res = await fetch(url, {
+                        method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept':       'application/json',
+                        },
+                        body: JSON.stringify({ datos: sendForm }),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) {
+                        this.errores = json.errors
+                            ? Object.values(json.errors).flat()
+                            : [json.message || 'Error al guardar.'];
+                        return;
+                    }
+                    this.modal = false;
+                    this.mostrarFlash(this.editId ? 'Registro actualizado.' : 'Registro creado.', true);
+                    setTimeout(() => window.location.reload(), 800);
+                } catch (e) {
+                    this.errores = ['Error inesperado: ' + e.message];
+                }
+            },
+
+            async eliminar(id) {
+                if (!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+                const res = await fetch(`/catalogo/${this.module}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Accept':       'application/json',
+                    },
+                });
+                if (res.ok) {
+                    this.mostrarFlash('Registro eliminado.', true);
+                    setTimeout(() => window.location.reload(), 800);
+                }
+            },
+
+            mostrarFlash(msg, ok) {
+                this.flash = { msg, ok };
+                setTimeout(() => this.flash.msg = '', 4000);
+            },
+        };
+    }
+    </script>
+    @endpush
+</x-admin-layout>

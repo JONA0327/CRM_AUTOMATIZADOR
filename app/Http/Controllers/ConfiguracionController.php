@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CatalogField;
+use App\Models\CatalogModule;
 use App\Models\Configuracion;
+use App\Services\ExternalDbService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ConfiguracionController extends Controller
@@ -86,15 +90,34 @@ class ConfiguracionController extends Controller
 
         $systemPrompt = Configuracion::get('system_prompt', '');
         $botProveedor = Configuracion::get('bot_ia_proveedor', 'openai');
-        $botRecursos  = json_decode(Configuracion::get('bot_recursos', '["clientes","productos"]'), true)
-                        ?? ['clientes', 'productos'];
+
+        // Load all external DB connections; strip passwords before passing to the view.
+        $extDbsRaw = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
+        $extDbs = array_map(function ($conn) {
+            $conn['has_password'] = ($conn['password'] ?? '') !== '';
+            $conn['password']     = '';   // never expose real password to frontend
+            return $conn;
+        }, $extDbsRaw);
+
+        // WhatsApp verification prompt — only show section if any active catalog has a phone field
+        $promptVerificacion = Configuracion::get('bot_prompt_verificacion', '');
+        $hasPhoneField = false;
+        try {
+            $hasPhoneField = CatalogModule::where('activo', true)
+                ->whereHas('fields', fn($q) => $q->where('tipo', 'phone'))
+                ->exists();
+        } catch (\Exception) {
+            // tenant DB might not have catalog_modules yet
+        }
 
         return view('configuracion.index', [
-            'grupos'       => $this->campos,
-            'estado'       => $estado,
-            'systemPrompt' => $systemPrompt,
-            'botProveedor' => $botProveedor,
-            'botRecursos'  => $botRecursos,
+            'grupos'             => $this->campos,
+            'estado'             => $estado,
+            'systemPrompt'       => $systemPrompt,
+            'botProveedor'       => $botProveedor,
+            'extDbs'             => $extDbs,
+            'promptVerificacion' => $promptVerificacion,
+            'hasPhoneField'      => $hasPhoneField,
         ]);
     }
 
@@ -106,6 +129,17 @@ class ConfiguracionController extends Controller
     public function update(Request $request)
     {
         $guardados = 0;
+
+        // Guardar prompt de verificación WhatsApp
+        if ($request->has('bot_prompt_verificacion')) {
+            $pv = $request->input('bot_prompt_verificacion', '');
+            if (trim($pv) !== '') {
+                Configuracion::set('bot_prompt_verificacion', $pv, 'bot', 'Prompt de verificación de WhatsApp');
+            } else {
+                Configuracion::clear('bot_prompt_verificacion');
+            }
+            $guardados++;
+        }
 
         // Guardar system_prompt
         if ($request->has('system_prompt')) {
@@ -127,15 +161,24 @@ class ConfiguracionController extends Controller
             }
         }
 
-        // Guardar recursos habilitados (array → JSON)
-        if ($request->has('bot_recursos')) {
-            $recursosValidos = ['clientes', 'productos', 'enfermedades'];
-            $recursos = array_values(array_intersect(
-                (array) $request->input('bot_recursos', []),
-                $recursosValidos
-            ));
-            Configuracion::set('bot_recursos', json_encode($recursos), 'bot', 'Recursos de BD habilitados para el bot');
-            $guardados++;
+        // Guardar array de conexiones externas (JSON), preservando contraseñas no modificadas
+        if ($request->has('ext_dbs')) {
+            $incoming = json_decode($request->input('ext_dbs', '[]'), true);
+            if (is_array($incoming)) {
+                $existing    = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
+                $existingById = collect($existing)->keyBy('id')->toArray();
+
+                $merged = array_map(function ($conn) use ($existingById) {
+                    $id = $conn['id'] ?? '';
+                    if (($conn['password'] ?? '') === '' && isset($existingById[$id])) {
+                        $conn['password'] = $existingById[$id]['password'] ?? '';
+                    }
+                    return $conn;
+                }, $incoming);
+
+                Configuracion::set('ext_dbs', json_encode(array_values($merged)), 'ext_db', 'Bases de datos externas para contexto del bot');
+                $guardados++;
+            }
         }
 
         foreach ($this->campos as $grupo => $info) {
@@ -168,7 +211,7 @@ class ConfiguracionController extends Controller
     {
         $clavesValidas = collect($this->campos)
             ->flatMap(fn($g) => array_keys($g['claves']))
-            ->push('system_prompt', 'bot_ia_proveedor', 'bot_recursos')
+            ->push('system_prompt', 'bot_ia_proveedor', 'ext_dbs', 'bot_prompt_verificacion')
             ->toArray();
 
         if (in_array($clave, $clavesValidas)) {
@@ -177,5 +220,39 @@ class ConfiguracionController extends Controller
 
         return redirect()->route('configuracion.index')
             ->with('success', "Clave «{$clave}» eliminada.");
+    }
+
+    /**
+     * Prueba la conexión a la BD externa y devuelve las tablas/colecciones disponibles.
+     * Solo prueba — NO guarda credenciales.
+     * POST /configuracion/test-db → JSON
+     */
+    public function testExternalDb(Request $request): JsonResponse
+    {
+        $request->validate([
+            'driver'   => ['required', 'in:mysql,pgsql,mongodb'],
+            'host'     => ['required', 'string', 'max:255'],
+            'port'     => ['nullable', 'numeric', 'min:1', 'max:65535'],
+            'database' => ['required', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'password' => ['nullable', 'string'],
+        ]);
+
+        try {
+            $servicio = new ExternalDbService();
+            $servicio->conectar($request->only(['driver', 'host', 'port', 'database', 'username', 'password']));
+            $tablas = $servicio->listarTablas();
+
+            return response()->json([
+                'success' => true,
+                'tablas'  => $tablas,
+                'mensaje' => 'Conexión exitosa. Se encontraron ' . count($tablas) . ' tabla(s).',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
+use App\Events\MensajeBot;
 use App\Models\Configuracion;
-use App\Models\Disease;
-use App\Models\Product;
+use App\Models\Conversation;
+use App\Services\ExternalDbService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -173,37 +174,34 @@ class BotController extends Controller
         $telefono = preg_replace('/@.*/', '', $remoteJid);
 
         // Leer configuración del bot
-        $proveedor    = Configuracion::get('bot_ia_proveedor', 'openai');
-        $recursosJson = Configuracion::get('bot_recursos', '["clientes","productos"]');
-        $recursos     = json_decode($recursosJson, true) ?? ['clientes', 'productos'];
-        $prompt       = Configuracion::get('system_prompt', 'Eres un asistente útil. Responde siempre en español.');
+        $proveedor = Configuracion::get('bot_ia_proveedor', 'openai');
+        $prompt    = Configuracion::get('system_prompt', 'Eres un asistente útil. Responde siempre en español.');
 
-        // Construir contexto con los recursos habilitados
-        $contexto = $this->construirContexto($telefono, $recursos);
+        // Construir contexto desde la BD externa configurada
+        $contexto = $this->construirContexto($telefono, []);
 
         // Llamar a la IA seleccionada
-        [$respuestaTexto, $productosDetectados] = $this->llamarIA(
-            $proveedor, $prompt, $contexto, $texto, $recursos
-        );
+        $respuestaTexto = $this->llamarIA($proveedor, $prompt, $contexto, $texto);
 
         if ($respuestaTexto === null) {
             Log::error("[Bot] La IA no respondió — instancia={$instancia} proveedor={$proveedor}");
             return response()->json(['status' => 'ai_error']);
         }
 
+        // Guardar conversación en BD y emitir evento en tiempo real
+        $clienteNombre = null;  // El lookup de nombre se hace desde catálogos dinámicos
+        $conv = Conversation::create([
+            'phone'        => $telefono,
+            'instancia'    => $instancia,
+            'contact_name' => $clienteNombre,
+            'user_message' => $texto,
+            'bot_response' => $respuestaTexto,
+            'status'       => 'ok',
+        ]);
+        broadcast(new MensajeBot($conv));
+
         // Enviar respuesta de texto
         $this->enviarTexto($instancia, $remoteJid, $respuestaTexto);
-
-        // Enviar imagen y/o video de los productos mencionados
-        foreach ($productosDetectados as $producto) {
-            if ($producto->image_url) {
-                $this->enviarMedia($instancia, $remoteJid, 'image', $producto->image_url, $producto->name);
-            }
-            if ($producto->video_url && !$producto->video_es_archivo) {
-                // Solo enviamos videos externos (URLs), no archivos locales
-                $this->enviarMedia($instancia, $remoteJid, 'video', $producto->video_url, $producto->name);
-            }
-        }
 
         return response()->json(['status' => 'ok']);
     }
@@ -500,131 +498,39 @@ class BotController extends Controller
     // ──────────────────────────────────────────────────────────────────────────
 
     /**
-     * Construye el contexto que se inyecta al prompt del sistema
-     * usando únicamente los recursos habilitados en la configuración.
+     * Construye el contexto para la IA leyendo todas las BDs externas configuradas en ext_dbs.
      */
     private function construirContexto(string $telefono, array $recursos): string
     {
-        $partes = [];
-
-        // ── Clientes ──────────────────────────────────────────────────────────
-        if (in_array('clientes', $recursos)) {
-            $cliente = Client::with(['observations' => fn($q) => $q->latest()->limit(5)])
-                ->where('phone', 'like', "%{$telefono}%")
-                ->first();
-
-            if ($cliente) {
-                $partes[] = "=== DATOS DEL CLIENTE ===";
-                $partes[] = "Nombre: {$cliente->name}";
-                $partes[] = "Folio: {$cliente->folio}";
-                if ($cliente->status) $partes[] = "Estado: {$cliente->status}";
-
-                if ($cliente->observations->isNotEmpty()) {
-                    $partes[] = "\nÚLTIMAS OBSERVACIONES (más recientes primero):";
-                    foreach ($cliente->observations as $obs) {
-                        $linea = "- [{$obs->created_at->format('d/m/Y')}]";
-                        if ($obs->weight)            $linea .= " Peso: {$obs->weight} kg";
-                        if ($obs->age)               $linea .= " Edad: {$obs->age} años";
-                        if ($obs->observation)       $linea .= " | Obs: {$obs->observation}";
-                        if ($obs->suggested_products) $linea .= " | Productos sugeridos: {$obs->suggested_products}";
-                        $partes[] = $linea;
-                    }
-                } else {
-                    $partes[] = "Sin observaciones registradas aún.";
-                }
-            } else {
-                $partes[] = "=== CLIENTE NO REGISTRADO ===";
-                $partes[] = "El número {$telefono} no está registrado en el sistema.";
-            }
+        try {
+            return (new ExternalDbService())->construirContextoMultiple();
+        } catch (\Exception $e) {
+            Log::warning('[Bot] Error al construir contexto con BD externa: ' . $e->getMessage());
+            return '';
         }
-
-        // ── Productos ─────────────────────────────────────────────────────────
-        if (in_array('productos', $recursos)) {
-            $productos = Product::where('available', true)->orderBy('name')->get();
-
-            if ($productos->isNotEmpty()) {
-                $partes[] = "\n=== CATÁLOGO DE PRODUCTOS DISPONIBLES ===";
-                foreach ($productos as $p) {
-                    $linea = "- {$p->name}";
-                    if ($p->category)    $linea .= " [Categoría: {$p->category}]";
-                    if ($p->price)       $linea .= " — Precio: \${$p->price}";
-                    if ($p->description) $linea .= " — {$p->description}";
-                    $partes[] = $linea;
-                }
-            }
-        }
-
-        // ── Enfermedades ──────────────────────────────────────────────────────
-        if (in_array('enfermedades', $recursos)) {
-            $enfermedades = Disease::orderBy('name')->get();
-
-            if ($enfermedades->isNotEmpty()) {
-                $partes[] = "\n=== ENFERMEDADES / PADECIMIENTOS ===";
-                foreach ($enfermedades as $e) {
-                    $linea = "- {$e->name}";
-                    if ($e->category)   $linea .= " [Categoría: {$e->category}]";
-                    if ($e->symptoms)   $linea .= " | Síntomas: {$e->symptoms}";
-                    if ($e->treatment)  $linea .= " | Tratamiento: {$e->treatment}";
-                    $partes[] = $linea;
-                }
-            }
-        }
-
-        return implode("\n", $partes);
     }
 
     /**
-     * Llama al proveedor de IA seleccionado y devuelve [texto, productos_detectados].
+     * Llama al proveedor de IA seleccionado y devuelve el texto de respuesta.
      */
-    private function llamarIA(string $proveedor, string $prompt, string $contexto, string $mensaje, array $recursos): array
+    private function llamarIA(string $proveedor, string $prompt, string $contexto, string $mensaje): ?string
     {
-        // Construir el system prompt completo
         $systemContent = $prompt;
 
         if ($contexto) {
             $systemContent .= "\n\n--- INFORMACIÓN CONTEXTUAL ---\n" . $contexto;
         }
 
-        if (in_array('productos', $recursos)) {
-            $systemContent .= "\n\nIMPORTANTE: Cuando recomiendes un producto, escribe su nombre exactamente como aparece en el catálogo.";
-        }
-
         try {
-            $respuesta = match ($proveedor) {
+            return match ($proveedor) {
                 'deepseek' => $this->llamarDeepSeek($systemContent, $mensaje),
                 'gemini'   => $this->llamarGemini($systemContent, $mensaje),
                 default    => $this->llamarOpenAI($systemContent, $mensaje),
             };
-
-            if ($respuesta === null) return [null, []];
-
-            // Detectar qué productos se mencionan en la respuesta
-            $productosDetectados = in_array('productos', $recursos)
-                ? $this->detectarProductos($respuesta)
-                : [];
-
-            return [$respuesta, $productosDetectados];
         } catch (\Exception $e) {
             Log::error("[Bot] Error en IA ({$proveedor}): " . $e->getMessage());
-            return [null, []];
+            return null;
         }
-    }
-
-    /**
-     * Detecta productos del catálogo mencionados en el texto de respuesta de la IA.
-     */
-    private function detectarProductos(string $texto): array
-    {
-        $detectados = [];
-
-        Product::where('available', true)->orderBy('name')->get()
-            ->each(function (Product $p) use ($texto, &$detectados) {
-                if (mb_stripos($texto, $p->name) !== false) {
-                    $detectados[] = $p;
-                }
-            });
-
-        return $detectados;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -651,9 +557,15 @@ class BotController extends Controller
                 ],
             ]);
 
-        return $response->successful()
-            ? data_get($response->json(), 'choices.0.message.content')
-            : null;
+        if (! $response->successful()) {
+            Log::error('[Bot] OpenAI error HTTP ' . $response->status(), [
+                'model' => $model,
+                'body'  => $response->json() ?? $response->body(),
+            ]);
+            return null;
+        }
+
+        return data_get($response->json(), 'choices.0.message.content');
     }
 
     private function llamarDeepSeek(string $system, string $user): ?string
@@ -676,9 +588,15 @@ class BotController extends Controller
                 ],
             ]);
 
-        return $response->successful()
-            ? data_get($response->json(), 'choices.0.message.content')
-            : null;
+        if (! $response->successful()) {
+            Log::error('[Bot] DeepSeek error HTTP ' . $response->status(), [
+                'model' => $model,
+                'body'  => $response->json() ?? $response->body(),
+            ]);
+            return null;
+        }
+
+        return data_get($response->json(), 'choices.0.message.content');
     }
 
     private function llamarGemini(string $system, string $user): ?string
@@ -771,5 +689,37 @@ class BotController extends Controller
         $detail  = $rawBody !== '' ? " | Respuesta: {$rawBody}" : '';
 
         return ($msg ?? "HTTP {$response->status()}") . $detail;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // API — CONVERSACIONES EN TIEMPO REAL
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Lista los contactos únicos con su último mensaje (para el panel izquierdo).
+     */
+    public function listarContactos(): JsonResponse
+    {
+        $contactos = Conversation::selectRaw('phone, contact_name, instancia, MAX(created_at) as ultimo, COUNT(*) as total')
+            ->groupBy('phone', 'contact_name', 'instancia')
+            ->orderByDesc('ultimo')
+            ->get();
+
+        return response()->json($contactos);
+    }
+
+    /**
+     * Devuelve los últimos 50 mensajes de un contacto específico.
+     */
+    public function mensajesPorTelefono(string $phone): JsonResponse
+    {
+        $mensajes = Conversation::where('phone', $phone)
+            ->latest()
+            ->limit(50)
+            ->get()
+            ->reverse()
+            ->values();
+
+        return response()->json($mensajes);
     }
 }

@@ -6,23 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->string('user_message');
-            $table->string('bot_response');
-            $table->string('status');
+            $table->string('phone')->nullable()->index();
+            $table->string('instancia')->nullable()->index();
+            $table->string('contact_name')->nullable();
+            $table->text('user_message');
+            $table->text('bot_response');
+            $table->string('status')->default('ok');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('conversations');

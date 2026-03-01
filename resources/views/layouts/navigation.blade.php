@@ -15,6 +15,30 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+
+                    {{-- Módulos dinámicos del tenant --}}
+                    @foreach($nav_modulos as $mod)
+                        <x-nav-link
+                            :href="route('catalogo.index', $mod->slug)"
+                            :active="request()->is('catalogo/' . $mod->slug . '*')">
+                            {{ $mod->icono }} {{ $mod->nombre }}
+                        </x-nav-link>
+                    @endforeach
+
+                    {{-- Gestión de módulos (no-code) --}}
+                    <x-nav-link :href="route('admin.modulos.index')" :active="request()->routeIs('admin.modulos.*')">
+                        ⚙️ Módulos
+                    </x-nav-link>
+
+                    {{-- Bot --}}
+                    <x-nav-link :href="route('bot.index')" :active="request()->routeIs('bot.*')">
+                        🤖 Bot
+                    </x-nav-link>
+
+                    {{-- Configuración --}}
+                    <x-nav-link :href="route('configuracion.index')" :active="request()->routeIs('configuracion.*')">
+                        🔧 Config
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -69,6 +93,27 @@
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+
+            {{-- Módulos dinámicos (mobile) --}}
+            @foreach($nav_modulos as $mod)
+                <x-responsive-nav-link
+                    :href="route('catalogo.index', $mod->slug)"
+                    :active="request()->is('catalogo/' . $mod->slug . '*')">
+                    {{ $mod->icono }} {{ $mod->nombre }}
+                </x-responsive-nav-link>
+            @endforeach
+
+            <x-responsive-nav-link :href="route('admin.modulos.index')" :active="request()->routeIs('admin.modulos.*')">
+                ⚙️ Módulos
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('bot.index')" :active="request()->routeIs('bot.*')">
+                🤖 Bot
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('configuracion.index')" :active="request()->routeIs('configuracion.*')">
+                🔧 Config
             </x-responsive-nav-link>
         </div>
 

@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\BotController;
-use App\Http\Controllers\ClientController;
+use App\Http\Controllers\CatalogModuleController;
+use App\Http\Controllers\CatalogRecordController;
 use App\Http\Controllers\ConfiguracionController;
-use App\Http\Controllers\DiseaseController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,48 +13,59 @@ Route::get('/', function () {
 });
 
 // Webhook público por instancia — Evolution API hace POST aquí cuando llega un mensaje
+// El middleware tenant.instance inicializa el tenant a partir del nombre de la instancia
 Route::post('/webhook/whatsapp/{instancia}', [BotController::class, 'recibirWebhook'])
     ->name('webhook.whatsapp')
+    ->middleware('tenant.instance')
     ->where('instancia', '.+');
 
-// Consulta pública de historial para clientes (sin autenticación)
-Route::get('/consulta', [ClientController::class, 'consulta'])->name('consulta');
+// ──────────────────────────────────────────────────────────────────────────────
+// Dashboard — autenticado, pero NO requiere tenant (superadmin puede verlo)
+// ──────────────────────────────────────────────────────────────────────────────
+Route::middleware(['auth', 'verified', 'tenant.auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+});
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// ──────────────────────────────────────────────────────────────────────────────
+// Rutas que REQUIEREN tenant activo
+// ──────────────────────────────────────────────────────────────────────────────
+Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    // Productos
-    Route::resource('productos', ProductController::class)->except(['show', 'create', 'edit']);
-
-    // Enfermedades
-    Route::resource('enfermedades', DiseaseController::class)
-        ->except(['show', 'create', 'edit'])
-        ->parameters(['enfermedades' => 'enfermedad']);
-
-    // Clientes
-    Route::resource('clientes', ClientController::class)
-        ->except(['create', 'edit'])
-        ->parameters(['clientes' => 'cliente']);
-
-    // Observaciones de clientes (API JSON)
-    Route::get('/clientes/{cliente}/observaciones',                          [ClientController::class, 'getObservaciones'])->name('clientes.observaciones.index');
-    Route::post('/clientes/{cliente}/observaciones',                         [ClientController::class, 'storeObservacion'])->name('clientes.observaciones.store');
-    Route::put('/clientes/{cliente}/observaciones/{observacion}',            [ClientController::class, 'updateObservacion'])->name('clientes.observaciones.update');
-    Route::delete('/clientes/{cliente}/observaciones/{observacion}',         [ClientController::class, 'destroyObservacion'])->name('clientes.observaciones.destroy');
-
-    Route::get('/conversaciones', fn () => view('dashboard'))->name('conversaciones.index');
-    Route::get('/usuarios',       fn () => view('dashboard'))->name('usuarios.index');
-
-    // Configuración de APIs
-    Route::prefix('configuracion')->name('configuracion.')->group(function () {
-        Route::get('/',              [ConfiguracionController::class, 'index'])->name('index');
-        Route::post('/',             [ConfiguracionController::class, 'update'])->name('update');
-        Route::delete('/{clave}',    [ConfiguracionController::class, 'limpiar'])->name('limpiar');
+    // ── Catálogos dinámicos (ruta comodín — un controlador para todos los módulos) ──
+    Route::prefix('catalogo/{module}')->name('catalogo.')->group(function () {
+        Route::get('/',        [CatalogRecordController::class, 'index'])->name('index');
+        Route::post('/',       [CatalogRecordController::class, 'store'])->name('store');
+        Route::put('/{id}',    [CatalogRecordController::class, 'update'])->name('update');
+        Route::delete('/{id}', [CatalogRecordController::class, 'destroy'])->name('destroy');
+        Route::get('/opciones-relation',                    [CatalogRecordController::class, 'opcionesRelation'])->name('opciones-relation');
+        Route::post('/upload-file',                         [CatalogRecordController::class, 'uploadFile'])->name('upload-file');
+        Route::post('/{id}/whatsapp-verify/{fieldSlug}',   [CatalogRecordController::class, 'verificarWhatsapp'])->name('whatsapp-verify');
     });
 
-    // Bot / Evolution API
+    // ── Admin no-code de módulos y campos ──
+    Route::prefix('admin/modulos')->name('admin.modulos.')->group(function () {
+        Route::get('/',                      [CatalogModuleController::class, 'index'])->name('index');
+        Route::post('/',                     [CatalogModuleController::class, 'store'])->name('store');
+        Route::put('/{id}',                  [CatalogModuleController::class, 'update'])->name('update');
+        Route::delete('/{id}',              [CatalogModuleController::class, 'destroy'])->name('destroy');
+        Route::post('/{id}/campos',          [CatalogModuleController::class, 'storeField'])->name('campos.store');
+        Route::put('/{id}/campos/{fid}',     [CatalogModuleController::class, 'updateField'])->name('campos.update');
+        Route::delete('/{id}/campos/{fid}',  [CatalogModuleController::class, 'destroyField'])->name('campos.destroy');
+        Route::post('/{id}/campos/reorder',  [CatalogModuleController::class, 'reorderFields'])->name('campos.reorder');
+        Route::post('/reorder',              [CatalogModuleController::class, 'reorder'])->name('reorder');
+    });
+
+    // ── Configuración de APIs ──
+    Route::prefix('configuracion')->name('configuracion.')->group(function () {
+        Route::get('/',           [ConfiguracionController::class, 'index'])->name('index');
+        Route::post('/',          [ConfiguracionController::class, 'update'])->name('update');
+        Route::delete('/{clave}', [ConfiguracionController::class, 'limpiar'])->name('limpiar');
+        Route::post('/test-db',   [ConfiguracionController::class, 'testExternalDb'])->name('test-db');
+    });
+
+    // ── Bot / Evolution API ──
     Route::prefix('bot')->name('bot.')->group(function () {
         Route::get('/',                        [BotController::class, 'index'])->name('index');
         Route::get('/conectar',                [BotController::class, 'conectar'])->name('conectar');
@@ -67,12 +78,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
         Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
         Route::get('/conversaciones',          [BotController::class, 'conversaciones'])->name('conversaciones');
+        Route::get('/contactos',               [BotController::class, 'listarContactos'])->name('contactos');
+        Route::get('/mensajes/{phone}',        [BotController::class, 'mensajesPorTelefono'])->name('mensajes')->where('phone', '.+');
     });
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Admin global (sin tenancy — solo superadmin, opera sobre la BD central)
+// ──────────────────────────────────────────────────────────────────────────────
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::post('/tenants',        [TenantController::class, 'store'])->name('tenants.store');
+    Route::get('/tenants',         [TenantController::class, 'index'])->name('tenants.index');
+    Route::delete('/tenants/{id}', [TenantController::class, 'destroy'])->name('tenants.destroy');
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Perfil de usuario
+// ──────────────────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile',  [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

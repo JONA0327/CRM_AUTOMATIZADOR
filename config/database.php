@@ -43,6 +43,21 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        // ── Plantilla para conexiones de tenant (stancl/tenancy la clona dinámicamente) ──
+        'tenant_template' => [
+            'driver'    => env('TENANT_DB_DRIVER', 'mysql'),
+            'host'      => env('DB_HOST', '127.0.0.1'),
+            'port'      => env('DB_PORT', '3306'),
+            'database'  => null,
+            'username'  => env('DB_USERNAME', 'root'),
+            'password'  => env('DB_PASSWORD', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+            'strict'    => false,
+            'engine'    => null,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
