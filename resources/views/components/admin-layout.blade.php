@@ -208,12 +208,15 @@
                     <p class="text-white text-sm font-medium truncate">{{ Auth::user()->name }}</p>
                     <div class="flex items-center gap-1.5 mt-0.5">
                         @php
-                            $roleLabel = match(true) {
-                                Auth::user()->hasRole('super_admin') => ['Super Admin', 'bg-yellow-400/30 text-yellow-200'],
-                                Auth::user()->hasRole('anfitrion')   => ['Anfitrión', 'bg-green-400/30 text-green-200'],
-                                Auth::user()->hasRole('colaborador') => ['Colaborador', 'bg-blue-300/30 text-blue-100'],
-                                default                              => ['Sin rol', 'bg-white/10 text-blue-200'],
-                            };
+                            if (Auth::user()->hasRole('super_admin')) {
+                                $roleLabel = ['Super Admin', 'bg-yellow-400/30 text-yellow-200'];
+                            } elseif (Auth::user()->hasRole('anfitrion')) {
+                                $roleLabel = ['Anfitrión', 'bg-green-400/30 text-green-200'];
+                            } elseif (Auth::user()->hasRole('colaborador')) {
+                                $roleLabel = ['Colaborador', 'bg-blue-300/30 text-blue-100'];
+                            } else {
+                                $roleLabel = ['Sin rol', 'bg-white/10 text-blue-200'];
+                            }
                         @endphp
                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold {{ $roleLabel[1] }}">
                             {{ $roleLabel[0] }}

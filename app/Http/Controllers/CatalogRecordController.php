@@ -131,11 +131,13 @@ class CatalogRecordController extends Controller
         $accept = $meta['accept'] ?? 'all';
         $maxMb  = max(1, (int) ($meta['max_mb'] ?? 10));
 
-        $mimes = match ($accept) {
-            'image' => 'jpg,jpeg,png,gif,webp,svg,bmp',
-            'video' => 'mp4,mov,avi,webm,mkv',
-            default => 'jpg,jpeg,png,gif,webp,svg,bmp,mp4,mov,avi,webm,mkv,pdf,doc,docx,xls,xlsx,csv,txt,zip',
-        };
+        if ($accept === 'image') {
+            $mimes = 'jpg,jpeg,png,gif,webp,svg,bmp';
+        } elseif ($accept === 'video') {
+            $mimes = 'mp4,mov,avi,webm,mkv';
+        } else {
+            $mimes = 'jpg,jpeg,png,gif,webp,svg,bmp,mp4,mov,avi,webm,mkv,pdf,doc,docx,xls,xlsx,csv,txt,zip';
+        }
 
         $request->validate([
             'file' => ['required', 'file', 'max:' . ($maxMb * 1024), 'mimes:' . $mimes],

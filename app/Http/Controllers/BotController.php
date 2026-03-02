@@ -526,11 +526,9 @@ class BotController extends Controller
         }
 
         try {
-            return match ($proveedor) {
-                'deepseek' => $this->llamarDeepSeek($systemContent, $mensaje),
-                'gemini'   => $this->llamarGemini($systemContent, $mensaje),
-                default    => $this->llamarOpenAI($systemContent, $mensaje),
-            };
+            if ($proveedor === 'deepseek') return $this->llamarDeepSeek($systemContent, $mensaje);
+            if ($proveedor === 'gemini')   return $this->llamarGemini($systemContent, $mensaje);
+            return $this->llamarOpenAI($systemContent, $mensaje);
         } catch (\Exception $e) {
             Log::error("[Bot] Error en IA ({$proveedor}): " . $e->getMessage());
             return null;

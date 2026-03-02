@@ -47,12 +47,10 @@ class ExternalDbService
     {
         $driver = Config::get('database.connections.' . self::CONN . '.driver');
 
-        return match ($driver) {
-            'mysql'   => $this->tablasMysql(),
-            'pgsql'   => $this->tablasPostgres(),
-            'mongodb' => $this->tablasMongo(),
-            default   => [],
-        };
+        if ($driver === 'mysql')   return $this->tablasMysql();
+        if ($driver === 'pgsql')   return $this->tablasPostgres();
+        if ($driver === 'mongodb') return $this->tablasMongo();
+        return [];
     }
 
     /**
@@ -215,29 +213,36 @@ class ExternalDbService
             'password' => $creds['password'] ?? '',
         ];
 
-        return match ($creds['driver']) {
-            'mysql' => array_merge($base, [
+        if ($creds['driver'] === 'mysql') {
+            return array_merge($base, [
                 'charset'   => 'utf8mb4',
                 'collation' => 'utf8mb4_unicode_ci',
                 'prefix'    => '',
                 'strict'    => false,
                 'engine'    => null,
                 'options'   => defined('PDO::ATTR_TIMEOUT') ? [\PDO::ATTR_TIMEOUT => 5] : [],
-            ]),
-            'pgsql' => array_merge($base, [
+            ]);
+        }
+
+        if ($creds['driver'] === 'pgsql') {
+            return array_merge($base, [
                 'charset' => 'utf8',
                 'prefix'  => '',
                 'schema'  => 'public',
                 'sslmode' => 'prefer',
                 'options' => defined('PDO::ATTR_TIMEOUT') ? [\PDO::ATTR_TIMEOUT => 5] : [],
-            ]),
-            'mongodb' => [
+            ]);
+        }
+
+        if ($creds['driver'] === 'mongodb') {
+            return [
                 'driver'   => 'mongodb',
                 'dsn'      => $this->mongodsn($creds, $port),
                 'database' => $creds['database'],
-            ],
-            default => $base,
-        ];
+            ];
+        }
+
+        return $base;
     }
 
     private function mongodsn(array $creds, int $port): string
@@ -251,11 +256,9 @@ class ExternalDbService
 
     private function defaultPort(string $driver): int
     {
-        return match ($driver) {
-            'pgsql'   => 5432,
-            'mongodb' => 27017,
-            default   => 3306,
-        };
+        if ($driver === 'pgsql')   return 5432;
+        if ($driver === 'mongodb') return 27017;
+        return 3306;
     }
 
     private function tablasMysql(): array

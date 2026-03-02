@@ -521,12 +521,15 @@
 
                                 {{-- Input de subida --}}
                                 <div class="relative">
+                                    @php
+                                        $acceptAttr = ($field->meta['accept'] ?? 'all') === 'image'
+                                            ? 'image/*'
+                                            : (($field->meta['accept'] ?? 'all') === 'video'
+                                                ? 'video/*'
+                                                : 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip');
+                                    @endphp
                                     <input type="file"
-                                           accept="{{ match($field->meta['accept'] ?? 'all') {
-                                               'image' => 'image/*',
-                                               'video' => 'video/*',
-                                               default => 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip'
-                                           } }}"
+                                           accept="{{ $acceptAttr }}"
                                            @change="subirArchivo('{{ $field->slug }}', $event)"
                                            :disabled="subiendo['{{ $field->slug }}']"
                                            class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm
@@ -547,11 +550,14 @@
                                 </div>
                                 <p class="text-xs text-gray-400 mt-1">
                                     Máx: {{ ($field->meta['max_mb'] ?? 10) }} MB ·
-                                    {{ match($field->meta['accept'] ?? 'all') {
-                                        'image' => 'Solo imágenes',
-                                        'video' => 'Solo videos',
-                                        default => 'Imágenes, videos y documentos'
-                                    } }}
+                                    @php
+                                        $acceptLabel = ($field->meta['accept'] ?? 'all') === 'image'
+                                            ? 'Solo imágenes'
+                                            : (($field->meta['accept'] ?? 'all') === 'video'
+                                                ? 'Solo videos'
+                                                : 'Imágenes, videos y documentos');
+                                    @endphp
+                                    {{ $acceptLabel }}
                                 </p>
 
                             @elseif($field->tipo === 'id')
