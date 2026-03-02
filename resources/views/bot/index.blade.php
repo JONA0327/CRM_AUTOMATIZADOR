@@ -201,6 +201,218 @@
     </div>
 </template>
 
+{{-- ══ MODAL CONSOLA DE LOGS ══ --}}
+<template x-teleport="body">
+    <div x-data="instanciaLogs()"
+         x-show="open"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style="display:none">
+
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="cerrar()"></div>
+
+        <div class="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             @click.stop>
+
+            {{-- ── Barra de título estilo terminal ── --}}
+            <div class="flex items-center justify-between px-5 py-3 bg-gray-900 border-b border-gray-700">
+                <div class="flex items-center gap-3">
+                    {{-- Semáforo decorativo --}}
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-red-500/80 cursor-pointer" @click="cerrar()"></span>
+                        <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+                        <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-sm font-mono font-semibold text-gray-200">Consola —</span>
+                        <span class="text-sm font-mono text-purple-300" x-text="instancia"></span>
+                    </div>
+                </div>
+
+                {{-- Toolbar --}}
+                <div class="flex items-center gap-2">
+                    {{-- Auto-refresh --}}
+                    <button @click="toggleAutoRefresh()"
+                            :class="autoRefresh ? 'bg-green-700/50 text-green-300 border-green-600' : 'bg-gray-800 text-gray-400 border-gray-600 hover:bg-gray-700'"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono border rounded-lg transition-colors"
+                            title="Auto-actualizar cada 5s">
+                        <svg class="w-3 h-3" :class="autoRefresh ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span x-text="autoRefresh ? 'Auto ON' : 'Auto'"></span>
+                    </button>
+
+                    {{-- Actualizar --}}
+                    <button @click="cargar()" :disabled="cargando"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                            title="Actualizar logs">
+                        <svg class="w-3 h-3" :class="cargando ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Actualizar
+                    </button>
+
+                    {{-- Limpiar --}}
+                    <button @click="limpiar()"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono bg-gray-800 hover:bg-yellow-900/40 text-gray-300 hover:text-yellow-300 border border-gray-600 hover:border-yellow-700 rounded-lg transition-colors"
+                            title="Limpiar pantalla">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Limpiar
+                    </button>
+
+                    {{-- Descargar .txt --}}
+                    <button @click="descargar()" :disabled="logs.length === 0"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono bg-gray-800 hover:bg-blue-900/40 text-gray-300 hover:text-blue-300 border border-gray-600 hover:border-blue-700 rounded-lg transition-colors disabled:opacity-40"
+                            title="Descargar como .txt">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Exportar
+                    </button>
+
+                    {{-- Cerrar --}}
+                    <button @click="cerrar()"
+                            class="ml-1 p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- ── Barra de estado de conexión ── --}}
+            <div class="flex items-center justify-between px-5 py-2 bg-gray-850 bg-gray-900/80 border-b border-gray-800 text-xs font-mono">
+                <div class="flex items-center gap-4">
+                    {{-- Estado Evolution API --}}
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-500">estado:</span>
+                        <template x-if="!estado && !cargando">
+                            <span class="text-gray-600">—</span>
+                        </template>
+                        <template x-if="estado || cargando">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full"
+                                      :class="{
+                                          'bg-green-400 shadow-[0_0_6px_#4ade80]': estadoColor() === 'green',
+                                          'bg-yellow-400 animate-pulse': estadoColor() === 'yellow',
+                                          'bg-red-400': estadoColor() === 'red'
+                                      }"></span>
+                                <span :class="{
+                                          'text-green-400': estadoColor() === 'green',
+                                          'text-yellow-400': estadoColor() === 'yellow',
+                                          'text-red-400': estadoColor() === 'red'
+                                      }"
+                                      x-text="cargando ? 'cargando...' : estadoLabel()"></span>
+                            </span>
+                        </template>
+                    </div>
+
+                    {{-- Contadores --}}
+                    <div class="flex items-center gap-3 text-gray-600">
+                        <template x-if="contarPorNivel('error') + contarPorNivel('critical') + contarPorNivel('alert') + contarPorNivel('emergency') > 0">
+                            <span class="text-red-400">
+                                ● <span x-text="contarPorNivel('error') + contarPorNivel('critical') + contarPorNivel('alert') + contarPorNivel('emergency')"></span> errores
+                            </span>
+                        </template>
+                        <template x-if="contarPorNivel('warning') > 0">
+                            <span class="text-yellow-400">
+                                ● <span x-text="contarPorNivel('warning')"></span> warnings
+                            </span>
+                        </template>
+                        <span x-show="logs.length > 0" class="text-gray-600">
+                            <span x-text="logs.length"></span> entradas
+                        </span>
+                    </div>
+                </div>
+
+                <span class="text-gray-700" x-text="generatedAt ? 'Actualizado: ' + generatedAt : ''"></span>
+            </div>
+
+            {{-- ── Área de logs (terminal) ── --}}
+            <div class="flex-1 overflow-y-auto bg-gray-950 p-4 min-h-0" style="max-height: 65vh">
+
+                {{-- Skeleton de carga --}}
+                <template x-if="cargando && logs.length === 0">
+                    <div class="space-y-2 animate-pulse">
+                        <template x-for="i in 8">
+                            <div class="flex items-center gap-3">
+                                <div class="h-3 bg-gray-800 rounded w-36 flex-shrink-0"></div>
+                                <div class="h-3 bg-gray-800 rounded w-16 flex-shrink-0"></div>
+                                <div class="h-3 bg-gray-800 rounded flex-1"></div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                {{-- Sin logs --}}
+                <template x-if="!cargando && logs.length === 0">
+                    <div class="flex flex-col items-center justify-center py-16 text-center">
+                        <svg class="w-10 h-10 text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="text-sm font-mono text-gray-600">Sin entradas de log para esta instancia.</p>
+                        <p class="text-xs font-mono text-gray-700 mt-1">Prueba enviar un mensaje al bot y actualiza.</p>
+                    </div>
+                </template>
+
+                {{-- Entradas de log --}}
+                <template x-if="logs.length > 0">
+                    <div class="space-y-px font-mono text-xs">
+                        <template x-for="(log, idx) in logs" :key="idx">
+                            <div class="flex items-start gap-3 px-2 py-1.5 rounded hover:bg-gray-900 group"
+                                 :class="(log.level === 'error' || log.level === 'critical' || log.level === 'emergency' || log.level === 'alert') ? 'bg-red-950/20' : ''">
+
+                                {{-- Timestamp --}}
+                                <span class="text-gray-600 flex-shrink-0 select-none" x-text="log.timestamp.slice(11)"></span>
+
+                                {{-- Badge nivel --}}
+                                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 uppercase"
+                                      :class="badgeClase(log.level)"
+                                      x-text="log.level.slice(0,4)"></span>
+
+                                {{-- Mensaje --}}
+                                <span class="flex-1 whitespace-pre-wrap break-all leading-relaxed"
+                                      :class="colorClase(log.level)"
+                                      x-text="log.message"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+            </div>
+
+            {{-- ── Footer con prompt estilo terminal ── --}}
+            <div class="px-5 py-2.5 bg-gray-900 border-t border-gray-800 flex items-center gap-2">
+                <span class="text-green-500 font-mono text-xs">$</span>
+                <span class="text-gray-600 font-mono text-xs" x-text="'instancia/' + instancia + ' >'"></span>
+                <span class="ml-auto text-xs font-mono text-gray-700">
+                    Mostrando logs de <span class="text-gray-500">storage/logs/laravel.log</span>
+                </span>
+            </div>
+
+        </div>
+    </div>
+</template>
+
     {{-- Flash messages --}}
     @if (session('success'))
         <div class="mb-6 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-4">
@@ -380,6 +592,17 @@
                             {{-- Acciones --}}
                             <td class="px-6 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">
+                                    {{-- Botón logs --}}
+                                    <button
+                                        onclick="window.dispatchEvent(new CustomEvent('abrir-logs', { detail: '{{ $nombre }}' }))"
+                                        title="Ver logs de la instancia"
+                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 hover:bg-purple-100 hover:text-purple-600 rounded-lg transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                    </button>
+
                                     {{-- Botón configurar --}}
                                     <button
                                         onclick="window.dispatchEvent(new CustomEvent('abrir-config', { detail: '{{ $nombre }}' }))"
@@ -418,6 +641,144 @@
 
 
 <script>
+function instanciaLogs() {
+    return {
+        open:        false,
+        instancia:   '',
+        cargando:    false,
+        logs:        [],
+        estado:      null,
+        estadoOk:    false,
+        generatedAt: '',
+        autoRefresh: false,
+        _timer:      null,
+
+        init() {
+            window.addEventListener('abrir-logs', (e) => this.abrir(e.detail));
+        },
+
+        async abrir(nombre) {
+            this.instancia   = nombre;
+            this.logs        = [];
+            this.estado      = null;
+            this.generatedAt = '';
+            this.open        = true;
+            document.body.style.overflow = 'hidden';
+            await this.cargar();
+        },
+
+        async cargar() {
+            this.cargando = true;
+            try {
+                const res  = await fetch(`{{ url('/bot/logs') }}/${encodeURIComponent(this.instancia)}`, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this.logs        = data.logs;
+                    this.estado      = data.estado;
+                    this.estadoOk    = data.estado_ok;
+                    this.generatedAt = data.generated_at;
+                }
+            } catch (e) {
+                console.error('Error al cargar logs:', e);
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        toggleAutoRefresh() {
+            this.autoRefresh = !this.autoRefresh;
+            if (this.autoRefresh) {
+                this._timer = setInterval(() => this.cargar(), 5000);
+            } else {
+                clearInterval(this._timer);
+                this._timer = null;
+            }
+        },
+
+        limpiar() {
+            this.logs = [];
+        },
+
+        descargar() {
+            const lines = [];
+            lines.push('=== Consola de logs: ' + this.instancia + ' ===');
+            lines.push('Generado: ' + this.generatedAt);
+            lines.push('');
+
+            if (this.estado) {
+                lines.push('=== ESTADO DE CONEXIÓN ===');
+                lines.push(JSON.stringify(this.estado, null, 2));
+                lines.push('');
+            }
+
+            lines.push('=== ENTRADAS DE LOG ===');
+            this.logs.forEach(function(log) {
+                lines.push('[' + log.timestamp + '] ' + log.level.toUpperCase() + ': ' + log.message);
+            });
+
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = 'bot-logs-' + this.instancia + '-' + Date.now() + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        cerrar() {
+            this.open        = false;
+            this.autoRefresh = false;
+            clearInterval(this._timer);
+            this._timer = null;
+            document.body.style.overflow = '';
+        },
+
+        colorClase(level) {
+            if (level === 'error' || level === 'critical' || level === 'emergency' || level === 'alert')
+                return 'text-red-400';
+            if (level === 'warning') return 'text-yellow-300';
+            if (level === 'info')    return 'text-cyan-400';
+            if (level === 'debug')   return 'text-gray-500';
+            return 'text-green-400';
+        },
+
+        badgeClase(level) {
+            if (level === 'error' || level === 'critical' || level === 'emergency' || level === 'alert')
+                return 'bg-red-900/60 text-red-300 border border-red-700/50';
+            if (level === 'warning') return 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/50';
+            if (level === 'info')    return 'bg-cyan-900/60 text-cyan-300 border border-cyan-700/50';
+            if (level === 'debug')   return 'bg-gray-800 text-gray-400 border border-gray-700';
+            return 'bg-green-900/60 text-green-300 border border-green-700/50';
+        },
+
+        estadoColor() {
+            if (!this.estado || !this.estadoOk) return 'red';
+            const state = (this.estado.instance && this.estado.instance.state)
+                ? this.estado.instance.state
+                : (this.estado.connectionStatus || this.estado.state || '');
+            if (state === 'open') return 'green';
+            if (state === 'connecting') return 'yellow';
+            return 'red';
+        },
+
+        estadoLabel() {
+            if (!this.estado) return 'Sin respuesta';
+            if (this.estado.error) return 'Error: ' + this.estado.error;
+            const state = (this.estado.instance && this.estado.instance.state)
+                ? this.estado.instance.state
+                : (this.estado.connectionStatus || this.estado.state || '');
+            var labels = { open: 'Conectado', close: 'Desconectado', connecting: 'Conectando...' };
+            return labels[state] || state || 'Desconocido';
+        },
+
+        contarPorNivel(level) {
+            return this.logs.filter(function(l) { return l.level === level; }).length;
+        },
+    };
+}
+
 function instanciaConfig() {
     return {
         open:       false,

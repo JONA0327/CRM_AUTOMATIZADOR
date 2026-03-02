@@ -63,6 +63,7 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::get('/diagnostico',             [BotController::class, 'diagnostico'])->name('diagnostico');
             Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
             Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
+            Route::get('/logs/{instancia}',        [BotController::class, 'getLogs'])->name('logs')->where('instancia', '.+');
         });
     });
 

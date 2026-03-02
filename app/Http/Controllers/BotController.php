@@ -497,9 +497,102 @@ class BotController extends Controller
             ->with('success', "Instancia «{$instancia}» eliminada correctamente.");
     }
 
+    /**
+     * Devuelve logs recientes filtrados para esta instancia + estado de conexión actual.
+     */
+    public function getLogs(string $instancia): JsonResponse
+    {
+        $entries = [];
+        $logFile = storage_path('logs/laravel.log');
+
+        if (file_exists($logFile)) {
+            $lines = $this->tailLines($logFile, 1500);
+
+            $currentEntry = null;
+            foreach ($lines as $line) {
+                if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \w+\.(\w+): (.*)$/', $line, $m)) {
+                    if ($currentEntry !== null) {
+                        $entries[] = $currentEntry;
+                    }
+                    $currentEntry = [
+                        'timestamp' => $m[1],
+                        'level'     => strtolower($m[2]),
+                        'message'   => $m[3],
+                    ];
+                } elseif ($currentEntry !== null && trim($line) !== '') {
+                    $currentEntry['message'] .= "\n" . $line;
+                }
+            }
+            if ($currentEntry !== null) {
+                $entries[] = $currentEntry;
+            }
+
+            // Filtrar: solo entradas que mencionen la instancia o sean errores del bot
+            $entries = array_values(array_filter($entries, function ($e) use ($instancia) {
+                $msg = $e['message'];
+                return str_contains($msg, $instancia)
+                    || str_contains($msg, '[Bot]')
+                    || str_contains($msg, '[BotController]')
+                    || str_contains($msg, '[ExternalDb]')
+                    || in_array($e['level'], ['error', 'critical', 'emergency', 'alert']);
+            }));
+
+            // Últimas 150 entradas relevantes, más recientes primero
+            $entries = array_reverse(array_slice($entries, -150));
+        }
+
+        // Estado actual de la instancia en Evolution API
+        $estado   = null;
+        $estadoOk = false;
+        try {
+            $enc = rawurlencode($instancia);
+            $res = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(5)
+                ->get("{$this->apiUrl}/instance/connectionState/{$enc}");
+            if ($res->successful()) {
+                $estadoOk = true;
+                $estado   = $res->json();
+            } else {
+                $estado = ['error' => 'HTTP ' . $res->status() . ': ' . $res->body()];
+            }
+        } catch (\Exception $e) {
+            $estado = ['error' => $e->getMessage()];
+        }
+
+        return response()->json([
+            'success'      => true,
+            'logs'         => $entries,
+            'estado'       => $estado,
+            'estado_ok'    => $estadoOk,
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+            'instancia'    => $instancia,
+        ]);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // HELPERS PRIVADOS — LÓGICA DEL BOT
     // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Lee los últimos bytes del archivo de log y devuelve las líneas resultantes.
+     */
+    private function tailLines(string $file, int $maxLines = 1500): array
+    {
+        $handle = @fopen($file, 'r');
+        if (!$handle) return [];
+
+        $size     = filesize($file);
+        $readSize = min(512 * 1024, $size); // Últimos 512 KB
+        fseek($handle, max(0, $size - $readSize));
+        $content = fread($handle, $readSize);
+        fclose($handle);
+
+        $lines = explode("\n", $content);
+        return array_slice(
+            array_filter($lines, fn($l) => trim($l) !== ''),
+            -$maxLines
+        );
+    }
 
     /**
      * Construye el contexto para la IA leyendo todas las BDs externas configuradas en ext_dbs.
