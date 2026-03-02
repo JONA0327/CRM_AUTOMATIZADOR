@@ -765,8 +765,8 @@
                                 <div>
                                     <div class="flex items-center gap-3 px-5 py-3 bg-gray-50 dark:bg-gray-750">
                                         <input type="text" x-model="conn.nombre"
-                                               placeholder="Nombre de esta conexión"
-                                               class="flex-1 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-transparent border-none focus:outline-none focus:ring-0 placeholder-gray-400"/>
+                                               placeholder="✏ Escribe un nombre para esta BD…"
+                                               class="flex-1 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-400 focus:outline-none focus:ring-0 placeholder-gray-400 transition-colors"/>
                                         <span class="px-2 py-0.5 rounded text-xs font-mono bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 flex-shrink-0"
                                               x-text="conn.driver.toUpperCase()"></span>
                                         <button type="button" @click="conn._expandido = !conn._expandido"
@@ -784,6 +784,12 @@
                                     </div>
 
                                     <div x-show="conn._expandido" class="px-5 py-4 space-y-4">
+                                        {{-- Nombre --}}
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nombre de esta conexión <span class="text-red-400">*</span></label>
+                                            <input type="text" x-model="conn.nombre" placeholder="Ej: BD Clientes, ERP, CRM…"
+                                                   class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                                        </div>
                                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo de BD</label>
@@ -1019,7 +1025,7 @@ function extDbManager() {
         agregar() {
             this.conexiones.push({
                 id: 'new_' + Date.now(),
-                nombre: 'Nueva conexión',
+                nombre: '',
                 driver: 'mysql',
                 host: '',
                 port: '',
