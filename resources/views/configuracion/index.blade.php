@@ -1054,7 +1054,10 @@ function extDbManager() {
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                     body: JSON.stringify({ driver: conn.driver, host: conn.host, port: conn.port || null, database: conn.database, username: conn.username || null, password: conn.password || null }),
                 });
-                const json = await res.json();
+                const text = await res.text();
+                let json;
+                try { json = JSON.parse(text); }
+                catch { conn._mensaje = 'Error del servidor (' + res.status + '): ' + text.slice(0, 200); conn._error = true; return; }
                 conn._mensaje = json.mensaje;
                 conn._error   = !json.success;
                 if (json.success) {
