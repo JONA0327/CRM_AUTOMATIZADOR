@@ -171,15 +171,29 @@ TXT,
         try {
             $extDbs = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
             foreach ($extDbs as $db) {
-                $nombre  = $db['nombre'] ?? ($db['id'] ?? 'bd');
-                $tagName = 'DB_EXT_' . strtoupper(preg_replace('/[^A-Z0-9]/i', '_', $nombre));
-                $tablas  = implode(', ', $db['tablas'] ?? []);
-                $tags[]  = [
+                $nombre         = $db['nombre'] ?? ($db['id'] ?? 'bd');
+                $tagName        = 'DB_EXT_' . strtoupper(preg_replace('/[^A-Z0-9]/i', '_', $nombre));
+                $tablasLista    = $db['tablas'] ?? [];
+                $tablasColumnas = $db['tablas_columnas'] ?? [];
+
+                // Contar columnas seleccionadas en total
+                $totalCols = 0;
+                foreach ($tablasColumnas as $cols) {
+                    $totalCols += is_array($cols) ? count($cols) : 0;
+                }
+
+                $tablaStr = implode(', ', $tablasLista);
+                $preview  = 'BD ' . ($db['driver'] ?? 'mysql') . ' — Tablas: ' . ($tablaStr ?: 'sin tablas');
+                if ($totalCols > 0) {
+                    $preview .= " ({$totalCols} campos seleccionados)";
+                }
+
+                $tags[] = [
                     'tag'     => $tagName,
                     'tipo'    => 'db_ext',
                     'label'   => $nombre,
                     'activo'  => true,
-                    'preview' => 'BD ' . ($db['driver'] ?? 'mysql') . ' — Tablas: ' . ($tablas ?: 'sin tablas'),
+                    'preview' => $preview,
                 ];
             }
         } catch (\Exception) {}
@@ -258,13 +272,13 @@ TXT,
                     continue;
                 }
 
-                $tablas = $db['tablas'] ?? [];
-                $schema = $db['tablas_schema'] ?? [];
-                $driver = $db['driver'] ?? 'mysql';
-                $host   = $db['host']   ?? '';
-                $dbName = $db['database'] ?? '';
+                $tablas         = $db['tablas'] ?? [];
+                $tablasColumnas = $db['tablas_columnas'] ?? [];
+                $driver         = $db['driver']   ?? 'mysql';
+                $host           = $db['host']     ?? '';
+                $dbName         = $db['database'] ?? '';
 
-                $lines   = ["### BD EXTERNA: {$nombre} ({$driver} @ {$host}/{$dbName}) ###"];
+                $lines = ["### BD EXTERNA: {$nombre} ({$driver} @ {$host}/{$dbName}) ###"];
 
                 if (empty($tablas)) {
                     $lines[] = "Sin tablas seleccionadas para contexto del bot.";
@@ -272,7 +286,7 @@ TXT,
                 } else {
                     $lines[] = "Tablas disponibles para consulta:";
                     foreach ($tablas as $t) {
-                        $cols    = $schema[$t] ?? [];
+                        $cols    = isset($tablasColumnas[$t]) && is_array($tablasColumnas[$t]) ? $tablasColumnas[$t] : [];
                         $colStr  = !empty($cols) ? ' — columnas: ' . implode(', ', $cols) : '';
                         $lines[] = "  • {$t}{$colStr}";
                     }

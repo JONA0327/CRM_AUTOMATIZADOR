@@ -84,22 +84,39 @@ class ExternalDbService
 
     /**
      * Devuelve columnas + muestra de filas de una tabla.
+     * Si $columnasFiltro no está vacío, solo devuelve esas columnas.
      *
      * @return array{columnas: string[], filas: array<int,array>}
      */
-    public function datosTabla(string $tabla, int $limit = 10): array
+    public function datosTabla(string $tabla, int $limit = 10, array $columnasFiltro = []): array
     {
         $driver = Config::get('database.connections.' . self::CONN . '.driver');
         $conn   = DB::connection(self::CONN);
 
         if ($driver === 'mongodb') {
-            $filas    = $conn->collection($tabla)->limit($limit)->get()->toArray();
-            $columnas = $filas ? array_keys((array) $filas[0]) : [];
+            $query = $conn->collection($tabla)->limit($limit);
+            if (!empty($columnasFiltro)) {
+                $query = $query->project(array_fill_keys($columnasFiltro, 1));
+            }
+            $filas    = $query->get()->toArray();
+            $columnas = $filas ? array_keys((array) $filas[0]) : $columnasFiltro;
             $filas    = array_map(fn($f) => $this->normalizarMongo((array) $f), $filas);
         } else {
             $dbName   = Config::get('database.connections.' . self::CONN . '.database');
-            $columnas = $this->columnasSql($driver, $dbName, $tabla);
-            $filas    = array_map(fn($f) => (array) $f, $conn->table($tabla)->limit($limit)->get()->toArray());
+            $todasCols = $this->columnasSql($driver, $dbName, $tabla);
+
+            if (!empty($columnasFiltro)) {
+                // Solo columnas que realmente existen en la tabla
+                $columnas = array_values(array_intersect($columnasFiltro, $todasCols));
+            } else {
+                $columnas = $todasCols;
+            }
+
+            $query = $conn->table($tabla)->limit($limit);
+            if (!empty($columnas)) {
+                $query = $query->select($columnas);
+            }
+            $filas = array_map(fn($f) => (array) $f, $query->get()->toArray());
         }
 
         return ['columnas' => $columnas, 'filas' => $filas];
@@ -140,11 +157,15 @@ class ExternalDbService
                 continue;
             }
 
+            $tablasColumnas = $conn['tablas_columnas'] ?? [];
             $partes = ["=== DATOS: {$nombre} ==="];
 
             foreach (array_values($tablas) as $tabla) {
                 try {
-                    $datos = $this->datosTabla($tabla);
+                    $colsFiltro = isset($tablasColumnas[$tabla]) && is_array($tablasColumnas[$tabla])
+                        ? array_values($tablasColumnas[$tabla])
+                        : [];
+                    $datos = $this->datosTabla($tabla, 10, $colsFiltro);
 
                     if (empty($datos['columnas'])) {
                         continue;

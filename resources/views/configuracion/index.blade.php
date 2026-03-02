@@ -887,13 +887,27 @@
                                                             {{-- Panel de columnas expandible --}}
                                                             <div x-show="conn._esquemaVisible[tabla]"
                                                                  class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
-                                                                <p class="text-xs text-gray-400 dark:text-gray-500 mb-1.5 font-medium">Columnas:</p>
+                                                                <div class="flex items-center justify-between mb-2">
+                                                                    <p class="text-xs text-gray-500 font-medium">Columnas para el bot:</p>
+                                                                    <div class="flex gap-2">
+                                                                        <button type="button" @click="seleccionarTodasCols(idx, tabla)" class="text-[10px] text-indigo-600 hover:underline">Todas</button>
+                                                                        <button type="button" @click="limpiarCols(idx, tabla)" class="text-[10px] text-gray-400 hover:underline">Ninguna</button>
+                                                                    </div>
+                                                                </div>
                                                                 <div class="flex flex-wrap gap-1.5">
                                                                     <template x-for="col in columnasDe(conn, tabla)" :key="col">
-                                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-mono text-gray-600 dark:text-gray-300"
-                                                                              x-text="col"></span>
+                                                                        <label class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-mono cursor-pointer transition-colors"
+                                                                               :class="colSeleccionada(conn, tabla, col) ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-500'">
+                                                                            <input type="checkbox" :checked="colSeleccionada(conn, tabla, col)"
+                                                                                   @change="toggleColumna(idx, tabla, col)"
+                                                                                   class="w-3 h-3 text-indigo-600 rounded cursor-pointer">
+                                                                            <span x-text="col"></span>
+                                                                        </label>
                                                                     </template>
                                                                 </div>
+                                                                <p class="mt-1.5 text-[10px] text-gray-400"
+                                                                   x-show="colsSeleccionadas(conn, tabla).length > 0"
+                                                                   x-text="colsSeleccionadas(conn, tabla).length + ' / ' + columnasDe(conn, tabla).length + ' cols seleccionadas'"></p>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -939,13 +953,27 @@
                                                         </div>
                                                         <div x-show="conn._esquemaVisible[t]"
                                                              class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
-                                                            <p class="text-xs text-gray-400 mb-1.5 font-medium">Columnas:</p>
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <p class="text-xs text-gray-500 font-medium">Columnas para el bot:</p>
+                                                                <div class="flex gap-2">
+                                                                    <button type="button" @click="seleccionarTodasCols(idx, t)" class="text-[10px] text-indigo-600 hover:underline">Todas</button>
+                                                                    <button type="button" @click="limpiarCols(idx, t)" class="text-[10px] text-gray-400 hover:underline">Ninguna</button>
+                                                                </div>
+                                                            </div>
                                                             <div class="flex flex-wrap gap-1.5">
                                                                 <template x-for="col in (conn._esquemas?.[t] ?? [])" :key="col">
-                                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-mono text-gray-600 dark:text-gray-300"
-                                                                          x-text="col"></span>
+                                                                    <label class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-mono cursor-pointer transition-colors"
+                                                                           :class="colSeleccionada(conn, t, col) ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-500'">
+                                                                        <input type="checkbox" :checked="colSeleccionada(conn, t, col)"
+                                                                               @change="toggleColumna(idx, t, col)"
+                                                                               class="w-3 h-3 text-indigo-600 rounded cursor-pointer">
+                                                                        <span x-text="col"></span>
+                                                                    </label>
                                                                 </template>
                                                             </div>
+                                                            <p class="mt-1.5 text-[10px] text-gray-400"
+                                                               x-show="colsSeleccionadas(conn, t).length > 0"
+                                                               x-text="colsSeleccionadas(conn, t).length + ' / ' + (conn._esquemas?.[t] ?? []).length + ' cols seleccionadas'"></p>
                                                         </div>
                                                     </div>
                                                 </template>
@@ -1013,13 +1041,13 @@ function extDbManager() {
         conexiones: seed.map(c => ({
             ...c,
             _tablas_disponibles: [],
-            // Pre-populate schema from saved tablas_schema so columns show before re-testing
             _esquemas:      c.tablas_schema ?? {},
             _esquemaVisible: {},
             _probando: false,
             _mensaje: '',
             _error: false,
             _expandido: true,
+            tablas_columnas: c.tablas_columnas ?? {},
         })),
 
         agregar() {
@@ -1035,6 +1063,7 @@ function extDbManager() {
                 has_password: false,
                 tablas: [],
                 tablas_schema: {},
+                tablas_columnas: {},
                 _tablas_disponibles: [],
                 _esquemas: {},
                 _esquemaVisible: {},
@@ -1064,11 +1093,18 @@ function extDbManager() {
                 let json;
                 try { json = JSON.parse(text); }
                 catch { conn._mensaje = 'Error del servidor (' + res.status + '): ' + text.slice(0, 200); conn._error = true; return; }
-                conn._mensaje = json.mensaje + (json.debug ? ' | ' + json.debug : '');
+                conn._mensaje = json.mensaje;
                 conn._error   = !json.success;
                 if (json.success) {
                     conn._tablas_disponibles = json.tablas ?? [];
-                    conn._esquemas           = json.esquemas ?? {};
+                    const newEsquemas = json.esquemas ?? {};
+                    conn._esquemas = newEsquemas;
+                    // Auto-seleccionar todas las columnas para tablas ya seleccionadas si aún no tienen selección
+                    conn.tablas.forEach(t => {
+                        if (!conn.tablas_columnas[t] && newEsquemas[t]) {
+                            conn.tablas_columnas[t] = [...newEsquemas[t]];
+                        }
+                    });
                 }
             } catch (e) {
                 conn._mensaje = 'Error de red: ' + e.message;
@@ -1079,9 +1115,44 @@ function extDbManager() {
         },
 
         toggleTabla(idx, tabla) {
-            const i = this.conexiones[idx].tablas.indexOf(tabla);
-            if (i === -1) this.conexiones[idx].tablas.push(tabla);
-            else          this.conexiones[idx].tablas.splice(i, 1);
+            const conn = this.conexiones[idx];
+            const i = conn.tablas.indexOf(tabla);
+            if (i === -1) {
+                conn.tablas.push(tabla);
+                // Auto-seleccionar todas las columnas al añadir la tabla
+                const cols = this.columnasDe(conn, tabla);
+                if (cols.length > 0) conn.tablas_columnas[tabla] = [...cols];
+            } else {
+                conn.tablas.splice(i, 1);
+                delete conn.tablas_columnas[tabla];
+            }
+        },
+
+        toggleColumna(idx, tabla, col) {
+            const conn = this.conexiones[idx];
+            if (!conn.tablas_columnas[tabla]) conn.tablas_columnas[tabla] = [];
+            const i = conn.tablas_columnas[tabla].indexOf(col);
+            if (i === -1) conn.tablas_columnas[tabla].push(col);
+            else          conn.tablas_columnas[tabla].splice(i, 1);
+        },
+
+        seleccionarTodasCols(idx, tabla) {
+            const conn = this.conexiones[idx];
+            conn.tablas_columnas[tabla] = [...this.columnasDe(conn, tabla)];
+        },
+
+        limpiarCols(idx, tabla) {
+            this.conexiones[idx].tablas_columnas[tabla] = [];
+        },
+
+        colSeleccionada(conn, tabla, col) {
+            const sel = conn.tablas_columnas?.[tabla];
+            if (!sel || sel.length === 0) return false;
+            return sel.includes(col);
+        },
+
+        colsSeleccionadas(conn, tabla) {
+            return conn.tablas_columnas?.[tabla] ?? [];
         },
 
         toggleEsquema(idx, tabla) {
@@ -1095,11 +1166,13 @@ function extDbManager() {
 
         get jsonFinal() {
             return JSON.stringify(this.conexiones.map(c => {
-                // Only store schema for selected tables
-                const tablas_schema = {};
+                const tablas_schema   = {};
+                const tablas_columnas = {};
                 (c.tablas ?? []).forEach(t => {
                     const cols = c._esquemas?.[t] ?? c.tablas_schema?.[t];
                     if (cols && cols.length) tablas_schema[t] = cols;
+                    const sel = c.tablas_columnas?.[t];
+                    if (sel && sel.length) tablas_columnas[t] = sel;
                 });
                 return {
                     id: c.id, nombre: c.nombre, driver: c.driver,
@@ -1108,6 +1181,7 @@ function extDbManager() {
                     has_password: c.has_password || c.password !== '',
                     tablas: c.tablas,
                     tablas_schema,
+                    tablas_columnas,
                 };
             }));
         },
