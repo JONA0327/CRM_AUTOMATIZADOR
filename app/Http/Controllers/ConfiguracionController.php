@@ -261,6 +261,7 @@ class ConfiguracionController extends Controller
             return response()->json([
                 'success' => false,
                 'mensaje' => $e->getMessage(),
+                'debug'   => basename($e->getFile()) . ':' . $e->getLine() . ' [' . get_class($e) . ']',
             ], 422);
         }
     }

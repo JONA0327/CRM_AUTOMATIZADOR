@@ -1058,7 +1058,7 @@ function extDbManager() {
                 let json;
                 try { json = JSON.parse(text); }
                 catch { conn._mensaje = 'Error del servidor (' + res.status + '): ' + text.slice(0, 200); conn._error = true; return; }
-                conn._mensaje = json.mensaje;
+                conn._mensaje = json.mensaje + (json.debug ? ' | ' + json.debug : '');
                 conn._error   = !json.success;
                 if (json.success) {
                     conn._tablas_disponibles = json.tablas ?? [];
