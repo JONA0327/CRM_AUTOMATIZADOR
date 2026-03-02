@@ -540,19 +540,103 @@
 
                             // Número limpio (quita @s.whatsapp.net y similares)
                             $numero = $owner ? preg_replace('/@.*/', '', $owner) : null;
+
+                            // Registro en BD del tenant
+                            $dbInst = $dbInstances[$nombre] ?? null;
                         @endphp
-                        <tr class="hover:bg-gray-50 transition-colors">
+                        <tr class="hover:bg-gray-50 transition-colors"
+                            x-data="{
+                                activo:     {{ $dbInst ? ($dbInst->activo ? 'true' : 'false') : 'false' }},
+                                isDefault:  {{ $dbInst ? ($dbInst->is_default ? 'true' : 'false') : 'false' }},
+                                registrado: {{ $dbInst ? 'true' : 'false' }},
+                                cargando:   false,
+
+                                async toggleActivo() {
+                                    this.cargando = true;
+                                    try {
+                                        const res  = await fetch('{{ route('bot.toggle-instance') }}', {
+                                            method:  'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                                            body:    JSON.stringify({ instancia: '{{ $nombre }}' }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) this.activo = data.activo;
+                                    } catch(e) {} finally { this.cargando = false; }
+                                },
+
+                                async marcarDefault() {
+                                    this.cargando = true;
+                                    try {
+                                        const res  = await fetch('{{ route('bot.set-default') }}', {
+                                            method:  'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                                            body:    JSON.stringify({ instancia: '{{ $nombre }}' }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            // Desmarcar otras filas vía evento global
+                                            window.dispatchEvent(new CustomEvent('clear-default'));
+                                            this.isDefault = true;
+                                        }
+                                    } catch(e) {} finally { this.cargando = false; }
+                                },
+
+                                async registrar() {
+                                    this.cargando = true;
+                                    try {
+                                        const res  = await fetch('{{ route('bot.registrar') }}', {
+                                            method:  'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                                            body:    JSON.stringify({ instancia: '{{ $nombre }}' }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            this.registrado = true;
+                                            this.activo     = true;
+                                            this.isDefault  = data.is_default;
+                                        }
+                                    } catch(e) {} finally { this.cargando = false; }
+                                },
+                            }"
+                            @clear-default.window="isDefault = false">
 
                             {{-- Nombre de instancia --}}
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 {{ $conectado ? 'bg-green-100' : 'bg-gray-100' }} rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <svg class="w-5 h-5 {{ $conectado ? 'text-green-600' : 'text-gray-400' }}" fill="currentColor" viewBox="0 0 24 24">
+                                    <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                                         :class="{{ $conectado ? 'true' : 'false' }} ? 'bg-green-100' : (registrado ? 'bg-gray-100' : 'bg-orange-50')">
+                                        <svg class="w-5 h-5" :class="{{ $conectado ? 'true' : 'false' }} ? 'text-green-600' : (registrado ? 'text-gray-400' : 'text-orange-400')" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                                             <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.335-1.54A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.515-5.16-1.41l-.37-.22-3.76.914.949-3.659-.242-.376A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
                                         </svg>
                                     </div>
-                                    <span class="font-medium text-gray-900">{{ $nombre }}</span>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-medium text-gray-900">{{ $nombre }}</span>
+                                            {{-- Badge default --}}
+                                            <span x-show="isDefault"
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">
+                                                ★ Predeterminado
+                                            </span>
+                                            {{-- Badge no registrado --}}
+                                            <span x-show="!registrado"
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">
+                                                ! Sin registrar
+                                            </span>
+                                        </div>
+                                        {{-- Toggle individual del bot (solo si está registrado) --}}
+                                        <div x-show="registrado" class="flex items-center gap-1.5 mt-0.5">
+                                            <button @click="toggleActivo()" :disabled="cargando"
+                                                    class="relative inline-flex h-4 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60"
+                                                    :class="activo ? 'bg-emerald-500' : 'bg-gray-300'"
+                                                    :title="activo ? 'Apagar esta instancia' : 'Encender esta instancia'">
+                                                <span class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200"
+                                                      :class="activo ? 'translate-x-3' : 'translate-x-0'"></span>
+                                            </button>
+                                            <span class="text-xs" :class="activo ? 'text-emerald-600' : 'text-gray-400'"
+                                                  x-text="activo ? 'Activo' : 'Pausado'"></span>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
 
@@ -592,6 +676,31 @@
                             {{-- Acciones --}}
                             <td class="px-6 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">
+                                    {{-- Botón registrar (solo si no está en BD) --}}
+                                    <button x-show="!registrado"
+                                            @click="registrar()"
+                                            :disabled="cargando"
+                                            title="Registrar instancia al negocio"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-60">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                        </svg>
+                                        Registrar
+                                    </button>
+
+                                    {{-- Botón marcar como predeterminado (solo si registrado y no es default) --}}
+                                    <button x-show="registrado && !isDefault"
+                                            @click="marcarDefault()"
+                                            :disabled="cargando"
+                                            title="Marcar como instancia predeterminada"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-60">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                        </svg>
+                                        Predeterminado
+                                    </button>
+
                                     {{-- Botón logs --}}
                                     <button
                                         onclick="window.dispatchEvent(new CustomEvent('abrir-logs', { detail: '{{ $nombre }}' }))"

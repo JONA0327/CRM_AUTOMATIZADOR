@@ -19,6 +19,13 @@ class TenantInstance extends Model
         'tenant_id',
         'instance_name',
         'descripcion',
+        'activo',
+        'is_default',
+    ];
+
+    protected $casts = [
+        'activo'     => 'boolean',
+        'is_default' => 'boolean',
     ];
 
     public function tenant(): BelongsTo

@@ -64,6 +64,9 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
             Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
             Route::get('/logs/{instancia}',        [BotController::class, 'getLogs'])->name('logs')->where('instancia', '.+');
+            Route::post('/registrar-instancia',    [BotController::class, 'registrarInstancia'])->name('registrar');
+            Route::post('/toggle-instance',        [BotController::class, 'toggleInstance'])->name('toggle-instance');
+            Route::post('/set-default',            [BotController::class, 'setDefault'])->name('set-default');
         });
     });
 

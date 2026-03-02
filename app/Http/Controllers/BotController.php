@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\MensajeBot;
 use App\Models\Configuracion;
 use App\Models\Conversation;
+use App\Models\TenantInstance;
 use App\Services\ExternalDbService;
 use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
@@ -48,7 +49,12 @@ class BotController extends Controller
 
         $botActivo = Configuracion::get('bot_activo', '0') === '1';
 
-        return view('bot.index', compact('instancias', 'botActivo'));
+        // Instancias registradas en BD (ligadas al tenant actual)
+        $dbInstances = TenantInstance::where('tenant_id', auth()->user()->tenant_id)
+            ->get()
+            ->keyBy('instance_name');
+
+        return view('bot.index', compact('instancias', 'botActivo', 'dbInstances'));
     }
 
     /**
@@ -144,9 +150,15 @@ class BotController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        // El bot debe estar activo
+        // El bot debe estar activo (interruptor global)
         if (Configuracion::get('bot_activo', '0') !== '1') {
             return response()->json(['status' => 'bot_off']);
+        }
+
+        // Esta instancia específica debe estar activa
+        $instObj = TenantInstance::where('instance_name', $instancia)->first();
+        if ($instObj && !$instObj->activo) {
+            return response()->json(['status' => 'instance_off']);
         }
 
         // Ignorar mensajes propios
@@ -300,6 +312,18 @@ class BotController extends Controller
                 Log::info("[Bot] Webhook configurado para {$nombre}: {$webhookUrl}");
             } catch (\Exception $e) {
                 Log::warning("[Bot] No se pudo configurar el webhook para {$nombre}: " . $e->getMessage());
+            }
+
+            // Registrar la instancia en BD ligada al tenant actual
+            $tenantId = auth()->user()->tenant_id;
+            if ($tenantId && !TenantInstance::where('instance_name', $nombre)->exists()) {
+                $esLaPrimera = !TenantInstance::where('tenant_id', $tenantId)->exists();
+                TenantInstance::create([
+                    'tenant_id'     => $tenantId,
+                    'instance_name' => $nombre,
+                    'activo'        => true,
+                    'is_default'    => $esLaPrimera,
+                ]);
             }
 
             return response()->json([
@@ -493,8 +517,73 @@ class BotController extends Controller
                 ->with('error', 'Error al conectar con Evolution API.');
         }
 
+        // Eliminar también el registro en BD
+        TenantInstance::where('instance_name', $instancia)->delete();
+
         return redirect()->route('bot.index')
             ->with('success', "Instancia «{$instancia}» eliminada correctamente.");
+    }
+
+    /**
+     * Registra una instancia de Evolution API que ya existe pero no está ligada al tenant.
+     */
+    public function registrarInstancia(Request $request): JsonResponse
+    {
+        $request->validate(['instancia' => ['required', 'string', 'max:100']]);
+
+        $instancia = $request->instancia;
+        $tenantId  = auth()->user()->tenant_id;
+
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sin tenant asignado.'], 422);
+        }
+
+        if (TenantInstance::where('instance_name', $instancia)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Esta instancia ya está registrada.'], 422);
+        }
+
+        $esLaPrimera = !TenantInstance::where('tenant_id', $tenantId)->exists();
+        TenantInstance::create([
+            'tenant_id'     => $tenantId,
+            'instance_name' => $instancia,
+            'activo'        => true,
+            'is_default'    => $esLaPrimera,
+        ]);
+
+        return response()->json(['success' => true, 'is_default' => $esLaPrimera]);
+    }
+
+    /**
+     * Activa o desactiva una instancia individual (sin afectar el interruptor global del bot).
+     */
+    public function toggleInstance(Request $request): JsonResponse
+    {
+        $request->validate(['instancia' => ['required', 'string']]);
+
+        $inst = TenantInstance::where('instance_name', $request->instancia)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->firstOrFail();
+
+        $inst->update(['activo' => !$inst->activo]);
+
+        return response()->json(['success' => true, 'activo' => $inst->activo]);
+    }
+
+    /**
+     * Marca una instancia como predeterminada (y desmarca las demás del tenant).
+     */
+    public function setDefault(Request $request): JsonResponse
+    {
+        $request->validate(['instancia' => ['required', 'string']]);
+
+        $tenantId = auth()->user()->tenant_id;
+
+        TenantInstance::where('tenant_id', $tenantId)->update(['is_default' => false]);
+        TenantInstance::where('instance_name', $request->instancia)
+            ->where('tenant_id', $tenantId)
+            ->update(['is_default' => true]);
+
+        return response()->json(['success' => true]);
     }
 
     /**
