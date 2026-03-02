@@ -6,6 +6,7 @@ use App\Events\MensajeBot;
 use App\Models\Configuracion;
 use App\Models\Conversation;
 use App\Services\ExternalDbService;
+use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -176,6 +177,9 @@ class BotController extends Controller
         // Leer configuración del bot
         $proveedor = Configuracion::get('bot_ia_proveedor', 'openai');
         $prompt    = Configuracion::get('system_prompt', 'Eres un asistente útil. Responde siempre en español.');
+
+        // Resolver etiquetas [TAG] en el system_prompt (e.g. [CATALOGO_AGENDA], [API_ZOOM])
+        $prompt = app(PromptTagResolverService::class)->resolve($prompt);
 
         // Construir contexto desde la BD externa configurada
         $contexto = $this->construirContexto($telefono, []);

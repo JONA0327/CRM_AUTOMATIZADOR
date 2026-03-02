@@ -56,6 +56,35 @@ class ExternalDbService
     }
 
     /**
+     * Devuelve el esquema completo: { tabla => [columna, ...] } para todas las tablas.
+     * Requiere haber llamado conectar() previamente.
+     *
+     * @return array<string, string[]>
+     */
+    public function listarEsquemaCompleto(): array
+    {
+        $driver = Config::get('database.connections.' . self::CONN . '.driver');
+        $dbName = Config::get('database.connections.' . self::CONN . '.database');
+        $tablas = $this->listarTablas();
+        $esquema = [];
+
+        foreach ($tablas as $tabla) {
+            try {
+                if ($driver === 'mongodb') {
+                    $doc = DB::connection(self::CONN)->collection($tabla)->first();
+                    $esquema[$tabla] = $doc ? array_keys((array) $doc) : [];
+                } else {
+                    $esquema[$tabla] = $this->columnasSql($driver, $dbName, $tabla);
+                }
+            } catch (\Exception) {
+                $esquema[$tabla] = [];
+            }
+        }
+
+        return $esquema;
+    }
+
+    /**
      * Devuelve columnas + muestra de filas de una tabla.
      *
      * @return array{columnas: string[], filas: array<int,array>}

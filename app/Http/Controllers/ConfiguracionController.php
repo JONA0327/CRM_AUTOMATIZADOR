@@ -6,6 +6,7 @@ use App\Models\CatalogField;
 use App\Models\CatalogModule;
 use App\Models\Configuracion;
 use App\Services\ExternalDbService;
+use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -110,6 +111,11 @@ class ConfiguracionController extends Controller
             // tenant DB might not have catalog_modules yet
         }
 
+        $availableTags = [];
+        try {
+            $availableTags = app(PromptTagResolverService::class)->availableTags();
+        } catch (\Exception) {}
+
         return view('configuracion.index', [
             'grupos'             => $this->campos,
             'estado'             => $estado,
@@ -118,6 +124,7 @@ class ConfiguracionController extends Controller
             'extDbs'             => $extDbs,
             'promptVerificacion' => $promptVerificacion,
             'hasPhoneField'      => $hasPhoneField,
+            'availableTags'      => $availableTags,
         ]);
     }
 
@@ -241,12 +248,14 @@ class ConfiguracionController extends Controller
         try {
             $servicio = new ExternalDbService();
             $servicio->conectar($request->only(['driver', 'host', 'port', 'database', 'username', 'password']));
-            $tablas = $servicio->listarTablas();
+            $tablas   = $servicio->listarTablas();
+            $esquemas = $servicio->listarEsquemaCompleto();
 
             return response()->json([
-                'success' => true,
-                'tablas'  => $tablas,
-                'mensaje' => 'Conexión exitosa. Se encontraron ' . count($tablas) . ' tabla(s).',
+                'success'  => true,
+                'tablas'   => $tablas,
+                'esquemas' => $esquemas,
+                'mensaje'  => 'Conexión exitosa. Se encontraron ' . count($tablas) . ' tabla(s).',
             ]);
         } catch (\Exception $e) {
             return response()->json([

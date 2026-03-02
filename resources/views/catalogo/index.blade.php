@@ -27,7 +27,28 @@
 
             {{-- Header --}}
             <div class="flex items-center justify-between mb-4">
-                <span class="text-sm text-gray-500">{{ $records->total() }} registro(s)</span>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-500">{{ $records->total() }} registro(s)</span>
+                    {{-- Toggle tabla / cards --}}
+                    <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+                        <button @click="setVista('tabla')" title="Vista tabla"
+                                :class="vista === 'tabla' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'"
+                                class="p-1.5 rounded-md transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 10h18M3 6h18M3 14h18M3 18h18"/>
+                            </svg>
+                        </button>
+                        <button @click="setVista('cards')" title="Vista tarjetas"
+                                :class="vista === 'cards' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'"
+                                class="p-1.5 rounded-md transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
                 <button @click="abrirModal(null)"
                         class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
                     + Nuevo registro
@@ -35,7 +56,7 @@
             </div>
 
             {{-- Tabla --}}
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+            <div x-show="vista === 'tabla'" class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-700">
@@ -99,19 +120,7 @@
                                                 @endif
 
                                             @elseif($field->tipo === 'phone' && $val)
-                                                <div class="flex items-center gap-2">
-                                                    <span>{{ $val }}</span>
-                                                    @if($tienePromptVerificacion)
-                                                        <button @click="verificarWhatsapp({{ $record->id }}, '{{ $field->slug }}')"
-                                                                title="Verificar por WhatsApp"
-                                                                class="text-green-500 hover:text-green-700 transition flex-shrink-0">
-                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                                                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-                                                            </svg>
-                                                        </button>
-                                                    @endif
-                                                </div>
+                                                <span>{{ $val }}</span>
 
                                             @elseif($field->tipo === 'url' && $val)
                                                 <a href="{{ $val }}" target="_blank" rel="noopener"
@@ -147,7 +156,17 @@
                                             @endif
                                         </td>
                                     @endforeach
-                                    <td class="px-4 py-3 text-right">
+                                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                                        @if($campoPhone)
+                                            <button @click="verificarWhatsapp({{ $record->id }}, '{{ $campoPhone->slug }}')"
+                                                    title="Enviar verificación por WhatsApp"
+                                                    class="inline-flex items-center gap-1 text-green-600 hover:text-green-800 text-xs font-medium mr-3 transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                                                </svg>
+                                                Verificar
+                                            </button>
+                                        @endif
                                         <button @click="abrirModal({{ $record->id }}, {{ json_encode($record->datos) }})"
                                                 class="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-3">
                                             Editar
@@ -175,6 +194,161 @@
                         {{ $records->links() }}
                     </div>
                 @endif
+            </div>
+        </div>
+
+        {{-- ═══ VISTA: Cards ═══ --}}
+        <div x-show="vista === 'cards'" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            {{-- Grid de cards --}}
+            <div x-show="records.length > 0"
+                 class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <template x-for="record in records" :key="record.id">
+                    <div @click="abrirDetalle(record)"
+                         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
+
+                        {{-- Media (imagen o video) --}}
+                        <template x-if="getCoverMedia(record) && getCoverMedia(record).tipo === 'imagen'">
+                            <img :src="getCoverMedia(record).url"
+                                 class="w-full h-44 object-cover flex-shrink-0"
+                                 loading="lazy">
+                        </template>
+                        <template x-if="getCoverMedia(record) && getCoverMedia(record).tipo === 'video'">
+                            <video :src="getCoverMedia(record).url"
+                                   class="w-full h-44 object-cover flex-shrink-0"
+                                   muted playsinline preload="metadata"></video>
+                        </template>
+                        <template x-if="!getCoverMedia(record)">
+                            <div class="w-full h-24 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-10 h-10 text-indigo-200 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                        </template>
+
+                        {{-- Contenido --}}
+                        <div class="p-4 flex-1 space-y-1.5">
+                            <p class="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate"
+                               x-text="getCardTitle(record)"></p>
+                            <template x-for="campo in getCardFields(record).slice(1, 4)" :key="campo.slug">
+                                <div class="flex gap-1 text-xs leading-tight">
+                                    <span class="text-gray-400 flex-shrink-0" x-text="campo.nombre + ':'"></span>
+                                    <span class="text-gray-600 dark:text-gray-300 truncate"
+                                          x-text="getFieldDisplay(record, campo)"></span>
+                                </div>
+                            </template>
+                        </div>
+
+                        {{-- Acciones --}}
+                        <div class="px-4 pb-3 flex items-center gap-2 border-t border-gray-50 dark:border-gray-700 pt-2" @click.stop>
+                            @if($campoPhone)
+                                <button @click="verificarWhatsapp(record.id, '{{ $campoPhone->slug }}')"
+                                        title="Verificar WhatsApp"
+                                        class="p-1.5 rounded-lg text-green-500 hover:bg-green-50 hover:text-green-700 transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                                    </svg>
+                                </button>
+                            @endif
+                            <button @click="abrirModal(record.id, record.datos)"
+                                    title="Editar"
+                                    class="p-1.5 rounded-lg text-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <button @click="eliminar(record.id)"
+                                    title="Eliminar"
+                                    class="p-1.5 rounded-lg text-red-300 hover:bg-red-50 hover:text-red-600 transition-colors ml-auto">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Cards vacías --}}
+            <div x-show="records.length === 0" class="bg-white dark:bg-gray-800 rounded-xl shadow py-16 text-center text-gray-400">
+                <div class="text-5xl mb-3">{{ $modulo->icono ?? '📋' }}</div>
+                <p>No hay registros aún. Crea el primero.</p>
+            </div>
+
+            {{-- Paginación en vista cards --}}
+            @if($records->hasPages())
+                <div class="mt-4">{{ $records->links() }}</div>
+            @endif
+        </div>
+
+        {{-- ═══ MODAL: Detalle de card ═══ --}}
+        <div x-show="modalDetalle" x-cloak
+             class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+             @click.self="modalDetalle = false">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+
+                <div class="flex justify-between items-center px-6 py-4 border-b dark:border-gray-700 flex-shrink-0">
+                    <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 truncate pr-4"
+                        x-text="recordDetalle ? getCardTitle(recordDetalle) : ''"></h3>
+                    <button @click="modalDetalle = false" class="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto flex-1 p-6 space-y-4">
+                    <template x-if="recordDetalle">
+                        <div class="space-y-4">
+                            {{-- Media --}}
+                            <template x-if="getCoverMedia(recordDetalle) && getCoverMedia(recordDetalle).tipo === 'imagen'">
+                                <img :src="getCoverMedia(recordDetalle).url"
+                                     class="w-full max-h-64 object-contain rounded-xl border border-gray-100">
+                            </template>
+                            <template x-if="getCoverMedia(recordDetalle) && getCoverMedia(recordDetalle).tipo === 'video'">
+                                <video :src="getCoverMedia(recordDetalle).url"
+                                       class="w-full max-h-64 rounded-xl border border-gray-100"
+                                       controls></video>
+                            </template>
+
+                            {{-- Todos los campos --}}
+                            <template x-for="campo in campos" :key="campo.slug">
+                                <div x-show="campo.tipo !== 'file' || getFieldDisplay(recordDetalle, campo) !== '—'"
+                                     class="grid grid-cols-3 gap-2 text-sm">
+                                    <span class="text-gray-400 font-medium col-span-1 pt-0.5" x-text="campo.nombre"></span>
+                                    <span class="text-gray-800 dark:text-gray-200 col-span-2 break-words"
+                                          x-text="getFieldDisplay(recordDetalle, campo)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="px-6 py-4 border-t dark:border-gray-700 flex items-center gap-3 flex-shrink-0">
+                    @if($campoPhone)
+                        <button @click="verificarWhatsapp(recordDetalle.id, '{{ $campoPhone->slug }}'); modalDetalle = false"
+                                class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                            </svg>
+                            Verificar
+                        </button>
+                    @endif
+                    <button @click="abrirModal(recordDetalle.id, recordDetalle.datos); modalDetalle = false"
+                            class="flex-1 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                        Editar registro
+                    </button>
+                    <button @click="eliminar(recordDetalle.id); modalDetalle = false"
+                            class="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                        Eliminar
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -424,6 +598,7 @@
         return {
             module:                  config.module,
             campos:                  config.campos,
+            records:                 config.records,
             tienePromptVerificacion: config.tienePromptVerificacion,
             modal:   false,
             editId:  null,
@@ -432,6 +607,61 @@
             subiendo:   {},
             flash:   { msg: '', ok: true },
             errores: [],
+
+            // ── Vista tabla / cards ───────────────────────────────────────
+            vista: localStorage.getItem('catalogo_vista_' + config.module) || 'tabla',
+
+            setVista(v) {
+                this.vista = v;
+                localStorage.setItem('catalogo_vista_' + this.module, v);
+            },
+
+            // ── Modal detalle (cards) ─────────────────────────────────────
+            modalDetalle:  false,
+            recordDetalle: null,
+
+            abrirDetalle(record) {
+                this.recordDetalle = record;
+                this.modalDetalle  = true;
+            },
+
+            // ── Helpers para cards ────────────────────────────────────────
+            getCoverMedia(record) {
+                for (const campo of this.campos) {
+                    if (campo.tipo !== 'file') continue;
+                    const val = record.datos?.[campo.slug];
+                    if (!val) continue;
+                    if (this.esImagen(val)) return { tipo: 'imagen', url: this.urlArchivo(val) };
+                    if (this.esVideo(val))  return { tipo: 'video',  url: this.urlArchivo(val) };
+                }
+                return null;
+            },
+
+            getCardTitle(record) {
+                const first = this.campos.find(c =>
+                    ['text', 'email', 'phone', 'id'].includes(c.tipo) && record.datos?.[c.slug]
+                );
+                return first ? String(record.datos[first.slug]) : '#' + record.id;
+            },
+
+            getCardFields(record) {
+                // Campos no-file, no-id con valor o todos si no hay ninguno con valor
+                return this.campos.filter(c => c.tipo !== 'file');
+            },
+
+            getFieldDisplay(record, campo) {
+                const val = record.datos?.[campo.slug];
+                if (val === null || val === undefined || val === '') return '—';
+                if (Array.isArray(val)) return val.join(', ');
+                if (campo.tipo === 'date' && val) {
+                    try { return new Date(val).toLocaleDateString('es-MX'); } catch { /* fallthrough */ }
+                }
+                if (campo.tipo === 'file') {
+                    // Solo mostrar nombre del archivo, no la ruta completa
+                    return String(val).split('/').pop();
+                }
+                return String(val);
+            },
 
             init() {
                 this.resetForm();

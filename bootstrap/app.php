@@ -17,11 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/whatsapp/*',
         ]);
 
-        // Aliases de middleware para tenancy
+        // Aliases de middleware para tenancy y roles
         $middleware->alias([
             'tenant.instance' => \App\Http\Middleware\InitializeTenancyFromInstance::class,
             'tenant.auth'     => \App\Http\Middleware\InitializeTenancyFromAuth::class,
             'tenant.required' => \App\Http\Middleware\RequireTenant::class,
+            'role'            => \App\Http\Middleware\CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -23,6 +23,8 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'slug',
             'db_driver',
             'db_name',
+            'max_instances',
+            'max_collaborators',
         ];
     }
 

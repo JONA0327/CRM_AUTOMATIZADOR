@@ -28,8 +28,9 @@ class CatalogRecordController extends Controller
             ->paginate(25);
 
         $tienePromptVerificacion = Configuracion::isConfigured('bot_prompt_verificacion');
+        $campoPhone              = $fields->where('tipo', 'phone')->first();
 
-        return view('catalogo.index', compact('modulo', 'fields', 'records', 'tienePromptVerificacion'));
+        return view('catalogo.index', compact('modulo', 'fields', 'records', 'tienePromptVerificacion', 'campoPhone'));
     }
 
     /**

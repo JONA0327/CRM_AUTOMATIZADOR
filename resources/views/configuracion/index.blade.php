@@ -99,6 +99,230 @@
 
                 {{-- ─── TAB: BOT & PROMPTS ─── --}}
                 <div x-show="activeTab === 'bot'" x-cloak>
+
+                    {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
+                    @php
+                        $apis   = collect($availableTags)->where('tipo', 'api')->values();
+                        $datos  = collect($availableTags)->whereIn('tipo', ['catalogo', 'db_ext'])->values();
+                        $nApis  = $apis->count();
+                        $nDatos = $datos->count();
+                        // 60px per node + 80px padding top/bottom → no overlap, no legend crowding
+                        $svgH   = max(420, max($nApis, $nDatos) * 62 + 80);
+                        $botX   = 350; $botY = $svgH / 2; $botR = 44;
+                        // Distribute nodes evenly with 40px top/bottom margin
+                        $apiYs  = collect(range(0, max(0, $nApis - 1)))->map(fn($i) =>
+                            $nApis > 1 ? 40 + ($i / ($nApis - 1)) * ($svgH - 80) : $svgH / 2
+                        );
+                        $datYs  = collect(range(0, max(0, $nDatos - 1)))->map(fn($i) =>
+                            $nDatos > 1 ? 40 + ($i / ($nDatos - 1)) * ($svgH - 80) : $svgH / 2
+                        );
+                        $nodeW  = 168;
+                        $apiX   = 10;
+                        $datX   = 700 - 10 - $nodeW;   // = 522
+                        // SVG line anchors
+                        $apiLineX = $apiX + $nodeW + 4; // 182
+                        $botLX    = $botX - $botR - 4;  // 302
+                        $botRX    = $botX + $botR + 4;  // 398
+                        $datLineX = $datX - 4;           // 518
+                    @endphp
+
+                    <div class="mb-2 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700"
+                         style="background: radial-gradient(ellipse at 30% 50%, #eef2ff 0%, #f8fafc 60%, #faf5ff 100%);">
+                        <div class="relative dark:hidden" style="width:700px; height:{{ $svgH }}px;">
+
+                            {{-- SVG: líneas + fondo punteado (light) --}}
+                            <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <pattern id="dotsL" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                                        <circle cx="12" cy="12" r="1" fill="#c7d2fe" opacity="0.6"/>
+                                    </pattern>
+                                </defs>
+                                <rect width="700" height="{{ $svgH }}" fill="url(#dotsL)"/>
+
+                                {{-- Líneas API → Bot --}}
+                                @foreach($apis as $i => $node)
+                                    @php
+                                        $ny    = $apiYs[$i];
+                                        $color = $node['activo'] ? '#6366f1' : '#d1d5db';
+                                        $sw    = $node['activo'] ? '1.5' : '1';
+                                        $dash  = $node['activo'] ? 'none' : '5,5';
+                                        $op    = $node['activo'] ? '0.85' : '0.35';
+                                    @endphp
+                                    <line x1="{{ $apiLineX }}" y1="{{ $ny }}"
+                                          x2="{{ $botLX }}" y2="{{ $botY }}"
+                                          stroke="{{ $color }}" stroke-width="{{ $sw }}"
+                                          stroke-dasharray="{{ $dash }}" opacity="{{ $op }}"/>
+                                    @if($node['activo'])
+                                        <circle cx="{{ $apiLineX }}" cy="{{ $ny }}" r="3.5" fill="#6366f1" opacity="0.7"/>
+                                        <circle cx="{{ $botLX }}" cy="{{ $botY }}" r="3.5" fill="#6366f1" opacity="0.7"/>
+                                    @endif
+                                @endforeach
+
+                                {{-- Líneas Bot → Datos --}}
+                                @foreach($datos as $i => $node)
+                                    @php
+                                        $ny    = $datYs[$i];
+                                        $color = $node['tipo'] === 'catalogo' ? '#7c3aed' : '#d97706';
+                                        $dot   = $node['tipo'] === 'catalogo' ? '#7c3aed' : '#d97706';
+                                    @endphp
+                                    <line x1="{{ $botRX }}" y1="{{ $botY }}"
+                                          x2="{{ $datLineX }}" y2="{{ $ny }}"
+                                          stroke="{{ $color }}" stroke-width="1.5" opacity="0.85"/>
+                                    <circle cx="{{ $botRX }}" cy="{{ $botY }}" r="3.5" fill="{{ $dot }}" opacity="0.7"/>
+                                    <circle cx="{{ $datLineX }}" cy="{{ $ny }}" r="3.5" fill="{{ $dot }}" opacity="0.7"/>
+                                @endforeach
+
+                                {{-- Sección labels en SVG --}}
+                                <text x="14" y="20" font-size="9" font-weight="700" fill="#818cf8"
+                                      letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
+                                <text x="686" y="20" font-size="9" font-weight="700" fill="#a78bfa"
+                                      letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
+                            </svg>
+
+                            {{-- Nodo central BOT --}}
+                            <div class="absolute z-10 flex flex-col items-center"
+                                 style="left:{{ $botX }}px; top:{{ $botY }}px; transform:translate(-50%,-50%);">
+                                <div class="rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl border-4 border-white flex items-center justify-center"
+                                     style="width:88px;height:88px;">
+                                    <span class="text-4xl leading-none select-none">🤖</span>
+                                </div>
+                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-700 bg-white rounded-full shadow border border-indigo-100">
+                                    BOT
+                                </span>
+                            </div>
+
+                            {{-- Nodos API (izquierda) --}}
+                            @foreach($apis as $i => $node)
+                                <div class="absolute z-10"
+                                     style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
+                                    <button type="button"
+                                            {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
+                                            {{ $node['activo'] ? '' : 'disabled' }}
+                                            title="{{ $node['activo'] ? $node['preview'] : 'Configura esta API en Modelos de IA o Servicios' }}"
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
+                                                   {{ $node['activo']
+                                                       ? 'border-indigo-300 bg-white text-indigo-700 hover:border-indigo-500 hover:shadow-md cursor-pointer'
+                                                       : 'border-gray-200 bg-white/80 text-gray-400 cursor-not-allowed opacity-60' }}">
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? 'bg-emerald-400' : 'bg-gray-300' }}"></span>
+                                        <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
+                                    </button>
+                                </div>
+                            @endforeach
+
+                            {{-- Nodos Datos (derecha) --}}
+                            @foreach($datos as $i => $node)
+                                <div class="absolute z-10"
+                                     style="left:{{ $datX }}px; top:{{ $datYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
+                                    <button type="button"
+                                            onclick="insertarTag('{{ $node['tag'] }}')"
+                                            title="{{ $node['preview'] }}"
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all cursor-pointer
+                                                   {{ $node['tipo'] === 'catalogo'
+                                                       ? 'border-purple-300 bg-white text-purple-700 hover:border-purple-500 hover:shadow-md'
+                                                       : 'border-amber-300 bg-white text-amber-700 hover:border-amber-500 hover:shadow-md' }}">
+                                        <span class="truncate text-left leading-tight flex-1">{{ $node['label'] }}</span>
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['tipo'] === 'catalogo' ? 'bg-purple-400' : 'bg-amber-400' }}"></span>
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- Dark mode version --}}
+                        <div class="relative hidden dark:block" style="width:700px; height:{{ $svgH }}px; background: radial-gradient(ellipse at 30% 50%, #1e1b4b 0%, #111827 60%, #1a0a2e 100%);">
+                            <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <pattern id="dotsD" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                                        <circle cx="12" cy="12" r="1" fill="#4f46e5" opacity="0.3"/>
+                                    </pattern>
+                                </defs>
+                                <rect width="700" height="{{ $svgH }}" fill="url(#dotsD)"/>
+                                @foreach($apis as $i => $node)
+                                    @php
+                                        $ny    = $apiYs[$i];
+                                        $color = $node['activo'] ? '#818cf8' : '#374151';
+                                        $dash  = $node['activo'] ? 'none' : '5,5';
+                                        $op    = $node['activo'] ? '0.8' : '0.4';
+                                    @endphp
+                                    <line x1="{{ $apiLineX }}" y1="{{ $ny }}" x2="{{ $botLX }}" y2="{{ $botY }}"
+                                          stroke="{{ $color }}" stroke-width="{{ $node['activo'] ? '1.5' : '1' }}"
+                                          stroke-dasharray="{{ $dash }}" opacity="{{ $op }}"/>
+                                    @if($node['activo'])
+                                        <circle cx="{{ $apiLineX }}" cy="{{ $ny }}" r="3.5" fill="#818cf8" opacity="0.7"/>
+                                    @endif
+                                @endforeach
+                                @foreach($datos as $i => $node)
+                                    @php $color = $node['tipo'] === 'catalogo' ? '#a78bfa' : '#fbbf24'; @endphp
+                                    <line x1="{{ $botRX }}" y1="{{ $botY }}" x2="{{ $datLineX }}" y2="{{ $datYs[$i] }}"
+                                          stroke="{{ $color }}" stroke-width="1.5" opacity="0.8"/>
+                                    <circle cx="{{ $datLineX }}" cy="{{ $datYs[$i] }}" r="3.5" fill="{{ $color }}" opacity="0.7"/>
+                                @endforeach
+                                <text x="14" y="20" font-size="9" font-weight="700" fill="#6366f1"
+                                      letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
+                                <text x="686" y="20" font-size="9" font-weight="700" fill="#7c3aed"
+                                      letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
+                            </svg>
+                            {{-- Bot node dark --}}
+                            <div class="absolute z-10 flex flex-col items-center"
+                                 style="left:{{ $botX }}px; top:{{ $botY }}px; transform:translate(-50%,-50%);">
+                                <div class="rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl border-4 border-gray-800 flex items-center justify-center"
+                                     style="width:88px;height:88px;">
+                                    <span class="text-4xl leading-none select-none">🤖</span>
+                                </div>
+                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-300 bg-gray-800 rounded-full shadow border border-indigo-800">BOT</span>
+                            </div>
+                            {{-- API nodes dark --}}
+                            @foreach($apis as $i => $node)
+                                <div class="absolute z-10"
+                                     style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
+                                    <button type="button"
+                                            {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
+                                            {{ $node['activo'] ? '' : 'disabled' }}
+                                            title="{{ $node['activo'] ? $node['preview'] : 'Configura esta API en Modelos de IA o Servicios' }}"
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
+                                                   {{ $node['activo']
+                                                       ? 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer'
+                                                       : 'border-gray-700 bg-gray-800/60 text-gray-500 cursor-not-allowed opacity-50' }}">
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? 'bg-emerald-400' : 'bg-gray-600' }}"></span>
+                                        <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
+                                    </button>
+                                </div>
+                            @endforeach
+                            {{-- Data nodes dark --}}
+                            @foreach($datos as $i => $node)
+                                <div class="absolute z-10"
+                                     style="left:{{ $datX }}px; top:{{ $datYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
+                                    <button type="button"
+                                            onclick="insertarTag('{{ $node['tag'] }}')"
+                                            title="{{ $node['preview'] }}"
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm cursor-pointer transition-all
+                                                   {{ $node['tipo'] === 'catalogo'
+                                                       ? 'border-purple-700 bg-gray-800 text-purple-300 hover:border-purple-500 hover:shadow-md'
+                                                       : 'border-amber-700 bg-gray-800 text-amber-300 hover:border-amber-500 hover:shadow-md' }}">
+                                        <span class="truncate text-left leading-tight flex-1">{{ $node['label'] }}</span>
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['tipo'] === 'catalogo' ? 'bg-purple-400' : 'bg-amber-400' }}"></span>
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Leyenda (fuera del diagrama para no superponerse) --}}
+                    <div class="mb-5 mt-2.5 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Activo
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span>Sin configurar
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Catálogo
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>BD externa
+                        </span>
+                        <span class="text-indigo-400 dark:text-indigo-500 font-medium">← clic en un nodo activo para insertar su etiqueta →</span>
+                    </div>
+
                     {{-- Selector de proveedor --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
@@ -156,22 +380,79 @@
                             <x-config-badge :configured="(bool)$systemPrompt"/>
                         </div>
                         <div class="px-5 py-4">
-                            <textarea name="system_prompt" rows="10" maxlength="8000"
+                            <textarea id="system_prompt" name="system_prompt" rows="10" maxlength="8000"
                                 @input="chars = $event.target.value.length"
                                 placeholder="Eres un asistente de ventas especializado en... Responde siempre en español, de forma clara y amable..."
                                 class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
                             >{{ $systemPrompt }}</textarea>
                             <div class="mt-1.5 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Puedes usar saltos de línea para estructurar el prompt.</p>
+                                <p class="text-xs text-gray-400">Usa <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">[ETIQUETA]</code> para inyectar datos al enviar. Clic en el diagrama o en los chips para insertar.</p>
                                 <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
                                     <span x-text="chars"></span>/<span x-text="max"></span>
                                 </span>
                             </div>
+
+                            {{-- Paleta de etiquetas disponibles --}}
+                            @php
+                                $tagsActivos  = collect($availableTags)->where('activo', true);
+                                $tagsApis     = $tagsActivos->where('tipo', 'api');
+                                $tagsCatalogo = $tagsActivos->where('tipo', 'catalogo');
+                                $tagsDbExt    = $tagsActivos->where('tipo', 'db_ext');
+                            @endphp
+                            @if($tagsActivos->isNotEmpty())
+                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                                @if($tagsApis->isNotEmpty())
+                                <div class="flex items-start gap-2 flex-wrap">
+                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">APIs</span>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach($tagsApis as $tag)
+                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
+                                                title="{{ $tag['preview'] }}"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 text-xs font-mono hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer">
+                                            [{{ $tag['tag'] }}]
+                                        </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
+                                @if($tagsCatalogo->isNotEmpty())
+                                <div class="flex items-start gap-2 flex-wrap">
+                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">Catálogos</span>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach($tagsCatalogo as $tag)
+                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
+                                                title="{{ $tag['preview'] }}"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 text-xs font-mono hover:bg-purple-100 transition-colors cursor-pointer">
+                                            [{{ $tag['tag'] }}]
+                                        </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
+                                @if($tagsDbExt->isNotEmpty())
+                                <div class="flex items-start gap-2 flex-wrap">
+                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">BDs ext.</span>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach($tagsDbExt as $tag)
+                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
+                                                title="{{ $tag['preview'] }}"
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 text-xs font-mono hover:bg-amber-100 transition-colors cursor-pointer">
+                                            [{{ $tag['tag'] }}]
+                                        </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                            @else
+                            <p class="mt-3 text-xs text-gray-400 italic">
+                                Configura APIs o crea catálogos para ver etiquetas disponibles aquí.
+                            </p>
+                            @endif
                         </div>
                     </div>
 
-                    {{-- Prompt verificación WhatsApp (solo si hay campos phone) --}}
-                    @if($hasPhoneField)
+                    {{-- Prompt verificación WhatsApp --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mt-5"
                          x-data="{ chars: {{ strlen($promptVerificacion ?? '') }}, max: 1000 }">
                         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
@@ -203,7 +484,6 @@
                             </div>
                         </div>
                     </div>
-                    @endif
                 </div>
 
                 {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
@@ -560,30 +840,109 @@
                                             </template>
                                         </div>
 
+                                        {{-- Tablas disponibles (post-test) --}}
                                         <template x-if="conn._tablas_disponibles.length > 0">
                                             <div>
-                                                <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Tablas para contexto del bot:</p>
-                                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                                <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                                    Selecciona las tablas que el bot usará como contexto:
+                                                </p>
+                                                <div class="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
                                                     <template x-for="tabla in conn._tablas_disponibles" :key="tabla">
-                                                        <label class="flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 cursor-pointer transition-all text-sm"
-                                                               :class="conn.tablas.includes(tabla) ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-100 dark:border-gray-600 hover:border-gray-200'">
-                                                            <input type="checkbox" :checked="conn.tablas.includes(tabla)" @change="toggleTabla(idx, tabla)"
-                                                                   class="text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"/>
-                                                            <span class="font-mono truncate text-xs" x-text="tabla"></span>
-                                                        </label>
+                                                        <div>
+                                                            {{-- Fila principal de la tabla --}}
+                                                            <div class="flex items-center gap-3 px-3 py-2.5 transition-colors"
+                                                                 :class="conn.tablas.includes(tabla)
+                                                                     ? 'bg-indigo-50 dark:bg-indigo-900/25'
+                                                                     : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'">
+                                                                <input type="checkbox"
+                                                                       :checked="conn.tablas.includes(tabla)"
+                                                                       @change="toggleTabla(idx, tabla)"
+                                                                       class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 flex-shrink-0 cursor-pointer"/>
+                                                                <span class="font-mono text-sm text-gray-800 dark:text-gray-200 flex-1 select-none cursor-pointer"
+                                                                      @click="toggleTabla(idx, tabla)"
+                                                                      x-text="tabla"></span>
+                                                                {{-- Contador de columnas --}}
+                                                                <span class="text-xs text-gray-400 dark:text-gray-500 font-mono flex-shrink-0"
+                                                                      x-show="columnasDe(conn, tabla).length > 0"
+                                                                      x-text="columnasDe(conn, tabla).length + ' cols'"></span>
+                                                                {{-- Botón expandir schema --}}
+                                                                <button type="button"
+                                                                        x-show="columnasDe(conn, tabla).length > 0"
+                                                                        @click="toggleEsquema(idx, tabla)"
+                                                                        class="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex-shrink-0"
+                                                                        :title="conn._esquemaVisible[tabla] ? 'Ocultar columnas' : 'Ver columnas'">
+                                                                    <svg class="w-3.5 h-3.5 transition-transform"
+                                                                         :class="conn._esquemaVisible[tabla] ? 'rotate-180 text-indigo-500' : ''"
+                                                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                            {{-- Panel de columnas expandible --}}
+                                                            <div x-show="conn._esquemaVisible[tabla]"
+                                                                 class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
+                                                                <p class="text-xs text-gray-400 dark:text-gray-500 mb-1.5 font-medium">Columnas:</p>
+                                                                <div class="flex flex-wrap gap-1.5">
+                                                                    <template x-for="col in columnasDe(conn, tabla)" :key="col">
+                                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-mono text-gray-600 dark:text-gray-300"
+                                                                              x-text="col"></span>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </template>
                                                 </div>
+                                                {{-- Resumen de selección --}}
+                                                <p class="mt-2 text-xs text-gray-400 dark:text-gray-500"
+                                                   x-show="conn.tablas.length > 0">
+                                                    <span class="font-semibold text-indigo-600 dark:text-indigo-400" x-text="conn.tablas.length"></span>
+                                                    tabla(s) seleccionada(s) para el bot.
+                                                </p>
                                             </div>
                                         </template>
 
+                                        {{-- Tablas guardadas (sin re-test) --}}
                                         <template x-if="conn._tablas_disponibles.length === 0 && conn.tablas.length > 0">
-                                            <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                                <p class="text-xs text-indigo-700 dark:text-indigo-300 font-semibold mb-1.5">Tablas guardadas:</p>
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    <template x-for="t in conn.tablas" :key="t">
-                                                        <span class="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 text-xs font-mono" x-text="t"></span>
-                                                    </template>
+                                            <div class="rounded-lg border border-indigo-100 dark:border-indigo-800 overflow-hidden divide-y divide-indigo-50 dark:divide-indigo-900">
+                                                <div class="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-between">
+                                                    <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                                                        Tablas guardadas
+                                                    </p>
+                                                    <p class="text-xs text-indigo-500 dark:text-indigo-400">
+                                                        Prueba la conexión para ver todas las tablas disponibles
+                                                    </p>
                                                 </div>
+                                                <template x-for="t in conn.tablas" :key="t">
+                                                    <div>
+                                                        <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-800">
+                                                            <span class="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0"></span>
+                                                            <span class="font-mono text-sm text-gray-800 dark:text-gray-200 flex-1" x-text="t"></span>
+                                                            <span class="text-xs text-gray-400 font-mono flex-shrink-0"
+                                                                  x-show="(conn._esquemas?.[t] ?? []).length > 0"
+                                                                  x-text="(conn._esquemas?.[t] ?? []).length + ' cols'"></span>
+                                                            <button type="button"
+                                                                    x-show="(conn._esquemas?.[t] ?? []).length > 0"
+                                                                    @click="toggleEsquema(idx, t)"
+                                                                    class="p-1 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0">
+                                                                <svg class="w-3.5 h-3.5 transition-transform"
+                                                                     :class="conn._esquemaVisible[t] ? 'rotate-180 text-indigo-500' : ''"
+                                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                        <div x-show="conn._esquemaVisible[t]"
+                                                             class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
+                                                            <p class="text-xs text-gray-400 mb-1.5 font-medium">Columnas:</p>
+                                                            <div class="flex flex-wrap gap-1.5">
+                                                                <template x-for="col in (conn._esquemas?.[t] ?? [])" :key="col">
+                                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs font-mono text-gray-600 dark:text-gray-300"
+                                                                          x-text="col"></span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </template>
                                     </div>
@@ -618,6 +977,27 @@ function configPage() {
     };
 }
 
+/**
+ * Inserta [TAG] en el textarea del system_prompt en la posición actual del cursor.
+ * También destellea el textarea para feedback visual.
+ */
+function insertarTag(tag) {
+    const ta = document.getElementById('system_prompt');
+    if (!ta) return;
+    const inicio   = ta.selectionStart ?? ta.value.length;
+    const fin      = ta.selectionEnd   ?? ta.value.length;
+    const etiqueta = '[' + tag + ']';
+    ta.value = ta.value.slice(0, inicio) + etiqueta + ta.value.slice(fin);
+    ta.selectionStart = ta.selectionEnd = inicio + etiqueta.length;
+    // Dispara el evento input para actualizar el contador de Alpine.js
+    ta.dispatchEvent(new Event('input'));
+    ta.focus();
+    // Flash visual de confirmación
+    ta.style.outline = '2px solid #6366f1';
+    ta.style.outlineOffset = '2px';
+    setTimeout(() => { ta.style.outline = ''; ta.style.outlineOffset = ''; }, 600);
+}
+
 function extDbManager() {
     const csrfToken = document.querySelector('meta[name=csrf-token]')?.content ?? '';
     const testUrl   = '{{ route("configuracion.test-db") }}';
@@ -627,6 +1007,9 @@ function extDbManager() {
         conexiones: seed.map(c => ({
             ...c,
             _tablas_disponibles: [],
+            // Pre-populate schema from saved tablas_schema so columns show before re-testing
+            _esquemas:      c.tablas_schema ?? {},
+            _esquemaVisible: {},
             _probando: false,
             _mensaje: '',
             _error: false,
@@ -645,7 +1028,10 @@ function extDbManager() {
                 password: '',
                 has_password: false,
                 tablas: [],
+                tablas_schema: {},
                 _tablas_disponibles: [],
+                _esquemas: {},
+                _esquemaVisible: {},
                 _probando: false,
                 _mensaje: '',
                 _error: false,
@@ -671,7 +1057,10 @@ function extDbManager() {
                 const json = await res.json();
                 conn._mensaje = json.mensaje;
                 conn._error   = !json.success;
-                if (json.success) conn._tablas_disponibles = json.tablas;
+                if (json.success) {
+                    conn._tablas_disponibles = json.tablas ?? [];
+                    conn._esquemas           = json.esquemas ?? {};
+                }
             } catch (e) {
                 conn._mensaje = 'Error de red: ' + e.message;
                 conn._error   = true;
@@ -686,14 +1075,32 @@ function extDbManager() {
             else          this.conexiones[idx].tablas.splice(i, 1);
         },
 
+        toggleEsquema(idx, tabla) {
+            const vis = this.conexiones[idx]._esquemaVisible;
+            vis[tabla] = !vis[tabla];
+        },
+
+        columnasDe(conn, tabla) {
+            return conn._esquemas?.[tabla] ?? [];
+        },
+
         get jsonFinal() {
-            return JSON.stringify(this.conexiones.map(c => ({
-                id: c.id, nombre: c.nombre, driver: c.driver,
-                host: c.host, port: c.port, database: c.database,
-                username: c.username, password: c.password,
-                has_password: c.has_password || c.password !== '',
-                tablas: c.tablas,
-            })));
+            return JSON.stringify(this.conexiones.map(c => {
+                // Only store schema for selected tables
+                const tablas_schema = {};
+                (c.tablas ?? []).forEach(t => {
+                    const cols = c._esquemas?.[t] ?? c.tablas_schema?.[t];
+                    if (cols && cols.length) tablas_schema[t] = cols;
+                });
+                return {
+                    id: c.id, nombre: c.nombre, driver: c.driver,
+                    host: c.host, port: c.port, database: c.database,
+                    username: c.username, password: c.password,
+                    has_password: c.has_password || c.password !== '',
+                    tablas: c.tablas,
+                    tablas_schema,
+                };
+            }));
         },
     };
 }
