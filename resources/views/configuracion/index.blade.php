@@ -532,9 +532,44 @@
                 {{-- ─── TAB: MODELOS DE IA ─── --}}
                 <div x-show="activeTab === 'ia'" x-cloak class="space-y-4">
 
-                    {{-- OpenAI --}}
+                    {{-- Info banner --}}
+                    <div class="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800">
+                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Selecciona el modelo de cada proveedor. Las capacidades de <strong>audio</strong> e <strong>imágenes</strong> solo se muestran cuando el modelo o proveedor las soporta.</span>
+                    </div>
+
+                    {{-- ════ OPENAI ════ --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
-                         x-data="{ open: {{ $estado['openai_key'] ? 'true' : 'false' }} }">
+                         x-data="{
+                             open:        {{ $estado['openai_key'] ? 'true' : 'false' }},
+                             modelo:      @js($iaModelos['openai']),
+                             customOn:    false,
+                             customVal:   '',
+                             whisper:     {{ $iaToggles['openai_whisper'] ? 'true' : 'false' }},
+                             imagen:      {{ $iaToggles['openai_imagen']  ? 'true' : 'false' }},
+                             modelos: [
+                                 { id: 'gpt-4o',        label: 'GPT-4o',         tag: 'Recomendado' },
+                                 { id: 'gpt-4o-mini',   label: 'GPT-4o Mini',    tag: 'Rápido'      },
+                                 { id: 'gpt-4-turbo',   label: 'GPT-4 Turbo',    tag: null          },
+                                 { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo',  tag: 'Económico'   },
+                                 { id: 'o1',            label: 'o1',             tag: 'Razonamiento'},
+                                 { id: 'o3-mini',       label: 'o3-mini',        tag: null          },
+                             ],
+                             init() {
+                                 const found = this.modelos.find(m => m.id === this.modelo);
+                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
+                             },
+                             elegir(id) {
+                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                                 else { this.customOn = false; this.modelo = id; }
+                             },
+                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
+                         }"
+                         x-init="init()">
+
+                        {{-- Header --}}
                         <button type="button" @click="open = !open"
                                 class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
@@ -545,7 +580,7 @@
                                 </div>
                                 <div class="text-left">
                                     <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">ChatGPT (OpenAI)</p>
-                                    <p class="text-xs text-gray-400">GPT-4o, GPT-4o-mini y otros modelos</p>
+                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'GPT-4o · DALL-E 3 · Whisper'"></p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -555,17 +590,131 @@
                                 </svg>
                             </div>
                         </button>
+
                         <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
-                            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="px-5 py-5 space-y-5">
+
+                                {{-- API Key --}}
                                 <x-config-field name="openai_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['openai_key']"/>
-                                <x-config-field name="openai_model" label="Modelo" tipo="text" placeholder="gpt-4o" :configured="$estado['openai_model']"/>
+
+                                {{-- Selector de modelo --}}
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                                        <template x-for="m in modelos" :key="m.id">
+                                            <button type="button" @click="elegir(m.id)"
+                                                    :class="modelo === m.id && !customOn
+                                                        ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200'
+                                                        : 'border-gray-200 hover:border-teal-300 hover:bg-gray-50'"
+                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                                <span class="text-xs font-semibold text-gray-800 leading-tight" x-text="m.label"></span>
+                                                <span x-show="m.tag" class="text-[10px] text-teal-600 font-medium mt-0.5" x-text="m.tag"></span>
+                                                <span x-show="modelo === m.id && !customOn"
+                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-teal-500 rounded-full flex items-center justify-center">
+                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
+                                                        <polyline points="2,6 5,9 10,3"/>
+                                                    </svg>
+                                                </span>
+                                            </button>
+                                        </template>
+                                        {{-- Personalizado --}}
+                                        <button type="button" @click="elegir('__custom__')"
+                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200' : 'border-dashed border-gray-300 hover:border-teal-300'"
+                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
+                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                        </button>
+                                    </div>
+                                    <div x-show="customOn" x-transition>
+                                        <input type="text" x-model="customVal" placeholder="ej: gpt-4o-2024-11-20"
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"/>
+                                    </div>
+                                    <input type="hidden" name="openai_model" :value="modeloFinal">
+                                </div>
+
+                                {{-- Capacidades adicionales (Whisper + DALL-E — siempre disponibles con key OpenAI) --}}
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Capacidades adicionales</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                                        {{-- Whisper --}}
+                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                                     :class="whisper ? 'bg-teal-100' : 'bg-gray-200'">
+                                                    <svg class="w-4 h-4" :class="whisper ? 'text-teal-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs font-semibold text-gray-800">Whisper</p>
+                                                    <p class="text-[10px] text-gray-400">Transcripción de voz a texto</p>
+                                                </div>
+                                            </div>
+                                            <button type="button" @click="whisper = !whisper"
+                                                    :class="whisper ? 'bg-teal-500' : 'bg-gray-300'"
+                                                    class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                <span :class="whisper ? 'translate-x-5' : 'translate-x-0'"
+                                                      class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                            </button>
+                                            <input type="hidden" name="openai_whisper_activo" :value="whisper ? '1' : '0'">
+                                        </div>
+
+                                        {{-- DALL-E 3 --}}
+                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                                     :class="imagen ? 'bg-purple-100' : 'bg-gray-200'">
+                                                    <svg class="w-4 h-4" :class="imagen ? 'text-purple-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs font-semibold text-gray-800">DALL-E 3</p>
+                                                    <p class="text-[10px] text-gray-400">Generación de imágenes con IA</p>
+                                                </div>
+                                            </div>
+                                            <button type="button" @click="imagen = !imagen"
+                                                    :class="imagen ? 'bg-purple-500' : 'bg-gray-300'"
+                                                    class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                <span :class="imagen ? 'translate-x-5' : 'translate-x-0'"
+                                                      class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                            </button>
+                                            <input type="hidden" name="openai_imagen_activo" :value="imagen ? '1' : '0'">
+                                        </div>
+
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </div>
 
-                    {{-- DeepSeek --}}
+                    {{-- ════ DEEPSEEK ════ --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
-                         x-data="{ open: {{ $estado['deepseek_key'] ? 'true' : 'false' }} }">
+                         x-data="{
+                             open:     {{ $estado['deepseek_key'] ? 'true' : 'false' }},
+                             modelo:   @js($iaModelos['deepseek']),
+                             customOn: false,
+                             customVal:'',
+                             modelos: [
+                                 { id: 'deepseek-chat',     label: 'DeepSeek Chat',     tag: 'Recomendado'   },
+                                 { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner', tag: 'R1 · Avanzado' },
+                                 { id: 'deepseek-coder',    label: 'DeepSeek Coder',    tag: 'Programación'  },
+                             ],
+                             init() {
+                                 const found = this.modelos.find(m => m.id === this.modelo);
+                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
+                             },
+                             elegir(id) {
+                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                                 else { this.customOn = false; this.modelo = id; }
+                             },
+                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
+                         }"
+                         x-init="init()">
+
+                        {{-- Header --}}
                         <button type="button" @click="open = !open"
                                 class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
@@ -576,7 +725,7 @@
                                 </div>
                                 <div class="text-left">
                                     <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">DeepSeek</p>
-                                    <p class="text-xs text-gray-400">deepseek-chat y variantes</p>
+                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'deepseek-chat · deepseek-reasoner'"></p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -586,17 +735,99 @@
                                 </svg>
                             </div>
                         </button>
+
                         <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
-                            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="px-5 py-5 space-y-5">
+
+                                {{-- API Key --}}
                                 <x-config-field name="deepseek_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['deepseek_key']"/>
-                                <x-config-field name="deepseek_model" label="Modelo" tipo="text" placeholder="deepseek-chat" :configured="$estado['deepseek_model']"/>
+
+                                {{-- Selector de modelo --}}
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                                        <template x-for="m in modelos" :key="m.id">
+                                            <button type="button" @click="elegir(m.id)"
+                                                    :class="modelo === m.id && !customOn
+                                                        ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200'
+                                                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'"
+                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                                <span class="text-xs font-semibold text-gray-800 leading-tight" x-text="m.label"></span>
+                                                <span x-show="m.tag" class="text-[10px] text-blue-600 font-medium mt-0.5" x-text="m.tag"></span>
+                                                <span x-show="modelo === m.id && !customOn"
+                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
+                                                        <polyline points="2,6 5,9 10,3"/>
+                                                    </svg>
+                                                </span>
+                                            </button>
+                                        </template>
+                                        <button type="button" @click="elegir('__custom__')"
+                                                :class="customOn ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' : 'border-dashed border-gray-300 hover:border-blue-300'"
+                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
+                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                        </button>
+                                    </div>
+                                    <div x-show="customOn" x-transition>
+                                        <input type="text" x-model="customVal" placeholder="ej: deepseek-v3"
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+                                    </div>
+                                    <input type="hidden" name="deepseek_model" :value="modeloFinal">
+                                </div>
+
+                                {{-- Sin capacidades adicionales --}}
+                                <div class="flex items-center gap-2 py-2 text-xs text-gray-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    DeepSeek no incluye transcripción de audio ni generación de imágenes.
+                                </div>
+
                             </div>
                         </div>
                     </div>
 
-                    {{-- Gemini --}}
+                    {{-- ════ GEMINI ════ --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
-                         x-data="{ open: {{ $estado['gemini_key'] ? 'true' : 'false' }} }">
+                         x-data="{
+                             open:     {{ $estado['gemini_key'] ? 'true' : 'false' }},
+                             modelo:   @js($iaModelos['gemini']),
+                             customOn: false,
+                             customVal:'',
+                             audio:    {{ $iaToggles['gemini_audio'] ? 'true' : 'false' }},
+                             modelos: [
+                                 { id: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash',  tag: 'Más rápido',   audio: true  },
+                                 { id: 'gemini-2.0-flash',     label: 'Gemini 2.0 Flash',  tag: 'Estable',      audio: true  },
+                                 { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash',  tag: 'Rápido',       audio: true  },
+                                 { id: 'gemini-1.5-flash-8b',  label: 'Flash 1.5 8B',      tag: 'Ultra rápido', audio: true  },
+                                 { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro',    tag: 'Más potente',  audio: true  },
+                                 { id: 'gemini-1.0-pro',       label: 'Gemini 1.0 Pro',    tag: 'Básico',       audio: false },
+                             ],
+                             init() {
+                                 const found = this.modelos.find(m => m.id === this.modelo);
+                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
+                             },
+                             elegir(id) {
+                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                                 else {
+                                     this.customOn = false;
+                                     this.modelo   = id;
+                                     // Apagar audio automáticamente si el modelo no lo soporta
+                                     const m = this.modelos.find(m => m.id === id);
+                                     if (m && !m.audio) this.audio = false;
+                                 }
+                             },
+                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
+                             get soportaAudio() {
+                                 if (this.customOn) return true;
+                                 const m = this.modelos.find(m => m.id === this.modelo);
+                                 return m ? m.audio : true;
+                             },
+                         }"
+                         x-init="init()">
+
+                        {{-- Header --}}
                         <button type="button" @click="open = !open"
                                 class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
@@ -607,7 +838,7 @@
                                 </div>
                                 <div class="text-left">
                                     <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Google Gemini</p>
-                                    <p class="text-xs text-gray-400">gemini-1.5-flash, gemini-1.5-pro</p>
+                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'gemini-1.5-flash · gemini-1.5-pro'"></p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -617,13 +848,91 @@
                                 </svg>
                             </div>
                         </button>
+
                         <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
-                            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="px-5 py-5 space-y-5">
+
+                                {{-- API Key --}}
                                 <x-config-field name="gemini_key" label="API Key" tipo="password" placeholder="AIza..." :configured="$estado['gemini_key']"/>
-                                <x-config-field name="gemini_model" label="Modelo" tipo="text" placeholder="gemini-1.5-pro" :configured="$estado['gemini_model']"/>
+
+                                {{-- Selector de modelo --}}
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                                        <template x-for="m in modelos" :key="m.id">
+                                            <button type="button" @click="elegir(m.id)"
+                                                    :class="modelo === m.id && !customOn
+                                                        ? 'ring-2 ring-orange-500 bg-orange-50 border-orange-200'
+                                                        : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'"
+                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                                <div class="flex items-center gap-1 w-full">
+                                                    <span class="text-xs font-semibold text-gray-800 leading-tight flex-1" x-text="m.label"></span>
+                                                    {{-- Ícono audio para modelos que lo soportan --}}
+                                                    <svg x-show="m.audio" class="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                                                    </svg>
+                                                </div>
+                                                <span x-show="m.tag" class="text-[10px] text-orange-600 font-medium mt-0.5" x-text="m.tag"></span>
+                                                <span x-show="modelo === m.id && !customOn"
+                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-orange-500 rounded-full flex items-center justify-center">
+                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
+                                                        <polyline points="2,6 5,9 10,3"/>
+                                                    </svg>
+                                                </span>
+                                            </button>
+                                        </template>
+                                        <button type="button" @click="elegir('__custom__')"
+                                                :class="customOn ? 'ring-2 ring-orange-500 bg-orange-50 border-orange-200' : 'border-dashed border-gray-300 hover:border-orange-300'"
+                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
+                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
+                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                        </button>
+                                    </div>
+                                    <div x-show="customOn" x-transition>
+                                        <input type="text" x-model="customVal" placeholder="ej: gemini-2.0-flash-thinking-exp"
+                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"/>
+                                    </div>
+                                    <input type="hidden" name="gemini_model" :value="modeloFinal">
+                                </div>
+
+                                {{-- Capacidades adicionales (solo si el modelo las soporta) --}}
+                                <div x-show="soportaAudio" x-transition>
+                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Capacidades adicionales</p>
+                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                                 :class="audio ? 'bg-orange-100' : 'bg-gray-200'">
+                                                <svg class="w-4 h-4" :class="audio ? 'text-orange-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-800">Audio nativo</p>
+                                                <p class="text-[10px] text-gray-400">Transcripción multimodal integrada en el modelo</p>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="audio = !audio"
+                                                :class="audio ? 'bg-orange-500' : 'bg-gray-300'"
+                                                class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                            <span :class="audio ? 'translate-x-5' : 'translate-x-0'"
+                                                  class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                        </button>
+                                    </div>
+                                    <input type="hidden" name="gemini_audio_activo" :value="audio ? '1' : '0'">
+                                </div>
+
+                                {{-- Aviso cuando el modelo NO soporta audio --}}
+                                <div x-show="!soportaAudio" x-transition class="flex items-center gap-2 py-1 text-xs text-gray-400">
+                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                    </svg>
+                                    Este modelo no soporta transcripción de audio nativa.
+                                </div>
+
                             </div>
                         </div>
                     </div>
+
                 </div>
 
                 {{-- ─── TAB: SERVICIOS ─── --}}

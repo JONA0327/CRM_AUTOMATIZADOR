@@ -92,6 +92,20 @@ class ConfiguracionController extends Controller
         $systemPrompt = Configuracion::get('system_prompt', '');
         $botProveedor = Configuracion::get('bot_ia_proveedor', 'openai');
 
+        // Modelos actuales (valor real, no solo booleano)
+        $iaModelos = [
+            'openai'   => Configuracion::get('openai_model',   'gpt-4o'),
+            'deepseek' => Configuracion::get('deepseek_model', 'deepseek-chat'),
+            'gemini'   => Configuracion::get('gemini_model',   'gemini-1.5-flash'),
+        ];
+
+        // Toggles de capacidades adicionales (audio / imagen)
+        $iaToggles = [
+            'openai_whisper' => Configuracion::get('openai_whisper_activo', '0') === '1',
+            'openai_imagen'  => Configuracion::get('openai_imagen_activo',  '0') === '1',
+            'gemini_audio'   => Configuracion::get('gemini_audio_activo',   '0') === '1',
+        ];
+
         // Load all external DB connections; strip passwords before passing to the view.
         $extDbsRaw = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
         $extDbs = array_map(function ($conn) {
@@ -125,6 +139,8 @@ class ConfiguracionController extends Controller
             'promptVerificacion' => $promptVerificacion,
             'hasPhoneField'      => $hasPhoneField,
             'availableTags'      => $availableTags,
+            'iaModelos'          => $iaModelos,
+            'iaToggles'          => $iaToggles,
         ]);
     }
 
@@ -164,6 +180,19 @@ class ConfiguracionController extends Controller
             $proveedor = $request->input('bot_ia_proveedor');
             if (in_array($proveedor, ['openai', 'deepseek', 'gemini'])) {
                 Configuracion::set('bot_ia_proveedor', $proveedor, 'bot', 'Proveedor de IA activo para el bot');
+                $guardados++;
+            }
+        }
+
+        // Guardar toggles de capacidades de IA (siempre guardan aunque sean '0')
+        $iaToggleCampos = [
+            'openai_whisper_activo' => 'Whisper — transcripción de audio',
+            'openai_imagen_activo'  => 'DALL-E — generación de imágenes',
+            'gemini_audio_activo'   => 'Gemini — audio nativo',
+        ];
+        foreach ($iaToggleCampos as $campo => $desc) {
+            if ($request->has($campo)) {
+                Configuracion::set($campo, $request->input($campo) === '1' ? '1' : '0', 'ia', $desc);
                 $guardados++;
             }
         }
@@ -218,7 +247,8 @@ class ConfiguracionController extends Controller
     {
         $clavesValidas = collect($this->campos)
             ->flatMap(fn($g) => array_keys($g['claves']))
-            ->push('system_prompt', 'bot_ia_proveedor', 'ext_dbs', 'bot_prompt_verificacion')
+            ->push('system_prompt', 'bot_ia_proveedor', 'ext_dbs', 'bot_prompt_verificacion',
+                   'openai_whisper_activo', 'openai_imagen_activo', 'gemini_audio_activo')
             ->toArray();
 
         if (in_array($clave, $clavesValidas)) {
