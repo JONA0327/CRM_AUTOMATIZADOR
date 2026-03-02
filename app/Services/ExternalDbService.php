@@ -33,7 +33,7 @@ class ExternalDbService
                 DB::connection(self::CONN)->statement('SELECT 1');
             }
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[ExternalDb] Fallo de conexión: ' . $e->getMessage());
             throw new \RuntimeException('No se pudo conectar: ' . $e->getMessage());
         }

@@ -257,7 +257,7 @@ class ConfiguracionController extends Controller
                 'esquemas' => $esquemas,
                 'mensaje'  => 'Conexión exitosa. Se encontraron ' . count($tablas) . ' tabla(s).',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'mensaje' => $e->getMessage(),
