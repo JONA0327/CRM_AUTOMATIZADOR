@@ -212,50 +212,82 @@
 
     {{-- ── Paso 3b: Mostrar código de emparejamiento ────────────────────────── --}}
     <div x-show="paso === 'pairing-code'" x-transition>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
 
-            <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                </svg>
+            {{-- Header --}}
+            <div class="flex items-center gap-4 mb-6 pb-5 border-b border-gray-100">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900">Código de vinculación</h2>
+                    <p class="text-sm text-gray-500">
+                        Instancia: <span class="font-semibold text-gray-700" x-text="instancia"></span>
+                    </p>
+                </div>
             </div>
 
-            <h2 class="text-xl font-bold text-gray-900 mb-1">Tu código de vinculación</h2>
-            <p class="text-sm text-gray-500 mb-6">
-                Instancia: <span class="font-semibold text-gray-700" x-text="instancia"></span>
-            </p>
+            {{-- Bloque del código + botón copiar --}}
+            <div class="relative bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-5 mb-5">
 
-            {{-- Código grande --}}
-            <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl px-8 py-6 mb-6 inline-block w-full">
-                <p class="text-4xl font-mono font-bold tracking-[0.3em] text-gray-900 select-all" x-text="pairingCode"></p>
-                <p class="text-xs text-gray-400 mt-2">Toca el código para seleccionarlo</p>
+                {{-- Botón copiar --}}
+                <button @click="copiarCodigo"
+                        class="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        :class="copiado
+                            ? 'bg-green-100 text-green-700 border border-green-200'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'">
+                    <template x-if="!copiado">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </template>
+                    <template x-if="copiado">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </template>
+                    <span x-text="copiado ? 'Copiado' : 'Copiar'"></span>
+                </button>
+
+                {{-- Código: fuente grande si es corto (≤20 chars), compacta si es largo --}}
+                <div class="pr-20 text-left">
+                    <p class="font-mono font-bold text-gray-900 break-all select-all leading-snug"
+                       :class="pairingCode.length <= 12 ? 'text-4xl tracking-[0.25em]' : 'text-sm'"
+                       x-text="pairingCode"></p>
+                </div>
+                <p class="text-xs text-gray-400 mt-3"
+                   x-text="copiado ? '¡Código copiado al portapapeles!' : 'Selecciona el texto o usa el botón para copiar'"></p>
             </div>
 
             {{-- Instrucciones --}}
-            <div class="bg-green-50 border border-green-100 rounded-lg px-5 py-4 text-left mb-6">
+            <div class="bg-green-50 border border-green-100 rounded-xl px-5 py-4 mb-5 text-left">
                 <p class="text-sm font-semibold text-green-800 mb-2">¿Cómo ingresar el código?</p>
                 <ol class="text-sm text-green-700 space-y-1 list-decimal list-inside">
                     <li>Abre WhatsApp en tu teléfono</li>
                     <li>Ve a <strong>Menú → Dispositivos vinculados</strong></li>
                     <li>Toca <strong>Vincular un dispositivo</strong></li>
                     <li>Selecciona <strong>Vincular con número de teléfono</strong></li>
-                    <li>Ingresa el código: <strong x-text="pairingCode"></strong></li>
+                    <li>Ingresa el código copiado y confirma</li>
                 </ol>
             </div>
 
-            {{-- Estado --}}
-            <div class="flex items-center justify-center gap-2 text-sm text-gray-500 mb-6">
-                <svg class="w-4 h-4 animate-spin text-green-500" fill="none" viewBox="0 0 24 24">
+            {{-- Estado polling --}}
+            <div class="flex items-center gap-2 text-xs text-gray-400 mb-5 justify-center">
+                <svg class="w-3.5 h-3.5 animate-spin text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
                 Esperando vinculación… verificando cada 3 segundos
             </div>
 
+            {{-- Acciones --}}
             <div class="flex gap-3">
                 <button @click="solicitarCodigo" :disabled="cargando"
-                        class="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 font-medium text-sm rounded-lg transition-colors">
+                        class="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 font-medium text-sm rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -263,7 +295,7 @@
                     Nuevo código
                 </button>
                 <button @click="cancelar"
-                        class="flex-1 py-2.5 text-gray-500 hover:text-gray-700 font-medium text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
+                        class="flex-1 py-2.5 text-gray-500 hover:text-gray-700 font-medium text-sm rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
                     Cancelar
                 </button>
             </div>
@@ -311,6 +343,7 @@ function qrScanner() {
         refrescando: false,
         errorMsg:    '',
         pollingId:   null,
+        copiado:     false,
         _csrf:       '{{ csrf_token() }}',
 
         // ── Paso 1: Crear instancia y redirigir según método ────────────────
@@ -430,6 +463,23 @@ function qrScanner() {
             if (this.pollingId) {
                 clearInterval(this.pollingId);
                 this.pollingId = null;
+            }
+        },
+
+        async copiarCodigo() {
+            try {
+                await navigator.clipboard.writeText(this.pairingCode);
+                this.copiado = true;
+                setTimeout(() => { this.copiado = false; }, 2500);
+            } catch (e) {
+                // Fallback: seleccionar el texto manualmente
+                const el = document.querySelector('[x-text="pairingCode"]');
+                if (el) {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                }
             }
         },
 

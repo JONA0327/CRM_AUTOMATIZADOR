@@ -1168,8 +1168,8 @@ class BotController extends Controller
                 ]);
 
             if ($response3->successful()) {
-                $code = data_get($response3->json(), 'pairingCode')
-                    ?? data_get($response3->json(), 'code');
+                // Solo 'pairingCode' es un código válido — 'code' es el raw string del QR
+                $code = data_get($response3->json(), 'pairingCode');
                 if ($code) {
                     return response()->json(['success' => true, 'code' => $code]);
                 }
