@@ -123,15 +123,21 @@ class BotController extends Controller
         abort_unless(config('app.debug'), 403);
 
         try {
-            $response = Http::withHeaders(['apikey' => $this->apiKey])
+            $instances = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(10)
                 ->get("{$this->apiUrl}/instance/fetchInstances");
 
+            // Intentar leer versión del servidor
+            $versionRes = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(5)
+                ->get("{$this->apiUrl}/");
+
             return response()->json([
-                'url'     => $this->apiUrl,
-                'status'  => $response->status(),
-                'body'    => $response->json() ?? $response->body(),
-                'headers' => $response->headers(),
+                'url'              => $this->apiUrl,
+                'instances_status' => $instances->status(),
+                'instances_body'   => $instances->json() ?? $instances->body(),
+                'version_status'   => $versionRes->status(),
+                'version_body'     => $versionRes->json() ?? $versionRes->body(),
             ]);
         } catch (\Exception $e) {
             return response()->json(['url' => $this->apiUrl, 'error' => $e->getMessage()], 500);
@@ -1119,29 +1125,63 @@ class BotController extends Controller
 
         $enc = rawurlencode($instancia);
         try {
-            // Paso 1: iniciar/refrescar la conexión para poner la instancia en estado "connecting"
+            // ── Intento 1: endpoint estándar Evolution API v2.1+ ──────────────
+            // Primero aseguramos estado "connecting" con un GET /connect
             Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(10)
                 ->get("{$this->apiUrl}/instance/connect/{$enc}");
 
-            // Paso 2: solicitar el código de emparejamiento
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
                 ->post("{$this->apiUrl}/instance/pairingCode/{$enc}", [
                     'phoneNumber' => $phone,
                 ]);
 
-            if (!$response->successful()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $this->extraerMensajeError($response),
-                ], 422);
+            if ($response->successful()) {
+                $code = data_get($response->json(), 'code')
+                    ?? data_get($response->json(), 'pairingCode');
+                if ($code) {
+                    return response()->json(['success' => true, 'code' => $code]);
+                }
             }
 
-            $code = data_get($response->json(), 'code')
-                ?? data_get($response->json(), 'pairingCode');
+            // ── Intento 2: PUT (algunas builds usan PUT en vez de POST) ──────
+            $response2 = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(15)
+                ->put("{$this->apiUrl}/instance/pairingCode/{$enc}", [
+                    'phoneNumber' => $phone,
+                ]);
 
-            return response()->json(['success' => true, 'code' => $code]);
+            if ($response2->successful()) {
+                $code = data_get($response2->json(), 'code')
+                    ?? data_get($response2->json(), 'pairingCode');
+                if ($code) {
+                    return response()->json(['success' => true, 'code' => $code]);
+                }
+            }
+
+            // ── Intento 3: connect con number param (Evolution API < v2.1) ───
+            $response3 = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(15)
+                ->get("{$this->apiUrl}/instance/connect/{$enc}", [
+                    'number' => $phone,
+                ]);
+
+            if ($response3->successful()) {
+                $code = data_get($response3->json(), 'pairingCode')
+                    ?? data_get($response3->json(), 'code');
+                if ($code) {
+                    return response()->json(['success' => true, 'code' => $code]);
+                }
+            }
+
+            // ── Ningún intento devolvió código ────────────────────────────────
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu versión de Evolution API no soporta código de emparejamiento vía REST. '
+                    . 'Actualiza Evolution API a v2.1.0+ o conecta mediante código QR.',
+            ], 422);
+
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
