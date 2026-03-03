@@ -122,26 +122,27 @@ class BotController extends Controller
     {
         abort_unless(config('app.debug'), 403);
 
-        try {
-            $instances = Http::withHeaders(['apikey' => $this->apiKey])
-                ->timeout(10)
-                ->get("{$this->apiUrl}/instance/fetchInstances");
+        $probe = fn(string $method, string $url, array $body = []) => rescue(function () use ($method, $url, $body) {
+            $req = Http::withHeaders(['apikey' => $this->apiKey])->timeout(6);
+            $res = $method === 'get' ? $req->get($url, $body) : $req->{$method}($url, $body);
+            return ['status' => $res->status(), 'body' => $res->json() ?? substr($res->body(), 0, 300)];
+        }, fn ($e) => ['status' => 'exception', 'error' => $e->getMessage()]);
 
-            // Intentar leer versión del servidor
-            $versionRes = Http::withHeaders(['apikey' => $this->apiKey])
-                ->timeout(5)
-                ->get("{$this->apiUrl}/");
+        $fake = 'probe_diag_test';
+        $fakePhone = '5500000000000';
 
-            return response()->json([
-                'url'              => $this->apiUrl,
-                'instances_status' => $instances->status(),
-                'instances_body'   => $instances->json() ?? $instances->body(),
-                'version_status'   => $versionRes->status(),
-                'version_body'     => $versionRes->json() ?? $versionRes->body(),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['url' => $this->apiUrl, 'error' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'api_url'    => $this->apiUrl,
+            'version'    => $probe('get', "{$this->apiUrl}/"),
+            'instances'  => $probe('get', "{$this->apiUrl}/instance/fetchInstances"),
+            'pairing_probes' => [
+                'POST /instance/pairingCode/{name}'   => $probe('post', "{$this->apiUrl}/instance/pairingCode/{$fake}", ['phoneNumber' => $fakePhone]),
+                'PUT  /instance/pairingCode/{name}'   => $probe('put',  "{$this->apiUrl}/instance/pairingCode/{$fake}", ['phoneNumber' => $fakePhone]),
+                'GET  /instance/pairingCode/{name}'   => $probe('get',  "{$this->apiUrl}/instance/pairingCode/{$fake}", ['phoneNumber' => $fakePhone]),
+                'POST /instance/pairing-code/{name}'  => $probe('post', "{$this->apiUrl}/instance/pairing-code/{$fake}", ['phoneNumber' => $fakePhone]),
+                'GET  /instance/connect/{name}?number'=> $probe('get',  "{$this->apiUrl}/instance/connect/{$fake}", ['number' => $fakePhone]),
+            ],
+        ]);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
