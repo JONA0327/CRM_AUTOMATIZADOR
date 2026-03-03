@@ -434,6 +434,20 @@
         </div>
     @endif
 
+    {{-- Banner límite de instancias --}}
+    @if ($limitAlcanzado)
+        <div class="mb-6 flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-5 py-4">
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span>
+                <strong>Límite de instancias alcanzado</strong> — Tu plan permite
+                {{ $maxInstancias }} instancia(s) y ya tienes {{ $totalInstancias }} registrada(s).
+                Contacta al administrador para ampliar tu plan.
+            </span>
+        </div>
+    @endif
+
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -461,13 +475,23 @@
                 </button>
             </form>
 
-            <a href="{{ route('bot.conectar') }}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Conectar Número
-            </a>
+            @if ($limitAlcanzado)
+                <div class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-gray-200 cursor-not-allowed select-none"
+                     title="Has alcanzado el límite de {{ $maxInstancias }} instancia(s) de tu plan">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                    Límite alcanzado ({{ $totalInstancias }}/{{ $maxInstancias }})
+                </div>
+            @else
+                <a href="{{ route('bot.conectar') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Conectar Número
+                </a>
+            @endif
         </div>
     </div>
 
@@ -482,13 +506,20 @@
             </div>
             <h3 class="text-gray-700 font-semibold text-lg mb-2">Sin números conectados</h3>
             <p class="text-gray-400 text-sm mb-6">Escanea un código QR para vincular tu primer número de WhatsApp.</p>
-            <a href="{{ route('bot.conectar') }}"
-               class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Conectar primer número
-            </a>
+            @if ($limitAlcanzado)
+                <p class="text-sm text-amber-600 font-medium bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                    Has alcanzado el límite de instancias de tu plan ({{ $totalInstancias }}/{{ $maxInstancias }}).
+                    Contacta al administrador para ampliar tu plan.
+                </p>
+            @else
+                <a href="{{ route('bot.conectar') }}"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Conectar primer número
+                </a>
+            @endif
         </div>
     @else
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

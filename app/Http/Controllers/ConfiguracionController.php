@@ -136,6 +136,10 @@ class ConfiguracionController extends Controller
             $savedPrompts = SavedPrompt::orderBy('nombre')->get();
         } catch (\Exception) {}
 
+        // Estado de conexión con Google (OAuth2)
+        $googleConectado = Configuracion::isConfigured('google_refresh_token');
+        $googleEmail     = Configuracion::get('google_account_email', '');
+
         return view('configuracion.index', [
             'grupos'             => $this->campos,
             'estado'             => $estado,
@@ -148,6 +152,8 @@ class ConfiguracionController extends Controller
             'iaModelos'          => $iaModelos,
             'iaToggles'          => $iaToggles,
             'savedPrompts'       => $savedPrompts,
+            'googleConectado'    => $googleConectado,
+            'googleEmail'        => $googleEmail,
         ]);
     }
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\CatalogModuleController;
 use App\Http\Controllers\CatalogRecordController;
 use App\Http\Controllers\CollaboratorController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
@@ -66,6 +67,7 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
             Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
             Route::get('/logs/{instancia}',        [BotController::class, 'getLogs'])->name('logs')->where('instancia', '.+');
+            Route::post('/pairing-code/{instancia}', [BotController::class, 'pairingCode'])->name('pairing-code')->where('instancia', '.+');
             Route::post('/registrar-instancia',    [BotController::class, 'registrarInstancia'])->name('registrar');
             Route::post('/toggle-instance',        [BotController::class, 'toggleInstance'])->name('toggle-instance');
             Route::post('/set-default',            [BotController::class, 'setDefault'])->name('set-default');
@@ -96,6 +98,11 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::post('/test-db',         [ConfiguracionController::class, 'testExternalDb'])->name('test-db');
             Route::post('/prompts',         [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
             Route::delete('/prompts/{id}',  [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
+
+            // Google OAuth2
+            Route::get('/google/redirect',  [GoogleAuthController::class, 'redirect'])->name('google.redirect');
+            Route::get('/google/callback',  [GoogleAuthController::class, 'callback'])->name('google.callback');
+            Route::delete('/google/revoke', [GoogleAuthController::class, 'revoke'])->name('google.revoke');
         });
 
         // Gestión de colaboradores del negocio

@@ -133,19 +133,24 @@
                                                 </a>
 
                                             @elseif($field->tipo === 'file' && $val)
-                                                @php $ext = strtolower(pathinfo($val, PATHINFO_EXTENSION)); @endphp
+                                                @php
+                                                    $ext = strtolower(pathinfo($val, PATHINFO_EXTENSION));
+                                                    $fileUrl = (str_starts_with($val, 'http://') || str_starts_with($val, 'https://') || str_starts_with($val, '/'))
+                                                        ? $val
+                                                        : asset('storage/' . $val);
+                                                @endphp
                                                 @if(in_array($ext, ['jpg','jpeg','png','gif','webp','svg','bmp']))
-                                                    <a href="{{ asset('storage/' . $val) }}" target="_blank" rel="noopener">
-                                                        <img src="{{ asset('storage/' . $val) }}"
+                                                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
+                                                        <img src="{{ $fileUrl }}"
                                                              class="h-12 w-12 object-cover rounded border border-gray-200 hover:opacity-80 transition"
                                                              loading="lazy" alt="{{ $field->nombre }}">
                                                     </a>
                                                 @elseif(in_array($ext, ['mp4','webm','mov','avi','mkv']))
-                                                    <video src="{{ asset('storage/' . $val) }}"
+                                                    <video src="{{ $fileUrl }}"
                                                            class="h-12 w-20 object-cover rounded border border-gray-200"
-                                                           muted playsinline></video>
+                                                           controls muted playsinline></video>
                                                 @else
-                                                    <a href="{{ asset('storage/' . $val) }}" target="_blank" rel="noopener"
+                                                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener"
                                                        class="text-blue-600 hover:underline text-xs flex items-center gap-1">
                                                         📎 Descargar
                                                     </a>
@@ -319,11 +324,39 @@
 
                             {{-- Todos los campos --}}
                             <template x-for="campo in campos" :key="campo.slug">
-                                <div x-show="campo.tipo !== 'file' || getFieldDisplay(recordDetalle, campo) !== '—'"
-                                     class="grid grid-cols-3 gap-2 text-sm">
+                                <div x-show="campo.tipo !== 'file' || recordDetalle?.datos?.[campo.slug]"
+                                     class="grid grid-cols-3 gap-2 text-sm items-start">
                                     <span class="text-gray-400 font-medium col-span-1 pt-0.5" x-text="campo.nombre"></span>
-                                    <span class="text-gray-800 dark:text-gray-200 col-span-2 break-words"
-                                          x-text="getFieldDisplay(recordDetalle, campo)"></span>
+                                    <div class="col-span-2">
+                                        {{-- Tipo archivo: mostrar imagen, video o enlace --}}
+                                        <template x-if="campo.tipo === 'file' && recordDetalle?.datos?.[campo.slug]">
+                                            <div>
+                                                <template x-if="esImagen(recordDetalle.datos[campo.slug])">
+                                                    <a :href="urlArchivo(recordDetalle.datos[campo.slug])" target="_blank">
+                                                        <img :src="urlArchivo(recordDetalle.datos[campo.slug])"
+                                                             class="max-h-48 w-auto rounded-lg border border-gray-200 dark:border-gray-600 object-contain hover:opacity-90 transition">
+                                                    </a>
+                                                </template>
+                                                <template x-if="esVideo(recordDetalle.datos[campo.slug])">
+                                                    <video :src="urlArchivo(recordDetalle.datos[campo.slug])"
+                                                           class="max-w-full max-h-48 rounded-lg border border-gray-200 dark:border-gray-600"
+                                                           controls></video>
+                                                </template>
+                                                <template x-if="!esImagen(recordDetalle.datos[campo.slug]) && !esVideo(recordDetalle.datos[campo.slug])">
+                                                    <a :href="urlArchivo(recordDetalle.datos[campo.slug])" target="_blank"
+                                                       class="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                                                        <span>📎</span>
+                                                        <span x-text="String(recordDetalle.datos[campo.slug]).split('/').pop()"></span>
+                                                    </a>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        {{-- Resto de tipos: texto --}}
+                                        <template x-if="campo.tipo !== 'file'">
+                                            <span class="text-gray-800 dark:text-gray-200 break-words"
+                                                  x-text="getFieldDisplay(recordDetalle, campo)"></span>
+                                        </template>
+                                    </div>
                                 </div>
                             </template>
                         </div>

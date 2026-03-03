@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\MensajeBot;
 use App\Models\Configuracion;
 use App\Models\Conversation;
+use App\Models\Tenant;
 use App\Models\TenantInstance;
 use App\Services\ExternalDbService;
 use App\Services\PromptTagResolverService;
@@ -50,11 +51,24 @@ class BotController extends Controller
         $botActivo = Configuracion::get('bot_activo', '0') === '1';
 
         // Instancias registradas en BD (ligadas al tenant actual)
-        $dbInstances = TenantInstance::where('tenant_id', auth()->user()->tenant_id)
+        $user = auth()->user();
+        $dbInstances = TenantInstance::where('tenant_id', $user->tenant_id)
             ->get()
             ->keyBy('instance_name');
 
-        return view('bot.index', compact('instancias', 'botActivo', 'dbInstances'));
+        // Límite de instancias del plan
+        $limitAlcanzado = false;
+        $maxInstancias   = null;
+        $totalInstancias = $dbInstances->count();
+        if ($user->tenant_id) {
+            $tenant = Tenant::find($user->tenant_id);
+            if ($tenant && $tenant->max_instances) {
+                $maxInstancias   = $tenant->max_instances;
+                $limitAlcanzado  = $totalInstancias >= $maxInstancias;
+            }
+        }
+
+        return view('bot.index', compact('instancias', 'botActivo', 'dbInstances', 'limitAlcanzado', 'maxInstancias', 'totalInstancias'));
     }
 
     /**
@@ -263,6 +277,21 @@ class BotController extends Controller
         ]);
 
         $nombre = $request->nombre;
+
+        // Verificar límite de instancias del plan
+        $user = auth()->user();
+        if ($user && $user->tenant_id) {
+            $tenant = Tenant::find($user->tenant_id);
+            if ($tenant && $tenant->max_instances) {
+                $count = TenantInstance::where('tenant_id', $user->tenant_id)->count();
+                if ($count >= $tenant->max_instances) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Has alcanzado el límite de {$tenant->max_instances} instancia(s) para tu plan. Contacta al administrador para ampliar tu límite.",
+                    ], 422);
+                }
+            }
+        }
 
         try {
             $response = Http::withHeaders(['apikey' => $this->apiKey])
@@ -1071,6 +1100,41 @@ class BotController extends Controller
     // ──────────────────────────────────────────────────────────────────────────
     // API — CONVERSACIONES EN TIEMPO REAL
     // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Genera un código de emparejamiento de 8 dígitos para vincular sin QR.
+     * La instancia debe existir previamente. POST /bot/pairing-code/{instancia}
+     */
+    public function pairingCode(Request $request, string $instancia): JsonResponse
+    {
+        $request->validate(['phone' => ['required', 'string', 'max:20']]);
+
+        // Solo dígitos con código de país, ej: 5215512345678
+        $phone = preg_replace('/\D/', '', $request->phone);
+
+        $enc = rawurlencode($instancia);
+        try {
+            $response = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(15)
+                ->post("{$this->apiUrl}/instance/pairingCode/{$enc}", [
+                    'phoneNumber' => $phone,
+                ]);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $this->extraerMensajeError($response),
+                ], 422);
+            }
+
+            $code = data_get($response->json(), 'code')
+                ?? data_get($response->json(), 'pairingCode');
+
+            return response()->json(['success' => true, 'code' => $code]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
     /**
      * Elimina todas las conversaciones de un contacto específico.
