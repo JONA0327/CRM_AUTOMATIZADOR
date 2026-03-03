@@ -327,7 +327,7 @@ function qrScanner() {
                         'X-CSRF-TOKEN': this._csrf,
                         'Accept':       'application/json',
                     },
-                    body: JSON.stringify({ nombre: this.nombre.trim() }),
+                    body: JSON.stringify({ nombre: this.nombre.trim(), metodo: this.metodo }),
                 });
 
                 const data = await res.json();

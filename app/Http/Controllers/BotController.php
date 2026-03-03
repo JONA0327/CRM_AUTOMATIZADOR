@@ -277,6 +277,7 @@ class BotController extends Controller
         ]);
 
         $nombre = $request->nombre;
+        $usarQr = $request->input('metodo', 'qr') !== 'phone';
 
         // Verificar límite de instancias del plan
         $user = auth()->user();
@@ -298,7 +299,7 @@ class BotController extends Controller
                 ->timeout(15)
                 ->post("{$this->apiUrl}/instance/create", [
                     'instanceName' => $nombre,
-                    'qrcode'       => true,
+                    'qrcode'       => $usarQr,
                     'integration'  => 'WHATSAPP-BAILEYS',
                 ]);
 
@@ -312,7 +313,7 @@ class BotController extends Controller
                     ->timeout(15)
                     ->post("{$this->apiUrl}/instance/create", [
                         'instanceName' => $nombre,
-                        'qrcode'       => true,
+                        'qrcode'       => $usarQr,
                         'integration'  => 'WHATSAPP-BAILEYS',
                     ]);
             }
@@ -326,19 +327,23 @@ class BotController extends Controller
 
             $data = $response->json();
 
-            // Evolution v2: el QR puede venir dentro de 'qrcode.base64'
-            $qr = data_get($data, 'qrcode.base64');
+            // Para modo QR: extraer el código del response o pedirlo vía connect
+            $qr = null;
+            if ($usarQr) {
+                // Evolution v2: el QR puede venir dentro de 'qrcode.base64'
+                $qr = data_get($data, 'qrcode.base64');
 
-            if (! $qr) {
-                sleep(1);
-                $qrResponse = Http::withHeaders(['apikey' => $this->apiKey])
-                    ->timeout(15)
-                    ->get("{$this->apiUrl}/instance/connect/{$nombre}");
+                if (! $qr) {
+                    sleep(1);
+                    $qrResponse = Http::withHeaders(['apikey' => $this->apiKey])
+                        ->timeout(15)
+                        ->get("{$this->apiUrl}/instance/connect/{$nombre}");
 
-                if ($qrResponse->successful()) {
-                    $qr = data_get($qrResponse->json(), 'base64')
-                        ?? data_get($qrResponse->json(), 'qrcode.base64')
-                        ?? data_get($qrResponse->json(), 'qrcode');
+                    if ($qrResponse->successful()) {
+                        $qr = data_get($qrResponse->json(), 'base64')
+                            ?? data_get($qrResponse->json(), 'qrcode.base64')
+                            ?? data_get($qrResponse->json(), 'qrcode');
+                    }
                 }
             }
 
@@ -1114,6 +1119,12 @@ class BotController extends Controller
 
         $enc = rawurlencode($instancia);
         try {
+            // Paso 1: iniciar/refrescar la conexión para poner la instancia en estado "connecting"
+            Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(10)
+                ->get("{$this->apiUrl}/instance/connect/{$enc}");
+
+            // Paso 2: solicitar el código de emparejamiento
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
                 ->post("{$this->apiUrl}/instance/pairingCode/{$enc}", [
