@@ -1,6 +1,5 @@
 <x-admin-layout title="Conversaciones del Bot">
 
-{{-- Un solo componente Alpine cubre todo el layout --}}
 <div class="flex gap-0 h-[calc(100vh-10rem)] bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
      x-data="botConversaciones()"
      x-init="init()">
@@ -8,7 +7,6 @@
     {{-- ── Panel izquierdo: lista de contactos ───────────────────────────── --}}
     <div class="w-80 flex-shrink-0 border-r border-gray-100 flex flex-col">
 
-        {{-- Cabecera --}}
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Contactos</span>
             <div class="flex items-center gap-2">
@@ -18,8 +16,7 @@
                           :class="conectado ? 'bg-green-500 animate-pulse' : 'bg-amber-400 animate-pulse'"></span>
                     <span x-text="conectado ? 'EN VIVO' : 'Polling'"></span>
                 </span>
-                {{-- Borrar todo --}}
-                <button @click="confirmarBorrarTodo()"
+                <button @click="abrirConfirm('Borrar todas las conversaciones', 'Se eliminarán TODAS las conversaciones del sistema. Esta acción no se puede deshacer.', () => borrarTodo())"
                         title="Borrar todas las conversaciones"
                         class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,13 +27,11 @@
             </div>
         </div>
 
-        {{-- Buscador --}}
         <div class="px-3 py-2 border-b border-gray-100">
             <input type="text" x-model="busqueda" placeholder="Buscar contacto…"
                    class="w-full text-xs rounded-lg border border-gray-200 px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400">
         </div>
 
-        {{-- Estado del bot --}}
         <div class="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full {{ $botActivo ? 'bg-green-500' : 'bg-red-400' }}"></span>
@@ -47,9 +42,7 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('bot.index') }}" class="text-xs text-blue-500 hover:underline">Configurar</a>
                 @if(auth()->user()->hasRole('super_admin'))
-                <button type="button"
-                        @click="confirmarBorrarLogs()"
-                        title="Limpiar archivo de logs"
+                <button type="button" @click="limpiarLogs()"
                         class="text-xs text-red-400 hover:text-red-600 hover:underline">
                     Limpiar logs
                 </button>
@@ -57,7 +50,6 @@
             </div>
         </div>
 
-        {{-- Lista de contactos --}}
         <div class="flex-1 overflow-y-auto">
             <template x-if="contactos.length === 0">
                 <p class="text-center text-xs text-gray-400 py-10 px-4">
@@ -72,8 +64,7 @@
                             :class="contactoActivo?.phone === c.phone ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'">
                         <div class="flex items-start justify-between">
                             <div class="min-w-0">
-                                <p class="text-sm font-medium text-gray-800 truncate"
-                                   x-text="c.contact_name || c.phone"></p>
+                                <p class="text-sm font-medium text-gray-800 truncate" x-text="c.contact_name || c.phone"></p>
                                 <p class="text-xs text-gray-400 truncate" x-text="c.phone"></p>
                                 <p class="text-xs text-gray-400 mt-0.5 truncate" x-text="'📱 ' + c.instancia"></p>
                             </div>
@@ -85,8 +76,7 @@
                             </div>
                         </div>
                     </button>
-                    {{-- Botón eliminar contacto --}}
-                    <button @click.stop="confirmarBorrarContacto(c)"
+                    <button @click.stop="abrirConfirm('Borrar conversación', '¿Eliminar todas las conversaciones de ' + (c.contact_name || c.phone) + '?', () => borrarContacto(c))"
                             title="Eliminar conversación"
                             class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,7 +92,6 @@
     {{-- ── Panel derecho: chat ─────────────────────────────────────────────── --}}
     <div class="flex-1 flex flex-col">
 
-        {{-- Sin contacto seleccionado --}}
         <template x-if="!contactoActivo">
             <div class="flex-1 flex items-center justify-center text-gray-400">
                 <div class="text-center">
@@ -115,16 +104,12 @@
             </div>
         </template>
 
-        {{-- Chat activo --}}
         <template x-if="contactoActivo">
             <div class="flex flex-col h-full">
-
-                {{-- Cabecera del chat --}}
                 <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm"
-                             x-text="(contactoActivo.contact_name || contactoActivo.phone).charAt(0).toUpperCase()">
-                        </div>
+                             x-text="(contactoActivo.contact_name || contactoActivo.phone).charAt(0).toUpperCase()"></div>
                         <div>
                             <p class="font-semibold text-gray-800 text-sm"
                                x-text="contactoActivo.contact_name || contactoActivo.phone"></p>
@@ -132,9 +117,7 @@
                                x-text="contactoActivo.phone + ' · ' + contactoActivo.instancia"></p>
                         </div>
                     </div>
-                    {{-- Borrar conversación activa --}}
-                    <button @click="confirmarBorrarContacto(contactoActivo)"
-                            title="Eliminar esta conversación"
+                    <button @click="abrirConfirm('Borrar conversación', '¿Eliminar la conversación de ' + (contactoActivo.contact_name || contactoActivo.phone) + '?', () => borrarContacto(contactoActivo))"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -144,10 +127,7 @@
                     </button>
                 </div>
 
-                {{-- Mensajes --}}
-                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50"
-                     id="chat-mensajes">
-
+                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50" id="chat-mensajes">
                     <template x-if="cargando">
                         <div class="flex justify-center py-8">
                             <svg class="animate-spin w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24">
@@ -159,16 +139,13 @@
 
                     <template x-for="m in mensajes" :key="m.id">
                         <div class="space-y-2">
-                            {{-- Mensaje del usuario (burbuja derecha) --}}
                             <div class="flex justify-end">
                                 <div class="max-w-[72%]">
                                     <div class="bg-blue-500 text-white text-sm px-4 py-2 rounded-2xl rounded-tr-sm shadow-sm whitespace-pre-wrap"
                                          x-text="m.user_message"></div>
-                                    <p class="text-right text-xs text-gray-400 mt-1"
-                                       x-text="formatHora(m.created_at)"></p>
+                                    <p class="text-right text-xs text-gray-400 mt-1" x-text="formatHora(m.created_at)"></p>
                                 </div>
                             </div>
-                            {{-- Respuesta del bot (burbuja izquierda) --}}
                             <div class="flex justify-start">
                                 <div class="max-w-[72%]">
                                     <div class="bg-white text-gray-800 text-sm px-4 py-2 rounded-2xl rounded-tl-sm shadow-sm border border-gray-100 whitespace-pre-wrap"
@@ -183,39 +160,45 @@
             </div>
         </template>
     </div>
-</div>
 
-{{-- Modal de confirmación --}}
-<template x-teleport="body">
-    <div x-data="confirmDialog()" @show-confirm.window="mostrar($event.detail)" x-show="abierto"
-         class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelar()"></div>
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    </svg>
+    {{-- ── Modal de confirmación — mismo scope, x-teleport al body ───────── --}}
+    <template x-teleport="body">
+        <div x-show="dlg.abierto"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+             style="display:none">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+                <div class="flex items-start gap-4 mb-5">
+                    <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-900 text-sm" x-text="dlg.titulo"></p>
+                        <p class="text-xs text-gray-500 mt-1" x-text="dlg.mensaje"></p>
+                    </div>
                 </div>
-                <div>
-                    <p class="font-semibold text-gray-900 text-sm" x-text="titulo"></p>
-                    <p class="text-xs text-gray-500 mt-1" x-text="mensaje"></p>
+                <div class="flex justify-end gap-2">
+                    <button @click="dlg.abierto = false"
+                            class="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        Cancelar
+                    </button>
+                    <button @click="ejecutarConfirm()"
+                            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                        Eliminar
+                    </button>
                 </div>
-            </div>
-            <div class="mt-5 flex justify-end gap-2">
-                <button @click="cancelar()"
-                        class="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                    Cancelar
-                </button>
-                <button @click="confirmar()"
-                        class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
-                    Eliminar
-                </button>
             </div>
         </div>
-    </div>
-</template>
+    </template>
+</div>
 
 <script>
 function botConversaciones() {
@@ -228,6 +211,14 @@ function botConversaciones() {
         conectado:      false,
         _pollInterval:  null,
         _csrf:          document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+
+        // Estado del modal de confirmación (mismo scope, sin eventos)
+        dlg: {
+            abierto: false,
+            titulo:  '',
+            mensaje: '',
+            accion:  null,
+        },
 
         get contactosFiltrados() {
             if (!this.busqueda) return this.contactos;
@@ -243,7 +234,22 @@ function botConversaciones() {
             this.escucharEventos();
         },
 
-        // ── Carga / refresca lista de contactos preservando indicador "nuevo" ──
+        // ── Modal de confirmación ──────────────────────────────────────────
+        abrirConfirm(titulo, mensaje, accion) {
+            this.dlg.titulo  = titulo;
+            this.dlg.mensaje = mensaje;
+            this.dlg.accion  = accion;
+            this.dlg.abierto = true;
+        },
+
+        async ejecutarConfirm() {
+            this.dlg.abierto = false;
+            if (this.dlg.accion) {
+                await this.dlg.accion();
+            }
+        },
+
+        // ── Contactos ──────────────────────────────────────────────────────
         async cargarContactos() {
             try {
                 const res = await axios.get('{{ route("bot.contactos") }}');
@@ -255,7 +261,6 @@ function botConversaciones() {
             }
         },
 
-        // ── Seleccionar contacto y cargar mensajes ──
         async seleccionar(contacto) {
             this.contactoActivo = contacto;
             this.cargando       = true;
@@ -276,28 +281,7 @@ function botConversaciones() {
             }
         },
 
-        // ── Borrar conversación individual ──
-        confirmarBorrarContacto(contacto) {
-            window.dispatchEvent(new CustomEvent('show-confirm', {
-                detail: {
-                    titulo:  'Borrar conversación',
-                    mensaje: `¿Eliminar todas las conversaciones de ${contacto.contact_name || contacto.phone}? Esta acción no se puede deshacer.`,
-                    accion:  async () => { await this.borrarContacto(contacto); },
-                },
-            }));
-        },
-
-        // ── Borrar todas las conversaciones ──
-        confirmarBorrarTodo() {
-            window.dispatchEvent(new CustomEvent('show-confirm', {
-                detail: {
-                    titulo:  'Borrar todas las conversaciones',
-                    mensaje: 'Se eliminarán TODAS las conversaciones del sistema. Esta acción no se puede deshacer.',
-                    accion:  async () => { await this.borrarTodo(); },
-                },
-            }));
-        },
-
+        // ── Borrar ─────────────────────────────────────────────────────────
         async borrarContacto(contacto) {
             try {
                 const phone = encodeURIComponent(contacto.phone);
@@ -311,7 +295,7 @@ function botConversaciones() {
                 }
             } catch (e) {
                 console.error('Error borrando conversación', e);
-                alert('No se pudo eliminar la conversación.');
+                alert('No se pudo eliminar la conversación. Ver consola.');
             }
         },
 
@@ -325,30 +309,32 @@ function botConversaciones() {
                 this.mensajes       = [];
             } catch (e) {
                 console.error('Error borrando todas las conversaciones', e);
-                alert('No se pudo eliminar las conversaciones.');
+                alert('No se pudo eliminar. Ver consola.');
             }
         },
 
-        // ── Limpiar logs (solo super_admin, método siempre existe) ──
         @if(auth()->user()->hasRole('super_admin'))
-        confirmarBorrarLogs() {
-            if (!confirm('¿Limpiar el archivo de logs del sistema? Esta acción no se puede deshacer.')) return;
-            axios.delete('{{ route("admin.logs.clear") }}', {
-                headers: { 'X-CSRF-TOKEN': this._csrf },
-            }).then(() => alert('Logs limpiados correctamente.'))
-              .catch(() => alert('No se pudo limpiar el archivo de logs.'));
+        async limpiarLogs() {
+            if (!confirm('¿Limpiar el archivo de logs del sistema?')) return;
+            try {
+                await axios.delete('{{ route("admin.logs.clear") }}', {
+                    headers: { 'X-CSRF-TOKEN': this._csrf },
+                });
+                alert('Logs limpiados correctamente.');
+            } catch (e) {
+                alert('No se pudo limpiar el archivo de logs.');
+            }
         },
         @else
-        confirmarBorrarLogs() {},
+        limpiarLogs() {},
         @endif
 
-        // ── WebSocket + polling fallback ──
+        // ── WebSocket + polling ────────────────────────────────────────────
         escucharEventos() {
-            // Siempre arranca polling; se pausa si WS conecta
             this.iniciarPolling();
 
             if (typeof window.Echo === 'undefined') {
-                console.warn('Laravel Echo no disponible. Usando polling cada 5 s.');
+                console.warn('Echo no disponible. Usando polling cada 5 s.');
                 return;
             }
 
@@ -356,10 +342,9 @@ function botConversaciones() {
                 const tenantId = '{{ tenancy()->tenant?->getTenantKey() ?? "" }}';
                 const canal    = tenantId ? `bot-tenant.${tenantId}` : 'bot-conversaciones';
 
-                window.Echo.channel(canal)
-                    .listen('.nuevo-mensaje', (data) => {
-                        this.manejarNuevoMensaje(data);
-                    });
+                window.Echo.channel(canal).listen('.nuevo-mensaje', (data) => {
+                    this.manejarNuevoMensaje(data);
+                });
 
                 window.Echo.connector.pusher.connection.bind('connected', () => {
                     this.conectado = true;
@@ -382,7 +367,6 @@ function botConversaciones() {
             if (this._pollInterval) return;
             this._pollInterval = setInterval(async () => {
                 await this.cargarContactos();
-                // Refrescar mensajes del contacto activo si hay mensajes nuevos
                 if (this.contactoActivo) {
                     try {
                         const phone = encodeURIComponent(this.contactoActivo.phone);
@@ -404,7 +388,7 @@ function botConversaciones() {
         },
 
         manejarNuevoMensaje(data) {
-            const idx     = this.contactos.findIndex(c => c.phone === data.phone);
+            const idx      = this.contactos.findIndex(c => c.phone === data.phone);
             const esActivo = this.contactoActivo?.phone === data.phone;
 
             if (idx !== -1) {
@@ -424,10 +408,10 @@ function botConversaciones() {
 
             if (esActivo) {
                 this.mensajes.push({
-                    id:            data.id,
-                    user_message:  data.user_message,
-                    bot_response:  data.bot_response,
-                    created_at:    new Date().toISOString(),
+                    id:           data.id,
+                    user_message: data.user_message,
+                    bot_response: data.bot_response,
+                    created_at:   new Date().toISOString(),
                 });
                 this.$nextTick(() => this.scrollAbajo());
             }
@@ -445,32 +429,6 @@ function botConversaciones() {
             } catch {
                 return valor;
             }
-        },
-    };
-}
-
-function confirmDialog() {
-    return {
-        abierto:  false,
-        titulo:   '',
-        mensaje:  '',
-        _accion:  null,
-
-        mostrar(detail) {
-            this.titulo  = detail.titulo;
-            this.mensaje = detail.mensaje;
-            this._accion = detail.accion;
-            this.abierto = true;
-        },
-
-        async confirmar() {
-            this.abierto = false;
-            if (this._accion) await this._accion();
-        },
-
-        cancelar() {
-            this.abierto = false;
-            this._accion = null;
         },
     };
 }

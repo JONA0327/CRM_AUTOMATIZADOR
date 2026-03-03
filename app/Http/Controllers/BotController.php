@@ -695,6 +695,10 @@ class BotController extends Controller
         if (!$handle) return [];
 
         $size     = filesize($file);
+        if ($size === 0) {
+            fclose($handle);
+            return [];
+        }
         $readSize = min(512 * 1024, $size); // Últimos 512 KB
         fseek($handle, max(0, $size - $readSize));
         $content = fread($handle, $readSize);
