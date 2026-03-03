@@ -18,7 +18,7 @@ class TenantController extends Controller
      */
     public function index()
     {
-        $negocios = Tenant::with(['instances', 'users' => fn($q) => $q->whereHas('roles', fn($r) => $r->whereIn('name', ['anfitrion', 'colaborador']))])
+        $negocios = Tenant::with(['instances', 'users' => fn($q) => $q->whereHas('roles', fn($r) => $r->whereIn('name', ['anfitrion', 'colaborador']))->with('roles')])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($t) {

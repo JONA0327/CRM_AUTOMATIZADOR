@@ -285,6 +285,8 @@ class BotController extends Controller
 
         $nombre = $request->nombre;
         $usarQr = $request->input('metodo', 'qr') !== 'phone';
+        // Teléfono opcional para modo phone — dígitos únicamente con código de país
+        $telefono = $usarQr ? null : preg_replace('/\D/', '', (string) $request->input('telefono', '')) ?: null;
 
         // Verificar límite de instancias del plan
         $user = auth()->user();
@@ -302,15 +304,22 @@ class BotController extends Controller
         }
 
         try {
+            $createBody = [
+                'instanceName' => $nombre,
+                'qrcode'       => $usarQr,
+                'integration'  => 'WHATSAPP-BAILEYS',
+            ];
+            // En modo phone incluimos el número para que Evolution API inicie
+            // el flujo de pairing code desde la creación (funciona en v2.1+)
+            if (! $usarQr && $telefono) {
+                $createBody['number'] = $telefono;
+            }
+
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
-                ->post("{$this->apiUrl}/instance/create", [
-                    'instanceName' => $nombre,
-                    'qrcode'       => $usarQr,
-                    'integration'  => 'WHATSAPP-BAILEYS',
-                ]);
+                ->post("{$this->apiUrl}/instance/create", $createBody);
 
-            // Si la instancia ya existe (409), la eliminamos y reintentamos
+            // Si ya existe (409), eliminamos y reintentamos
             if ($response->status() === 409) {
                 Http::withHeaders(['apikey' => $this->apiKey])
                     ->timeout(10)
@@ -318,11 +327,7 @@ class BotController extends Controller
 
                 $response = Http::withHeaders(['apikey' => $this->apiKey])
                     ->timeout(15)
-                    ->post("{$this->apiUrl}/instance/create", [
-                        'instanceName' => $nombre,
-                        'qrcode'       => $usarQr,
-                        'integration'  => 'WHATSAPP-BAILEYS',
-                    ]);
+                    ->post("{$this->apiUrl}/instance/create", $createBody);
             }
 
             if (! $response->successful()) {
@@ -334,10 +339,9 @@ class BotController extends Controller
 
             $data = $response->json();
 
-            // Para modo QR: extraer el código del response o pedirlo vía connect
+            // ── Modo QR: extraer QR del response o pedirlo vía connect ────────
             $qr = null;
             if ($usarQr) {
-                // Evolution v2: el QR puede venir dentro de 'qrcode.base64'
                 $qr = data_get($data, 'qrcode.base64');
 
                 if (! $qr) {
@@ -350,6 +354,46 @@ class BotController extends Controller
                         $qr = data_get($qrResponse->json(), 'base64')
                             ?? data_get($qrResponse->json(), 'qrcode.base64')
                             ?? data_get($qrResponse->json(), 'qrcode');
+                    }
+                }
+            }
+
+            // ── Modo Phone: intentar obtener pairing code ahora mismo ─────────
+            $pairingCode = null;
+            if (! $usarQr && $telefono) {
+                // 1) Puede venir directo en la respuesta del create
+                $pairingCode = data_get($data, 'pairingCode')
+                    ?? data_get($data, 'hash.pairingCode')
+                    ?? data_get($data, 'qrcode.pairingCode');
+
+                // 2) Si no viene, llamar /instance/connect y esperar el código
+                if (! $pairingCode) {
+                    sleep(2);
+                    $connectRes = Http::withHeaders(['apikey' => $this->apiKey])
+                        ->timeout(15)
+                        ->get("{$this->apiUrl}/instance/connect/{$nombre}");
+
+                    if ($connectRes->successful()) {
+                        $candidato = data_get($connectRes->json(), 'pairingCode')
+                            ?? data_get($connectRes->json(), 'code');
+
+                        // El pairing code es corto (≤12 chars); el string del QR es muy largo
+                        if ($candidato && strlen((string) $candidato) <= 12) {
+                            $pairingCode = $candidato;
+                        }
+                    }
+                }
+
+                // 3) Último intento: POST /instance/pairingCode (v2.1+)
+                if (! $pairingCode) {
+                    $pairRes = Http::withHeaders(['apikey' => $this->apiKey])
+                        ->timeout(10)
+                        ->post("{$this->apiUrl}/instance/pairingCode/{$nombre}", [
+                            'phoneNumber' => $telefono,
+                        ]);
+                    if ($pairRes->successful()) {
+                        $pairingCode = data_get($pairRes->json(), 'code')
+                            ?? data_get($pairRes->json(), 'pairingCode');
                     }
                 }
             }
@@ -392,10 +436,11 @@ class BotController extends Controller
             }
 
             return response()->json([
-                'success'     => true,
-                'qr'          => $qr,
-                'instancia'   => $nombre,
-                'webhook_url' => $webhookUrl,
+                'success'      => true,
+                'qr'           => $qr,
+                'instancia'    => $nombre,
+                'webhook_url'  => $webhookUrl,
+                'pairingCode'  => $pairingCode,
             ]);
         } catch (\Exception $e) {
             return response()->json([

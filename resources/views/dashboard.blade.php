@@ -10,12 +10,12 @@
 
     {{-- ── Mensajes flash ── --}}
     @if(session('error'))
-        <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex justify-between items-center">
+        <div role="alert" aria-live="assertive" class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex justify-between items-center">
             <span>{{ session('error') }}</span>
         </div>
     @endif
     @if(session('info'))
-        <div class="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
+        <div role="status" aria-live="polite" class="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
             {{ session('info') }}
         </div>
     @endif

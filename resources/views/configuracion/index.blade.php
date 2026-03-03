@@ -3,6 +3,7 @@
     {{-- Flash success --}}
     @if (session('success'))
         <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+             role="status" aria-live="polite"
              class="mb-5 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-4">
             <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -23,7 +24,7 @@
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Configuración</p>
                     </div>
-                    <nav class="p-2 space-y-0.5">
+                    <nav class="p-2 space-y-0.5" role="tablist" aria-label="Secciones de configuración" aria-orientation="vertical">
                         @foreach([
                             ['id' => 'bot',       'icon' => 'bot',      'label' => 'Bot & Prompts',    'color' => 'purple'],
                             ['id' => 'whatsapp',  'icon' => 'wa',       'label' => 'WhatsApp',         'color' => 'green'],
@@ -32,11 +33,16 @@
                             ['id' => 'dbs',       'icon' => 'db',       'label' => 'Bases de Datos',   'color' => 'indigo'],
                         ] as $tab)
                         <button type="button"
+                                role="tab"
+                                id="tab-{{ $tab['id'] }}"
+                                aria-controls="panel-{{ $tab['id'] }}"
                                 @click="activeTab = '{{ $tab['id'] }}'"
+                                :aria-selected="(activeTab === '{{ $tab['id'] }}').toString()"
+                                :tabindex="activeTab === '{{ $tab['id'] }}' ? 0 : -1"
                                 :class="activeTab === '{{ $tab['id'] }}'
                                     ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-semibold'
                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900'"
-                                class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-left">
+                                class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-left focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none">
 
                             {{-- Íconos por tab --}}
                             @if($tab['icon'] === 'bot')
@@ -98,7 +104,8 @@
             <div class="flex-1 min-w-0 space-y-5">
 
                 {{-- ─── TAB: BOT & PROMPTS ─── --}}
-                <div x-show="activeTab === 'bot'" x-cloak>
+                <div x-show="activeTab === 'bot'" x-cloak
+                     id="panel-bot" role="tabpanel" aria-labelledby="tab-bot">
 
                     {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
                     @php
@@ -552,7 +559,8 @@
                 </div>
 
                 {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
-                <div x-show="activeTab === 'whatsapp'" x-cloak>
+                <div x-show="activeTab === 'whatsapp'" x-cloak
+                     id="panel-whatsapp" role="tabpanel" aria-labelledby="tab-whatsapp">
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <div class="flex items-center gap-3">
@@ -595,7 +603,8 @@
                 </div>
 
                 {{-- ─── TAB: MODELOS DE IA ─── --}}
-                <div x-show="activeTab === 'ia'" x-cloak class="space-y-4">
+                <div x-show="activeTab === 'ia'" x-cloak class="space-y-4"
+                     id="panel-ia" role="tabpanel" aria-labelledby="tab-ia">
 
                     {{-- Info banner --}}
                     <div class="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800">
@@ -1001,7 +1010,8 @@
                 </div>
 
                 {{-- ─── TAB: SERVICIOS ─── --}}
-                <div x-show="activeTab === 'servicios'" x-cloak class="space-y-4">
+                <div x-show="activeTab === 'servicios'" x-cloak class="space-y-4"
+                     id="panel-servicios" role="tabpanel" aria-labelledby="tab-servicios">
 
                     {{-- Google --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
@@ -1190,7 +1200,8 @@
                 </div>
 
                 {{-- ─── TAB: BASES DE DATOS ─── --}}
-                <div x-show="activeTab === 'dbs'" x-cloak x-data="extDbManager()">
+                <div x-show="activeTab === 'dbs'" x-cloak x-data="extDbManager()"
+                     id="panel-dbs" role="tabpanel" aria-labelledby="tab-dbs">
 
                     <input type="hidden" name="ext_dbs" :value="jsonFinal"/>
 

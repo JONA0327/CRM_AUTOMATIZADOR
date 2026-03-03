@@ -4,14 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="BotAutomate — {{ $title ?? 'Panel de administración' }}">
     <title>BotAutomate — {{ $title ?? 'Dashboard' }}</title>
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased" x-data="{ sidebarOpen: false }">
+
+{{-- Skip link — accesibilidad teclado --}}
+<a href="#main-content"
+   class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-white focus:text-blue-700 focus:font-semibold focus:rounded-lg focus:shadow-lg focus:ring-2 focus:ring-blue-500">
+    Saltar al contenido principal
+</a>
 
 <div class="flex h-screen overflow-hidden">
 
@@ -32,6 +41,7 @@
         SIDEBAR
     ============================================================ --}}
     <aside
+        id="sidebar"
         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
         class="fixed inset-y-0 left-0 z-30 w-64 flex flex-col
                bg-gradient-to-b from-blue-600 via-blue-700 to-blue-900
@@ -50,7 +60,7 @@
         </div>
 
         {{-- Navegación --}}
-        <nav class="flex-1 px-3 py-5 overflow-y-auto space-y-0.5">
+        <nav class="flex-1 px-3 py-5 overflow-y-auto space-y-0.5" aria-label="Navegación principal">
 
             @php
                 $authUser      = auth()->user();
@@ -225,9 +235,9 @@
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" title="Cerrar sesión"
-                            class="text-blue-200 hover:text-white transition-colors p-1 rounded">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button type="submit" aria-label="Cerrar sesión"
+                            class="text-blue-200 hover:text-white transition-colors p-1 rounded focus-visible:ring-2 focus-visible:ring-white">
+                        <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                         </svg>
@@ -249,8 +259,11 @@
                 {{-- Hamburger (móvil) + título --}}
                 <div class="flex items-center gap-4">
                     <button @click="sidebarOpen = true"
-                            class="lg:hidden text-gray-400 hover:text-gray-600 focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            aria-label="Abrir menú de navegación"
+                            :aria-expanded="sidebarOpen.toString()"
+                            aria-controls="sidebar"
+                            class="lg:hidden text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
+                        <svg class="w-6 h-6" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
@@ -261,19 +274,24 @@
                 {{-- Dropdown de usuario --}}
                 <div x-data="{ open: false }" class="relative">
                     <button @click="open = !open"
-                            class="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 focus:outline-none">
-                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            :aria-expanded="open.toString()"
+                            aria-haspopup="menu"
+                            aria-controls="user-dropdown"
+                            class="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg px-1">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center" aria-hidden="true">
                             <span class="text-white text-xs font-bold">
                                 {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                             </span>
                         </div>
                         <span class="hidden sm:block font-medium">{{ Auth::user()->name }}</span>
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
 
-                    <div x-show="open" @click.away="open = false"
+                    <div id="user-dropdown"
+                         role="menu"
+                         x-show="open" @click.away="open = false"
                          x-transition:enter="transition ease-out duration-100"
                          x-transition:enter-start="opacity-0 scale-95"
                          x-transition:enter-end="opacity-100 scale-100"
@@ -282,19 +300,21 @@
                          x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                         <a href="{{ route('profile.edit') }}"
-                           class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           role="menuitem"
+                           class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:bg-gray-50">
+                            <svg class="w-4 h-4 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                             </svg>
                             Mi Perfil
                         </a>
-                        <div class="h-px bg-gray-100 my-1"></div>
+                        <div class="h-px bg-gray-100 my-1" role="separator"></div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"
-                                    class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    role="menuitem"
+                                    class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:bg-red-50">
+                                <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                 </svg>
@@ -308,7 +328,7 @@
         </header>
 
         {{-- Área de contenido scrollable --}}
-        <main class="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <main id="main-content" class="flex-1 overflow-y-auto bg-gray-50 p-6" tabindex="-1">
             {{ $slot }}
         </main>
 

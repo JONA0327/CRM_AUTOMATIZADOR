@@ -210,11 +210,17 @@
                  class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <template x-for="record in records" :key="record.id">
                     <div @click="abrirDetalle(record)"
-                         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
+                         @keydown.enter="abrirDetalle(record)"
+                         @keydown.space.prevent="abrirDetalle(record)"
+                         tabindex="0"
+                         role="button"
+                         :aria-label="'Ver detalle de ' + getCardTitle(record)"
+                         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none">
 
                         {{-- Media (imagen o video) --}}
                         <template x-if="getCoverMedia(record) && getCoverMedia(record).tipo === 'imagen'">
                             <img :src="getCoverMedia(record).url"
+                                 :alt="getCardTitle(record)"
                                  class="w-full h-44 object-cover flex-shrink-0"
                                  loading="lazy">
                         </template>
@@ -301,8 +307,10 @@
                 <div class="flex justify-between items-center px-6 py-4 border-b dark:border-gray-700 flex-shrink-0">
                     <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 truncate pr-4"
                         x-text="recordDetalle ? getCardTitle(recordDetalle) : ''"></h3>
-                    <button @click="modalDetalle = false" class="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button @click="modalDetalle = false"
+                            aria-label="Cerrar detalle"
+                            class="text-gray-400 hover:text-gray-600 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-gray-400 rounded">
+                        <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
@@ -314,6 +322,7 @@
                             {{-- Media --}}
                             <template x-if="getCoverMedia(recordDetalle) && getCoverMedia(recordDetalle).tipo === 'imagen'">
                                 <img :src="getCoverMedia(recordDetalle).url"
+                                     :alt="getCardTitle(recordDetalle)"
                                      class="w-full max-h-64 object-contain rounded-xl border border-gray-100">
                             </template>
                             <template x-if="getCoverMedia(recordDetalle) && getCoverMedia(recordDetalle).tipo === 'video'">

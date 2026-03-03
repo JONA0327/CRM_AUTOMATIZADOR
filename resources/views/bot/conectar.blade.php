@@ -20,6 +20,7 @@
             </div>
 
             <div x-show="errorMsg" x-transition
+                 role="alert" aria-live="assertive"
                  class="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm">
                 <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
@@ -31,12 +32,14 @@
 
                 {{-- Nombre de la instancia --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Nombre de la instancia</label>
-                    <input x-model="nombre" type="text"
+                    <label for="instancia-nombre" class="block text-sm font-medium text-gray-700 mb-1.5">Nombre de la instancia</label>
+                    <input id="instancia-nombre" x-model="nombre" type="text"
                            placeholder="ej. ventas-principal"
                            maxlength="50"
+                           autocomplete="off"
+                           aria-describedby="instancia-nombre-hint"
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                    <p class="mt-1.5 text-xs text-gray-400">Solo letras, números, guiones y guiones bajos. Sin espacios.</p>
+                    <p id="instancia-nombre-hint" class="mt-1.5 text-xs text-gray-400">Solo letras, números, guiones y guiones bajos. Sin espacios.</p>
                 </div>
 
                 {{-- Selector de método --}}
@@ -73,9 +76,24 @@
                     </div>
                 </div>
 
+                {{-- Número de teléfono (solo modo phone) --}}
+                <div x-show="metodo === 'phone'" x-transition>
+                    <label for="instancia-telefono" class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Número de teléfono WhatsApp
+                    </label>
+                    <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500 focus-within:border-green-500 transition">
+                        <span class="px-3 py-3 bg-gray-50 text-gray-500 text-sm border-r border-gray-300 select-none" aria-hidden="true">+</span>
+                        <input id="instancia-telefono" x-model="telefono" type="tel"
+                               placeholder="521234567890  (con código de país)"
+                               aria-describedby="instancia-telefono-hint"
+                               class="flex-1 px-3 py-3 text-sm outline-none bg-white">
+                    </div>
+                    <p id="instancia-telefono-hint" class="mt-1.5 text-xs text-gray-400">Incluye el código de país sin el +. Ej: 521234567890</p>
+                </div>
+
                 {{-- Botón continuar --}}
                 <button @click="continuar"
-                        :disabled="cargando || !nombre.trim()"
+                        :disabled="cargando || !nombre.trim() || (metodo === 'phone' && !telefono.trim())"
                         class="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors">
                     <template x-if="cargando">
                         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -83,7 +101,10 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                         </svg>
                     </template>
-                    <span x-text="cargando ? 'Creando instancia...' : (metodo === 'qr' ? 'Generar código QR' : 'Continuar')"></span>
+                    <span x-text="cargando
+                        ? (metodo === 'phone' ? 'Generando código… (puede tardar ~5s)' : 'Creando instancia...')
+                        : (metodo === 'qr' ? 'Generar código QR' : 'Obtener código de emparejamiento')">
+                    </span>
                 </button>
             </div>
         </div>
@@ -166,6 +187,7 @@
             </div>
 
             <div x-show="errorMsg" x-transition
+                 role="alert" aria-live="assertive"
                  class="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm">
                 <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
@@ -360,7 +382,11 @@ function qrScanner() {
                         'X-CSRF-TOKEN': this._csrf,
                         'Accept':       'application/json',
                     },
-                    body: JSON.stringify({ nombre: this.nombre.trim(), metodo: this.metodo }),
+                    body: JSON.stringify({
+                        nombre:   this.nombre.trim(),
+                        metodo:   this.metodo,
+                        telefono: this.telefono.trim(),
+                    }),
                 });
 
                 const data = await res.json();
@@ -378,8 +404,13 @@ function qrScanner() {
                         : '';
                     this.paso = 'qr';
                     this.iniciarPolling();
+                } else if (data.pairingCode) {
+                    // El servidor ya nos devolvió el código — mostrarlo directamente
+                    this.pairingCode = data.pairingCode;
+                    this.paso        = 'pairing-code';
+                    this.iniciarPolling();
                 } else {
-                    // Para pairing code no necesitamos el QR
+                    // Fallback: pedir código manualmente (método antiguo)
                     this.paso = 'pairing-phone';
                 }
 
