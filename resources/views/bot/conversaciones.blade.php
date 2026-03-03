@@ -1,23 +1,24 @@
 <x-admin-layout title="Conversaciones del Bot">
 
-<div class="flex gap-0 h-[calc(100vh-10rem)] bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+{{-- Un solo componente Alpine cubre todo el layout --}}
+<div class="flex gap-0 h-[calc(100vh-10rem)] bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+     x-data="botConversaciones()"
+     x-init="init()">
 
     {{-- ── Panel izquierdo: lista de contactos ───────────────────────────── --}}
-    <div class="w-80 flex-shrink-0 border-r border-gray-100 flex flex-col"
-         x-data="botConversaciones()"
-         x-init="init()">
+    <div class="w-80 flex-shrink-0 border-r border-gray-100 flex flex-col">
 
         {{-- Cabecera --}}
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Contactos</span>
             <div class="flex items-center gap-2">
                 <span class="flex items-center gap-1 text-xs"
-                      :class="conectado ? 'text-green-600' : 'text-gray-400'">
+                      :class="conectado ? 'text-green-600' : 'text-amber-500'">
                     <span class="w-2 h-2 rounded-full"
-                          :class="conectado ? 'bg-green-500 animate-pulse' : 'bg-gray-300'"></span>
-                    <span x-text="conectado ? 'EN VIVO' : 'Conectando…'"></span>
+                          :class="conectado ? 'bg-green-500 animate-pulse' : 'bg-amber-400 animate-pulse'"></span>
+                    <span x-text="conectado ? 'EN VIVO' : 'Polling'"></span>
                 </span>
-                {{-- Borrar todo (anfitrion) --}}
+                {{-- Borrar todo --}}
                 <button @click="confirmarBorrarTodo()"
                         title="Borrar todas las conversaciones"
                         class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -46,9 +47,8 @@
             <div class="flex items-center gap-2">
                 <a href="{{ route('bot.index') }}" class="text-xs text-blue-500 hover:underline">Configurar</a>
                 @if(auth()->user()->hasRole('super_admin'))
-                {{-- Borrar archivo de logs --}}
                 <button type="button"
-                        onclick="confirmarBorrarLogs()"
+                        @click="confirmarBorrarLogs()"
                         title="Limpiar archivo de logs"
                         class="text-xs text-red-400 hover:text-red-600 hover:underline">
                     Limpiar logs
@@ -100,10 +100,10 @@
     </div>
 
     {{-- ── Panel derecho: chat ─────────────────────────────────────────────── --}}
-    <div class="flex-1 flex flex-col" x-data>
+    <div class="flex-1 flex flex-col">
 
         {{-- Sin contacto seleccionado --}}
-        <template x-if="!$store.bot || !$store.bot.contactoActivo">
+        <template x-if="!contactoActivo">
             <div class="flex-1 flex items-center justify-center text-gray-400">
                 <div class="text-center">
                     <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,25 +116,24 @@
         </template>
 
         {{-- Chat activo --}}
-        <template x-if="$store.bot && $store.bot.contactoActivo">
+        <template x-if="contactoActivo">
             <div class="flex flex-col h-full">
 
                 {{-- Cabecera del chat --}}
                 <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm"
-                             x-text="($store.bot.contactoActivo.contact_name || $store.bot.contactoActivo.phone).charAt(0).toUpperCase()">
+                             x-text="(contactoActivo.contact_name || contactoActivo.phone).charAt(0).toUpperCase()">
                         </div>
                         <div>
                             <p class="font-semibold text-gray-800 text-sm"
-                               x-text="$store.bot.contactoActivo.contact_name || $store.bot.contactoActivo.phone"></p>
+                               x-text="contactoActivo.contact_name || contactoActivo.phone"></p>
                             <p class="text-xs text-gray-400"
-                               x-text="$store.bot.contactoActivo.phone + ' · ' + $store.bot.contactoActivo.instancia"></p>
+                               x-text="contactoActivo.phone + ' · ' + contactoActivo.instancia"></p>
                         </div>
                     </div>
                     {{-- Borrar conversación activa --}}
-                    <button x-data
-                            @click="$dispatch('borrar-contacto', { contacto: $store.bot.contactoActivo })"
+                    <button @click="confirmarBorrarContacto(contactoActivo)"
                             title="Eliminar esta conversación"
                             class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +148,7 @@
                 <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50"
                      id="chat-mensajes">
 
-                    <template x-if="$store.bot.cargando">
+                    <template x-if="cargando">
                         <div class="flex justify-center py-8">
                             <svg class="animate-spin w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -158,7 +157,7 @@
                         </div>
                     </template>
 
-                    <template x-for="m in $store.bot.mensajes" :key="m.id">
+                    <template x-for="m in mensajes" :key="m.id">
                         <div class="space-y-2">
                             {{-- Mensaje del usuario (burbuja derecha) --}}
                             <div class="flex justify-end">
@@ -221,10 +220,14 @@
 <script>
 function botConversaciones() {
     return {
-        contactos: [],
+        contactos:      [],
         contactoActivo: null,
-        busqueda: '',
-        conectado: false,
+        mensajes:       [],
+        cargando:       false,
+        busqueda:       '',
+        conectado:      false,
+        _pollInterval:  null,
+        _csrf:          document.querySelector('meta[name="csrf-token"]')?.content ?? '',
 
         get contactosFiltrados() {
             if (!this.busqueda) return this.contactos;
@@ -236,71 +239,61 @@ function botConversaciones() {
         },
 
         async init() {
-            Alpine.store('bot', {
-                contactoActivo: null,
-                mensajes: [],
-                cargando: false,
-            });
-
             await this.cargarContactos();
             this.escucharEventos();
-
-            // Escuchar evento del botón de borrar en el panel derecho
-            window.addEventListener('borrar-contacto', (e) => {
-                this.confirmarBorrarContacto(e.detail.contacto);
-            });
         },
 
+        // ── Carga / refresca lista de contactos preservando indicador "nuevo" ──
         async cargarContactos() {
             try {
                 const res = await axios.get('{{ route("bot.contactos") }}');
-                this.contactos = res.data.map(c => ({ ...c, nuevo: false }));
+                const nuevoMap = {};
+                this.contactos.forEach(c => { if (c.nuevo) nuevoMap[c.phone] = true; });
+                this.contactos = res.data.map(c => ({ ...c, nuevo: !!nuevoMap[c.phone] }));
             } catch (e) {
                 console.error('Error cargando contactos', e);
             }
         },
 
+        // ── Seleccionar contacto y cargar mensajes ──
         async seleccionar(contacto) {
             this.contactoActivo = contacto;
-            Alpine.store('bot').contactoActivo = contacto;
-            Alpine.store('bot').cargando = true;
-            Alpine.store('bot').mensajes = [];
+            this.cargando       = true;
+            this.mensajes       = [];
 
             const idx = this.contactos.findIndex(c => c.phone === contacto.phone);
             if (idx !== -1) this.contactos[idx].nuevo = false;
 
             try {
                 const phone = encodeURIComponent(contacto.phone);
-                const res = await axios.get(`{{ url('/bot/mensajes') }}/${phone}`);
-                Alpine.store('bot').mensajes = res.data;
+                const res   = await axios.get(`{{ url('/bot/mensajes') }}/${phone}`);
+                this.mensajes = res.data;
             } catch (e) {
                 console.error('Error cargando mensajes', e);
             } finally {
-                Alpine.store('bot').cargando = false;
+                this.cargando = false;
                 this.$nextTick(() => this.scrollAbajo());
             }
         },
 
+        // ── Borrar conversación individual ──
         confirmarBorrarContacto(contacto) {
             window.dispatchEvent(new CustomEvent('show-confirm', {
                 detail: {
-                    titulo: 'Borrar conversación',
+                    titulo:  'Borrar conversación',
                     mensaje: `¿Eliminar todas las conversaciones de ${contacto.contact_name || contacto.phone}? Esta acción no se puede deshacer.`,
-                    accion: async () => {
-                        await this.borrarContacto(contacto);
-                    },
+                    accion:  async () => { await this.borrarContacto(contacto); },
                 },
             }));
         },
 
+        // ── Borrar todas las conversaciones ──
         confirmarBorrarTodo() {
             window.dispatchEvent(new CustomEvent('show-confirm', {
                 detail: {
-                    titulo: 'Borrar todas las conversaciones',
+                    titulo:  'Borrar todas las conversaciones',
                     mensaje: 'Se eliminarán TODAS las conversaciones del sistema. Esta acción no se puede deshacer.',
-                    accion: async () => {
-                        await this.borrarTodo();
-                    },
+                    accion:  async () => { await this.borrarTodo(); },
                 },
             }));
         },
@@ -309,13 +302,12 @@ function botConversaciones() {
             try {
                 const phone = encodeURIComponent(contacto.phone);
                 await axios.delete(`{{ url('/bot/conversaciones') }}/${phone}`, {
-                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    headers: { 'X-CSRF-TOKEN': this._csrf },
                 });
                 this.contactos = this.contactos.filter(c => c.phone !== contacto.phone);
                 if (this.contactoActivo?.phone === contacto.phone) {
                     this.contactoActivo = null;
-                    Alpine.store('bot').contactoActivo = null;
-                    Alpine.store('bot').mensajes = [];
+                    this.mensajes       = [];
                 }
             } catch (e) {
                 console.error('Error borrando conversación', e);
@@ -326,66 +318,116 @@ function botConversaciones() {
         async borrarTodo() {
             try {
                 await axios.delete('{{ route("bot.conversaciones.eliminar-todo") }}', {
-                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    headers: { 'X-CSRF-TOKEN': this._csrf },
                 });
-                this.contactos = [];
+                this.contactos      = [];
                 this.contactoActivo = null;
-                Alpine.store('bot').contactoActivo = null;
-                Alpine.store('bot').mensajes = [];
+                this.mensajes       = [];
             } catch (e) {
                 console.error('Error borrando todas las conversaciones', e);
                 alert('No se pudo eliminar las conversaciones.');
             }
         },
 
+        // ── Limpiar logs (solo super_admin, método siempre existe) ──
+        @if(auth()->user()->hasRole('super_admin'))
+        confirmarBorrarLogs() {
+            if (!confirm('¿Limpiar el archivo de logs del sistema? Esta acción no se puede deshacer.')) return;
+            axios.delete('{{ route("admin.logs.clear") }}', {
+                headers: { 'X-CSRF-TOKEN': this._csrf },
+            }).then(() => alert('Logs limpiados correctamente.'))
+              .catch(() => alert('No se pudo limpiar el archivo de logs.'));
+        },
+        @else
+        confirmarBorrarLogs() {},
+        @endif
+
+        // ── WebSocket + polling fallback ──
         escucharEventos() {
+            // Siempre arranca polling; se pausa si WS conecta
+            this.iniciarPolling();
+
             if (typeof window.Echo === 'undefined') {
-                console.warn('Laravel Echo no disponible. Verifica que Reverb esté corriendo.');
+                console.warn('Laravel Echo no disponible. Usando polling cada 5 s.');
                 return;
             }
 
-            const tenantId = '{{ tenancy()->tenant?->getTenantKey() ?? "" }}';
-            const canal = tenantId ? `bot-tenant.${tenantId}` : 'bot-conversaciones';
+            try {
+                const tenantId = '{{ tenancy()->tenant?->getTenantKey() ?? "" }}';
+                const canal    = tenantId ? `bot-tenant.${tenantId}` : 'bot-conversaciones';
 
-            window.Echo.channel(canal)
-                .listen('.nuevo-mensaje', (data) => {
+                window.Echo.channel(canal)
+                    .listen('.nuevo-mensaje', (data) => {
+                        this.manejarNuevoMensaje(data);
+                    });
+
+                window.Echo.connector.pusher.connection.bind('connected', () => {
                     this.conectado = true;
-                    this.manejarNuevoMensaje(data);
+                    this.detenerPolling();
                 });
+                window.Echo.connector.pusher.connection.bind('disconnected', () => {
+                    this.conectado = false;
+                    this.iniciarPolling();
+                });
+                window.Echo.connector.pusher.connection.bind('failed', () => {
+                    this.conectado = false;
+                    this.iniciarPolling();
+                });
+            } catch (e) {
+                console.warn('Echo error, continuando con polling:', e);
+            }
+        },
 
-            window.Echo.connector.pusher.connection.bind('connected', () => {
-                this.conectado = true;
-            });
-            window.Echo.connector.pusher.connection.bind('disconnected', () => {
-                this.conectado = false;
-            });
+        iniciarPolling() {
+            if (this._pollInterval) return;
+            this._pollInterval = setInterval(async () => {
+                await this.cargarContactos();
+                // Refrescar mensajes del contacto activo si hay mensajes nuevos
+                if (this.contactoActivo) {
+                    try {
+                        const phone = encodeURIComponent(this.contactoActivo.phone);
+                        const res   = await axios.get(`{{ url('/bot/mensajes') }}/${phone}`);
+                        if (res.data.length > this.mensajes.length) {
+                            this.mensajes = res.data;
+                            this.$nextTick(() => this.scrollAbajo());
+                        }
+                    } catch (_) {}
+                }
+            }, 5000);
+        },
+
+        detenerPolling() {
+            if (this._pollInterval) {
+                clearInterval(this._pollInterval);
+                this._pollInterval = null;
+            }
         },
 
         manejarNuevoMensaje(data) {
-            const idx = this.contactos.findIndex(c => c.phone === data.phone);
+            const idx     = this.contactos.findIndex(c => c.phone === data.phone);
             const esActivo = this.contactoActivo?.phone === data.phone;
 
             if (idx !== -1) {
                 this.contactos[idx].ultimo = data.hora;
-                this.contactos[idx].nuevo = !esActivo;
+                this.contactos[idx].nuevo  = !esActivo;
                 const c = this.contactos.splice(idx, 1)[0];
                 this.contactos.unshift(c);
             } else {
                 this.contactos.unshift({
-                    phone: data.phone,
+                    phone:        data.phone,
                     contact_name: data.contact_name,
-                    instancia: data.instancia,
-                    ultimo: data.hora,
-                    nuevo: !esActivo,
+                    instancia:    data.instancia,
+                    ultimo:       data.hora,
+                    nuevo:        !esActivo,
                 });
             }
 
             if (esActivo) {
-                Alpine.store('bot').mensajes.push({
-                    id: data.id,
-                    user_message: data.user_message,
-                    bot_response: data.bot_response,
-                    created_at: new Date().toISOString(),
+                this.mensajes.push({
+                    id:            data.id,
+                    user_message:  data.user_message,
+                    bot_response:  data.bot_response,
+                    created_at:    new Date().toISOString(),
                 });
                 this.$nextTick(() => this.scrollAbajo());
             }
@@ -409,16 +451,16 @@ function botConversaciones() {
 
 function confirmDialog() {
     return {
-        abierto: false,
-        titulo: '',
-        mensaje: '',
-        _accion: null,
+        abierto:  false,
+        titulo:   '',
+        mensaje:  '',
+        _accion:  null,
 
         mostrar(detail) {
-            this.titulo   = detail.titulo;
-            this.mensaje  = detail.mensaje;
-            this._accion  = detail.accion;
-            this.abierto  = true;
+            this.titulo  = detail.titulo;
+            this.mensaje = detail.mensaje;
+            this._accion = detail.accion;
+            this.abierto = true;
         },
 
         async confirmar() {
@@ -432,20 +474,6 @@ function confirmDialog() {
         },
     };
 }
-
-@if(auth()->user()->hasRole('super_admin'))
-async function confirmarBorrarLogs() {
-    if (!confirm('¿Limpiar el archivo de logs del sistema? Esta acción no se puede deshacer.')) return;
-    try {
-        await axios.delete('{{ route("admin.logs.clear") }}', {
-            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-        });
-        alert('Logs limpiados correctamente.');
-    } catch (e) {
-        alert('No se pudo limpiar el archivo de logs.');
-    }
-}
-@endif
 </script>
 
 </x-admin-layout>
