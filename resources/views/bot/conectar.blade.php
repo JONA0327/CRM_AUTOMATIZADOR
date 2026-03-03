@@ -199,7 +199,7 @@
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                             </svg>
                         </template>
-                        <span x-text="cargando ? 'Solicitando código...' : 'Obtener código'"></span>
+                        <span x-text="cargando ? 'Iniciando conexión… (puede tardar ~5s)' : 'Obtener código'"></span>
                     </button>
                     <button @click="cancelar"
                             class="px-4 py-3 text-gray-500 hover:text-gray-700 font-medium text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">

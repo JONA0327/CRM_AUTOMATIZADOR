@@ -1125,12 +1125,40 @@ class BotController extends Controller
 
         $enc = rawurlencode($instancia);
         try {
-            // ── Intento 1: endpoint estándar Evolution API v2.1+ ──────────────
-            // Primero aseguramos estado "connecting" con un GET /connect
+            // ── Paso 1: iniciar conexión WebSocket de Baileys ─────────────────
             Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(10)
                 ->get("{$this->apiUrl}/instance/connect/{$enc}");
 
+            // ── Paso 2: esperar hasta que la instancia esté en "connecting" ───
+            // El WebSocket de Baileys arranca de forma asíncrona; sin este wait
+            // la llamada a pairingCode llega antes de que el socket exista.
+            $estadoConectando = false;
+            for ($i = 0; $i < 6; $i++) {
+                sleep(1);
+                $stateRes = Http::withHeaders(['apikey' => $this->apiKey])
+                    ->timeout(5)
+                    ->get("{$this->apiUrl}/instance/connectionState/{$enc}");
+
+                $state = data_get($stateRes->json(), 'instance.state')
+                    ?? data_get($stateRes->json(), 'state')
+                    ?? '';
+
+                if ($state === 'connecting') {
+                    $estadoConectando = true;
+                    break;
+                }
+
+                // Si ya está open, no podemos pedir pairing code
+                if ($state === 'open') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Esta instancia ya está conectada a WhatsApp. Desconéctala primero desde Evolution API.',
+                    ], 422);
+                }
+            }
+
+            // ── Paso 3: solicitar el código de emparejamiento ─────────────────
             $response = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
                 ->post("{$this->apiUrl}/instance/pairingCode/{$enc}", [
@@ -1145,41 +1173,24 @@ class BotController extends Controller
                 }
             }
 
-            // ── Intento 2: PUT (algunas builds usan PUT en vez de POST) ──────
+            // ── Fallback: connect con number param (algunas builds < v2.1) ────
             $response2 = Http::withHeaders(['apikey' => $this->apiKey])
-                ->timeout(15)
-                ->put("{$this->apiUrl}/instance/pairingCode/{$enc}", [
-                    'phoneNumber' => $phone,
-                ]);
-
-            if ($response2->successful()) {
-                $code = data_get($response2->json(), 'code')
-                    ?? data_get($response2->json(), 'pairingCode');
-                if ($code) {
-                    return response()->json(['success' => true, 'code' => $code]);
-                }
-            }
-
-            // ── Intento 3: connect con number param (Evolution API < v2.1) ───
-            $response3 = Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(15)
                 ->get("{$this->apiUrl}/instance/connect/{$enc}", [
                     'number' => $phone,
                 ]);
 
-            if ($response3->successful()) {
-                // Solo 'pairingCode' es un código válido — 'code' es el raw string del QR
-                $code = data_get($response3->json(), 'pairingCode');
+            if ($response2->successful()) {
+                $code = data_get($response2->json(), 'pairingCode');
                 if ($code) {
                     return response()->json(['success' => true, 'code' => $code]);
                 }
             }
 
-            // ── Ningún intento devolvió código ────────────────────────────────
+            $err = $this->extraerMensajeError($response);
             return response()->json([
                 'success' => false,
-                'message' => 'Tu versión de Evolution API no soporta código de emparejamiento vía REST. '
-                    . 'Actualiza Evolution API a v2.1.0+ o conecta mediante código QR.',
+                'message' => 'No se pudo obtener el código. ' . ($err ?: 'Intenta conectar mediante QR.'),
             ], 422);
 
         } catch (\Exception $e) {
