@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CatalogField;
 use App\Models\CatalogModule;
 use App\Models\Configuracion;
+use App\Models\SavedPrompt;
 use App\Services\ExternalDbService;
 use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
@@ -130,6 +131,11 @@ class ConfiguracionController extends Controller
             $availableTags = app(PromptTagResolverService::class)->availableTags();
         } catch (\Exception) {}
 
+        $savedPrompts = [];
+        try {
+            $savedPrompts = SavedPrompt::orderBy('nombre')->get();
+        } catch (\Exception) {}
+
         return view('configuracion.index', [
             'grupos'             => $this->campos,
             'estado'             => $estado,
@@ -141,6 +147,7 @@ class ConfiguracionController extends Controller
             'availableTags'      => $availableTags,
             'iaModelos'          => $iaModelos,
             'iaToggles'          => $iaToggles,
+            'savedPrompts'       => $savedPrompts,
         ]);
     }
 
@@ -294,5 +301,35 @@ class ConfiguracionController extends Controller
                 'debug'   => basename($e->getFile()) . ':' . $e->getLine() . ' [' . get_class($e) . ']',
             ], 422);
         }
+    }
+
+    /**
+     * Guarda un prompt con nombre para uso posterior.
+     * POST /configuracion/prompts → JSON
+     */
+    public function storePrompt(Request $request): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:8000'],
+        ]);
+
+        $prompt = SavedPrompt::create([
+            'nombre'    => trim($request->nombre),
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'prompt' => $prompt]);
+    }
+
+    /**
+     * Elimina un prompt guardado.
+     * DELETE /configuracion/prompts/{id} → JSON
+     */
+    public function destroyPrompt(int $id): JsonResponse
+    {
+        SavedPrompt::findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
     }
 }

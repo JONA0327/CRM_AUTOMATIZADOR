@@ -364,7 +364,8 @@
 
                     {{-- System Prompt --}}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mt-5"
-                         x-data="{ chars: {{ strlen($systemPrompt ?? '') }}, max: 8000 }">
+                         x-data="savedPromptsManager()"
+                         x-init="init()">
                         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
@@ -379,8 +380,72 @@
                             </div>
                             <x-config-badge :configured="(bool)$systemPrompt"/>
                         </div>
-                        <div class="px-5 py-4">
+
+                        {{-- ── Prompts guardados ── --}}
+                        <div class="px-5 pt-4 pb-0">
+                            {{-- Lista de prompts guardados --}}
+                            <template x-if="prompts.length > 0">
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prompts guardados</p>
+                                        <span class="text-xs text-gray-400" x-text="prompts.length + ' prompt(s)'"></span>
+                                    </div>
+                                    <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                                        <template x-for="p in prompts" :key="p.id">
+                                            <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer"
+                                                 :class="promptActivo === p.id
+                                                     ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
+                                                     : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 hover:bg-purple-50/50'">
+                                                <button type="button"
+                                                        @click="cargarPrompt(p)"
+                                                        class="flex-1 text-left min-w-0">
+                                                    <div class="flex items-center gap-2">
+                                                        <svg class="w-3.5 h-3.5 flex-shrink-0"
+                                                             :class="promptActivo === p.id ? 'text-purple-600' : 'text-gray-400'"
+                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                        </svg>
+                                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate" x-text="p.nombre"></span>
+                                                        <template x-if="promptActivo === p.id">
+                                                            <span class="text-xs text-purple-600 font-semibold flex-shrink-0">● activo</span>
+                                                        </template>
+                                                    </div>
+                                                    <p class="text-xs text-gray-400 truncate mt-0.5 ml-5.5" x-text="p.contenido.substring(0,80) + (p.contenido.length > 80 ? '…' : '')"></p>
+                                                </button>
+                                                <button type="button"
+                                                        @click="eliminarPrompt(p)"
+                                                        title="Eliminar prompt"
+                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            {{-- Guardar prompt actual con nombre --}}
+                            <div class="mb-3 flex items-center gap-2">
+                                <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
+                                       class="flex-1 text-xs px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
+                                       @keydown.enter.prevent="guardarPrompt()">
+                                <button type="button"
+                                        @click="guardarPrompt()"
+                                        :disabled="!nuevoNombre.trim() || guardando"
+                                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors disabled:opacity-50">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                    </svg>
+                                    Guardar prompt
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="px-5 pb-4">
                             <textarea id="system_prompt" name="system_prompt" rows="10" maxlength="8000"
+                                x-ref="textarea"
                                 @input="chars = $event.target.value.length"
                                 placeholder="Eres un asistente de ventas especializado en... Responde siempre en español, de forma clara y amable..."
                                 class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
@@ -1493,6 +1558,79 @@ function extDbManager() {
                     tablas_columnas,
                 };
             }));
+        },
+    };
+}
+
+/**
+ * Gestión de prompts guardados (Sistema de prompts multi-perfil).
+ */
+function savedPromptsManager() {
+    return {
+        chars: {{ strlen($systemPrompt ?? '') }},
+        max: 8000,
+        prompts: @json($savedPrompts->values()),
+        nuevoNombre: '',
+        guardando: false,
+        promptActivo: null,
+
+        init() {
+            // Determinar el prompt activo comparando contenido con el system_prompt actual
+            const current = document.getElementById('system_prompt')?.value ?? '';
+            const match = this.prompts.find(p => p.contenido === current);
+            this.promptActivo = match ? match.id : null;
+        },
+
+        cargarPrompt(p) {
+            const ta = document.getElementById('system_prompt');
+            if (!ta) return;
+            ta.value = p.contenido;
+            this.chars = p.contenido.length;
+            this.promptActivo = p.id;
+            // Flash visual
+            ta.classList.add('ring-2', 'ring-purple-400');
+            setTimeout(() => ta.classList.remove('ring-2', 'ring-purple-400'), 1200);
+        },
+
+        async guardarPrompt() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre) return;
+            const ta = document.getElementById('system_prompt');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea del prompt está vacío. Escribe un prompt primero.');
+                return;
+            }
+            this.guardando = true;
+            try {
+                const res = await axios.post('{{ route("configuracion.prompts.store") }}', { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    this.prompts.push(res.data.prompt);
+                    this.promptActivo = res.data.prompt.id;
+                    this.nuevoNombre = '';
+                    // Ordenar por nombre
+                    this.prompts.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                }
+            } catch (e) {
+                alert('No se pudo guardar el prompt.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async eliminarPrompt(p) {
+            if (!confirm(`¿Eliminar el prompt "${p.nombre}"?`)) return;
+            try {
+                await axios.delete(`{{ url('/configuracion/prompts') }}/${p.id}`, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                this.prompts = this.prompts.filter(x => x.id !== p.id);
+                if (this.promptActivo === p.id) this.promptActivo = null;
+            } catch (e) {
+                alert('No se pudo eliminar el prompt.');
+            }
         },
     };
 }

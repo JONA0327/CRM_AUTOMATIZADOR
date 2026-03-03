@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Redirigir a la página principal cuando la sesión expira (no al login)
+        $middleware->redirectGuestsTo('/');
+
         // Excluir el webhook de Evolution API de la verificación CSRF
         $middleware->validateCsrfTokens(except: [
             'webhook/whatsapp/*',

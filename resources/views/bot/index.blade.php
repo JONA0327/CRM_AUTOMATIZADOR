@@ -201,7 +201,8 @@
     </div>
 </template>
 
-{{-- ══ MODAL CONSOLA DE LOGS ══ --}}
+@if(auth()->user()->hasRole('super_admin'))
+{{-- ══ MODAL CONSOLA DE LOGS — solo super_admin ══ --}}
 <template x-teleport="body">
     <div x-data="instanciaLogs()"
          x-show="open"
@@ -412,6 +413,7 @@
         </div>
     </div>
 </template>
+@endif
 
     {{-- Flash messages --}}
     @if (session('success'))
@@ -701,7 +703,8 @@
                                         Predeterminado
                                     </button>
 
-                                    {{-- Botón logs --}}
+                                    @if(auth()->user()->hasRole('super_admin'))
+                                    {{-- Botón logs — solo super_admin --}}
                                     <button
                                         onclick="window.dispatchEvent(new CustomEvent('abrir-logs', { detail: '{{ $nombre }}' }))"
                                         title="Ver logs de la instancia"
@@ -711,6 +714,7 @@
                                                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                         </svg>
                                     </button>
+                                    @endif
 
                                     {{-- Botón configurar --}}
                                     <button
@@ -750,6 +754,7 @@
 
 
 <script>
+@if(auth()->user()->hasRole('super_admin'))
 function instanciaLogs() {
     return {
         open:        false,
@@ -887,6 +892,7 @@ function instanciaLogs() {
         },
     };
 }
+@endif
 
 function instanciaConfig() {
     return {

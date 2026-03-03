@@ -179,6 +179,30 @@ class BotController extends Controller
             ?? data_get($data, 'message.imageMessage.caption')
             ?? '';
 
+        // Texto que se guardará en BD (puede incluir prefijo de audio 🎙)
+        $mensajeParaGuardar = $texto;
+
+        // Si no hay texto, intentar transcribir si es un mensaje de audio/PTT
+        if (empty(trim($texto))) {
+            $messageKeys = array_keys(data_get($data, 'message', []) ?: []);
+            $esAudio = in_array('audioMessage', $messageKeys) || in_array('pttMessage', $messageKeys);
+
+            if ($esAudio) {
+                $transcripcion = $this->transcribirAudio($instancia, $data);
+                if ($transcripcion !== null) {
+                    $texto              = $transcripcion;
+                    $mensajeParaGuardar = '🎙 ' . $transcripcion;
+                    Log::info("[Bot] Audio transcrito — instancia={$instancia}", [
+                        'chars' => strlen($transcripcion),
+                        'preview' => substr($transcripcion, 0, 80),
+                    ]);
+                } else {
+                    Log::info("[Bot] Audio recibido sin servicio de transcripción activo — instancia={$instancia}");
+                    return response()->json(['status' => 'audio_no_transcripcion']);
+                }
+            }
+        }
+
         if (empty(trim($texto))) {
             return response()->json(['status' => 'no_text']);
         }
@@ -210,7 +234,7 @@ class BotController extends Controller
             'phone'        => $telefono,
             'instancia'    => $instancia,
             'contact_name' => $clienteNombre,
-            'user_message' => $texto,
+            'user_message' => $mensajeParaGuardar,   // incluye 🎙 si fue audio
             'bot_response' => $respuestaTexto,
             'status'       => 'ok',
         ]);
@@ -683,6 +707,171 @@ class BotController extends Controller
         );
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // TRANSCRIPCIÓN DE AUDIO
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Intenta transcribir un mensaje de audio/PTT usando Whisper (OpenAI) o Gemini nativo.
+     * Descarga el audio de Evolution API en base64 y lo pasa al servicio configurado.
+     *
+     * Prioridad: Whisper (si activo) → Gemini nativo (si activo)
+     */
+    private function transcribirAudio(string $instancia, array $data): ?string
+    {
+        $whisperActivo     = Configuracion::get('openai_whisper_activo', '0') === '1';
+        $geminiAudioActivo = Configuracion::get('gemini_audio_activo',   '0') === '1';
+
+        $usarWhisper = $whisperActivo && Configuracion::get('openai_key');
+        $usarGemini  = $geminiAudioActivo && Configuracion::get('gemini_key');
+
+        if (!$usarWhisper && !$usarGemini) {
+            return null;
+        }
+
+        // Descargar audio desde Evolution API → base64
+        $enc = rawurlencode($instancia);
+        try {
+            $res = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(25)
+                ->post("{$this->apiUrl}/chat/getBase64FromMediaMessage/{$enc}", [
+                    'message' => [
+                        'key'     => data_get($data, 'key'),
+                        'message' => data_get($data, 'message'),
+                    ],
+                    'convertToMp4' => false,
+                ]);
+
+            if (!$res->successful()) {
+                Log::warning("[Bot] No se pudo descargar audio — instancia={$instancia}: HTTP {$res->status()}");
+                return null;
+            }
+
+            $base64   = data_get($res->json(), 'base64');
+            $mimeType = data_get($res->json(), 'mediaType')
+                ?? data_get($data, 'message.audioMessage.mimetype')
+                ?? data_get($data, 'message.pttMessage.mimetype')
+                ?? 'audio/ogg';
+
+            if (!$base64) {
+                Log::warning("[Bot] Respuesta de descarga sin base64 — instancia={$instancia}");
+                return null;
+            }
+        } catch (\Exception $e) {
+            Log::warning("[Bot] Error al descargar audio — instancia={$instancia}: " . $e->getMessage());
+            return null;
+        }
+
+        // Transcribir: Whisper primero, Gemini como fallback
+        if ($usarWhisper) {
+            $resultado = $this->transcribirConWhisper($base64, $mimeType);
+            if ($resultado !== null) return $resultado;
+        }
+
+        if ($usarGemini) {
+            return $this->transcribirConGeminiNativo($base64, $mimeType);
+        }
+
+        return null;
+    }
+
+    /**
+     * Transcribe audio usando la API de Whisper de OpenAI.
+     * Soporta OGG, MP3, MP4, WAV, WEBM (formatos aceptados por Whisper).
+     */
+    private function transcribirConWhisper(string $base64Audio, string $mimeType): ?string
+    {
+        $apiKey = Configuracion::get('openai_key');
+        if (!$apiKey) return null;
+
+        $audioContent = base64_decode($base64Audio);
+        if (!$audioContent) return null;
+
+        // Extensión basada en el mimetype
+        $ext = match(true) {
+            str_contains($mimeType, 'ogg')  => 'ogg',
+            str_contains($mimeType, 'mpeg') => 'mp3',
+            str_contains($mimeType, 'mp4')  => 'mp4',
+            str_contains($mimeType, 'wav')  => 'wav',
+            str_contains($mimeType, 'webm') => 'webm',
+            str_contains($mimeType, 'm4a')  => 'm4a',
+            default                          => 'ogg',
+        };
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(60)
+                ->attach('file', $audioContent, "audio.{$ext}")
+                ->post('https://api.openai.com/v1/audio/transcriptions', [
+                    'model'           => 'whisper-1',
+                    'response_format' => 'text',
+                    'language'        => 'es',
+                ]);
+
+            if (!$response->successful()) {
+                Log::error('[Bot] Whisper error HTTP ' . $response->status(), [
+                    'body' => $response->json() ?? $response->body(),
+                ]);
+                return null;
+            }
+
+            $transcripcion = trim($response->body());
+            Log::info('[Bot] Whisper OK: ' . substr($transcripcion, 0, 100));
+            return $transcripcion ?: null;
+        } catch (\Exception $e) {
+            Log::error('[Bot] Whisper excepción: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Transcribe audio usando la capacidad multimodal nativa de Gemini (Flash/Pro 1.5+).
+     * Envía el audio como inline_data directamente en la petición.
+     */
+    private function transcribirConGeminiNativo(string $base64Audio, string $mimeType): ?string
+    {
+        $apiKey = Configuracion::get('gemini_key');
+        $model  = Configuracion::get('gemini_model', 'gemini-1.5-flash');
+
+        if (!$apiKey) return null;
+
+        try {
+            $response = Http::timeout(60)
+                ->post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
+                    [
+                        'contents' => [[
+                            'parts' => [
+                                [
+                                    'inline_data' => [
+                                        'mime_type' => $mimeType,
+                                        'data'      => $base64Audio,
+                                    ],
+                                ],
+                                [
+                                    'text' => 'Transcribe exactamente lo que dice este audio. Devuelve únicamente la transcripción, sin comentarios ni explicaciones adicionales.',
+                                ],
+                            ],
+                        ]],
+                    ]
+                );
+
+            if (!$response->successful()) {
+                Log::error('[Bot] Gemini audio error HTTP ' . $response->status(), [
+                    'body' => $response->json() ?? $response->body(),
+                ]);
+                return null;
+            }
+
+            $transcripcion = trim(data_get($response->json(), 'candidates.0.content.parts.0.text') ?? '');
+            Log::info('[Bot] Gemini audio OK: ' . substr($transcripcion, 0, 100));
+            return $transcripcion ?: null;
+        } catch (\Exception $e) {
+            Log::error('[Bot] Gemini audio excepción: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     /**
      * Construye el contexto para la IA leyendo todas las BDs externas configuradas en ext_dbs.
      */
@@ -878,6 +1067,43 @@ class BotController extends Controller
     // ──────────────────────────────────────────────────────────────────────────
     // API — CONVERSACIONES EN TIEMPO REAL
     // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Elimina todas las conversaciones de un contacto específico.
+     * DELETE /bot/conversaciones/{phone}
+     */
+    public function eliminarConversacionesPorTelefono(string $phone): JsonResponse
+    {
+        $deleted = Conversation::where('phone', $phone)->delete();
+
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    }
+
+    /**
+     * Elimina TODAS las conversaciones del tenant actual.
+     * DELETE /bot/conversaciones
+     */
+    public function eliminarTodasConversaciones(): JsonResponse
+    {
+        $deleted = Conversation::query()->delete();
+
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    }
+
+    /**
+     * Trunca el archivo de log de Laravel. Solo accesible por super_admin.
+     * DELETE /admin/logs
+     */
+    public function clearLogs(): JsonResponse
+    {
+        $logFile = storage_path('logs/laravel.log');
+
+        if (file_exists($logFile)) {
+            file_put_contents($logFile, '');
+        }
+
+        return response()->json(['success' => true]);
+    }
 
     /**
      * Lista los contactos únicos con su último mensaje (para el panel izquierdo).

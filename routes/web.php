@@ -47,9 +47,11 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
 
     // ── Bot: conversaciones y contactos — todos los roles del tenant ──
     Route::prefix('bot')->name('bot.')->group(function () {
-        Route::get('/conversaciones',   [BotController::class, 'conversaciones'])->name('conversaciones');
-        Route::get('/contactos',        [BotController::class, 'listarContactos'])->name('contactos');
-        Route::get('/mensajes/{phone}', [BotController::class, 'mensajesPorTelefono'])->name('mensajes')->where('phone', '.+');
+        Route::get('/conversaciones',          [BotController::class, 'conversaciones'])->name('conversaciones');
+        Route::get('/contactos',               [BotController::class, 'listarContactos'])->name('contactos');
+        Route::get('/mensajes/{phone}',        [BotController::class, 'mensajesPorTelefono'])->name('mensajes')->where('phone', '.+');
+        Route::delete('/conversaciones-all',   [BotController::class, 'eliminarTodasConversaciones'])->name('conversaciones.eliminar-todo');
+        Route::delete('/conversaciones/{phone}', [BotController::class, 'eliminarConversacionesPorTelefono'])->name('conversaciones.eliminar')->where('phone', '.+');
 
         // ── Gestión de instancias y configuración — solo anfitrion ──
         Route::middleware('role:anfitrion')->group(function () {
@@ -88,10 +90,12 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
 
         // Configuración de APIs, prompts y BD externas
         Route::prefix('configuracion')->name('configuracion.')->group(function () {
-            Route::get('/',           [ConfiguracionController::class, 'index'])->name('index');
-            Route::post('/',          [ConfiguracionController::class, 'update'])->name('update');
-            Route::delete('/{clave}', [ConfiguracionController::class, 'limpiar'])->name('limpiar');
-            Route::post('/test-db',   [ConfiguracionController::class, 'testExternalDb'])->name('test-db');
+            Route::get('/',                 [ConfiguracionController::class, 'index'])->name('index');
+            Route::post('/',                [ConfiguracionController::class, 'update'])->name('update');
+            Route::delete('/{clave}',       [ConfiguracionController::class, 'limpiar'])->name('limpiar');
+            Route::post('/test-db',         [ConfiguracionController::class, 'testExternalDb'])->name('test-db');
+            Route::post('/prompts',         [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
+            Route::delete('/prompts/{id}',  [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
         });
 
         // Gestión de colaboradores del negocio
@@ -116,6 +120,9 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('admin')->na
     Route::post('/tenants',         [TenantController::class, 'store'])->name('tenants.store');
     Route::get('/tenants',          [TenantController::class, 'index'])->name('tenants.index');
     Route::delete('/tenants/{id}',  [TenantController::class, 'destroy'])->name('tenants.destroy');
+
+    // Logs del sistema — solo super_admin
+    Route::delete('/logs',          [BotController::class, 'clearLogs'])->name('logs.clear');
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
