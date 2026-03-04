@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class CatalogField extends Model
 {
     // Tipos de campo soportados
-    public const TIPOS = ['text', 'number', 'date', 'select', 'multiselect', 'relation', 'email', 'phone', 'textarea', 'url', 'file', 'tags', 'id'];
+    public const TIPOS = ['text', 'number', 'date', 'select', 'multiselect', 'category_select', 'relation', 'email', 'phone', 'textarea', 'url', 'file', 'tags', 'id'];
 
     protected $fillable = [
         'module_id',
