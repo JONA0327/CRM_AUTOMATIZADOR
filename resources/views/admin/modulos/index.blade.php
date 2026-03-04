@@ -5,7 +5,7 @@
 
             {{-- Notificación flash --}}
             <div x-show="flash.msg" x-cloak
-                 :class="flash.ok ? 'bg-green-100 border-green-400 text-green-800' : 'bg-red-100 border-red-400 text-red-800'"
+                 :class="flash.ok ? 'bg-green-500/10 border-green-400 text-green-400' : 'bg-red-500/10 border-red-400 text-red-400'"
                  class="mb-4 border px-4 py-3 rounded flex justify-between items-center">
                 <span x-text="flash.msg"></span>
                 <button @click="flash.msg=''" class="ml-4 font-bold">✕</button>
@@ -15,11 +15,11 @@
 
                 {{-- ═══ COLUMNA IZQUIERDA: Lista de módulos ═══ --}}
                 <div class="w-80 flex-shrink-0">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                    <div class="bg-gray-900 dark:bg-gray-800 rounded-xl p-4">
                         <div class="flex justify-between items-center mb-3">
-                            <h3 class="font-semibold text-gray-700 dark:text-gray-300">Módulos</h3>
+                            <h3 class="font-semibold text-gray-200 dark:text-gray-300">Módulos</h3>
                             <button @click="abrirModalModulo(null)"
-                                    class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">
+                                    class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-500">
                                 + Nuevo
                             </button>
                         </div>
@@ -28,28 +28,28 @@
                             <template x-for="mod in modulos" :key="mod.id">
                                 <div @click="seleccionar(mod)"
                                      :class="moduloActivo?.id === mod.id
-                                         ? 'bg-indigo-50 dark:bg-indigo-900 border-indigo-300'
-                                         : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700'"
+                                         ? 'bg-indigo-500/10 dark:bg-indigo-900 border-indigo-500/30'
+                                         : 'border-transparent hover:bg-white/5 dark:hover:bg-gray-700'"
                                      class="flex items-center justify-between p-2 rounded-lg border cursor-pointer transition">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xl" x-text="mod.icono || '📋'"></span>
                                         <div>
-                                            <div class="text-sm font-medium text-gray-800 dark:text-gray-200" x-text="mod.nombre"></div>
-                                            <div class="text-xs text-gray-400" x-text="mod.campos_count + ' campo(s)'"></div>
+                                            <div class="text-sm font-medium text-gray-100 dark:text-gray-200" x-text="mod.nombre"></div>
+                                            <div class="text-xs text-gray-500" x-text="mod.campos_count + ' campo(s)'"></div>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-1">
-                                        <span :class="mod.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                                        <span :class="mod.activo ? 'bg-green-500/10 text-green-400' : 'bg-gray-800 text-gray-500'"
                                               class="text-xs px-1.5 py-0.5 rounded-full"
                                               x-text="mod.activo ? 'activo' : 'oculto'"></span>
                                         <button @click.stop="abrirModalModulo(mod)"
-                                                class="text-gray-400 hover:text-indigo-600 p-1 rounded">✏️</button>
+                                                class="text-gray-600 hover:text-indigo-400 p-1 rounded">✏️</button>
                                         <button @click.stop="eliminarModulo(mod)"
-                                                class="text-gray-400 hover:text-red-600 p-1 rounded">🗑️</button>
+                                                class="text-gray-600 hover:text-red-400 p-1 rounded">🗑️</button>
                                     </div>
                                 </div>
                             </template>
-                            <div x-show="modulos.length === 0" class="text-center text-gray-400 text-sm py-4">
+                            <div x-show="modulos.length === 0" class="text-center text-gray-500 text-sm py-4">
                                 No hay módulos. Crea el primero.
                             </div>
                         </div>
@@ -59,13 +59,13 @@
                 {{-- ═══ COLUMNA DERECHA: Campos del módulo seleccionado ═══ --}}
                 <div class="flex-1">
                     <template x-if="moduloActivo">
-                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+                        <div class="bg-gray-900 dark:bg-gray-800 rounded-xl p-4">
                             <div class="flex justify-between items-center mb-4">
                                 <div class="flex items-center gap-2">
                                     <span class="text-2xl" x-text="moduloActivo.icono || '📋'"></span>
                                     <div>
-                                        <h3 class="font-semibold text-gray-800 dark:text-gray-200" x-text="moduloActivo.nombre"></h3>
-                                        <code class="text-xs text-gray-400" x-text="'/' + moduloActivo.slug"></code>
+                                        <h3 class="font-semibold text-gray-100 dark:text-gray-200" x-text="moduloActivo.nombre"></h3>
+                                        <code class="text-xs text-gray-500" x-text="'/' + moduloActivo.slug"></code>
                                     </div>
                                 </div>
                                 <button @click="abrirModalCampo(null)"
@@ -98,40 +98,40 @@
                                                 'opacity-40': dragSrcIdx === idx,
                                                 'border-t-2 border-indigo-500': dragOverIdx === idx && dragSrcIdx !== idx
                                             }"
-                                            class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
-                                            <td class="py-2 pr-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing select-none text-base leading-none" title="Arrastrar para reordenar">⠿</td>
-                                            <td class="py-2 font-medium text-gray-800 dark:text-gray-200" x-text="campo.nombre"></td>
-                                            <td class="py-2"><code class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded" x-text="campo.slug"></code></td>
+                                            class="border-b dark:border-gray-700 hover:bg-white/5 dark:hover:bg-gray-750">
+                                            <td class="py-2 pr-1 text-gray-600 hover:text-gray-500 cursor-grab active:cursor-grabbing select-none text-base leading-none" title="Arrastrar para reordenar">⠿</td>
+                                            <td class="py-2 font-medium text-gray-100 dark:text-gray-200" x-text="campo.nombre"></td>
+                                            <td class="py-2"><code class="text-xs bg-gray-800 dark:bg-gray-700 px-1.5 py-0.5 rounded" x-text="campo.slug"></code></td>
                                             <td class="py-2">
-                                                <span class="inline-block text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 px-2 py-0.5 rounded-full" x-text="campo.tipo"></span>
+                                                <span class="inline-block text-xs bg-indigo-500/15 text-indigo-300 dark:bg-indigo-900 dark:text-indigo-300 px-2 py-0.5 rounded-full" x-text="campo.tipo"></span>
                                             </td>
                                             <td class="py-2">
-                                                <span :class="campo.obligatorio ? 'text-red-600' : 'text-gray-400'"
+                                                <span :class="campo.obligatorio ? 'text-red-400' : 'text-gray-600'"
                                                       x-text="campo.obligatorio ? '✓ Sí' : 'No'"></span>
                                             </td>
                                             <td class="py-2 flex gap-2">
                                                 <button @click="abrirModalCampo(campo)"
-                                                        class="text-gray-400 hover:text-indigo-600">✏️</button>
+                                                        class="text-gray-600 hover:text-indigo-400">✏️</button>
                                                 <button @click="eliminarCampo(campo)"
-                                                        class="text-gray-400 hover:text-red-600">🗑️</button>
+                                                        class="text-gray-600 hover:text-red-400">🗑️</button>
                                             </td>
                                         </tr>
                                     </template>
                                     <tr x-show="campos.length === 0">
-                                        <td colspan="6" class="py-6 text-center text-gray-400">
+                                        <td colspan="6" class="py-6 text-center text-gray-500">
                                             Este módulo no tiene campos. Agrega el primero.
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
 
-                            <div class="mt-4 pt-3 border-t dark:border-gray-700 text-xs text-gray-400">
+                            <div class="mt-4 pt-3 border-t dark:border-gray-700 text-xs text-gray-500">
                                 💡 Los campos definen las columnas del catálogo. Puedes usar tipos: text, number, date, select, relation, email, phone, textarea.
                             </div>
                         </div>
                     </template>
 
-                    <div x-show="!moduloActivo" class="text-center py-20 text-gray-400">
+                    <div x-show="!moduloActivo" class="text-center py-20 text-gray-500">
                         <div class="text-5xl mb-3">📋</div>
                         <p>Selecciona un módulo de la lista o crea uno nuevo.</p>
                     </div>
@@ -144,42 +144,42 @@
         <div x-show="modalModulo" x-cloak
              class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
              @click.self="modalModulo=false">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4"
+            <div class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h3 class="text-lg font-semibold text-gray-100 dark:text-gray-200 mb-4"
                     x-text="formModulo.id ? 'Editar módulo' : 'Nuevo módulo'"></h3>
 
                 <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
+                        <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Nombre *</label>
                         <input type="text" x-model="formModulo.nombre" placeholder="Ej: Agenda de Contactos"
-                               class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                               class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div class="flex gap-3">
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ícono (emoji)</label>
+                            <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Ícono (emoji)</label>
                             <input type="text" x-model="formModulo.icono" placeholder="📋" maxlength="4"
-                                   class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-2xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center">
+                                   class="w-full border border-white/10 rounded-lg px-3 py-2 text-2xl bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none text-center">
                         </div>
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+                            <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Color</label>
                             <input type="color" x-model="formModulo.color"
-                                   class="w-full h-10 border dark:border-gray-600 rounded-lg cursor-pointer">
+                                   class="w-full h-10 border border-white/10 rounded-lg cursor-pointer">
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <input type="checkbox" x-model="formModulo.activo" id="mod-activo"
-                               class="rounded border-gray-300 text-indigo-600">
-                        <label for="mod-activo" class="text-sm text-gray-700 dark:text-gray-300">Visible en el menú</label>
+                               class="rounded border-white/15 text-indigo-600">
+                        <label for="mod-activo" class="text-sm text-gray-200 dark:text-gray-300">Visible en el menú</label>
                     </div>
                 </div>
 
                 <div class="mt-5 flex justify-end gap-3">
                     <button @click="modalModulo=false"
-                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900">
+                            class="px-4 py-2 text-sm text-gray-400 border border-white/10 rounded-lg hover:bg-white/5">
                         Cancelar
                     </button>
                     <button @click="guardarModulo()"
-                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-500">
                         <span x-text="formModulo.id ? 'Guardar cambios' : 'Crear módulo'"></span>
                     </button>
                 </div>
@@ -190,20 +190,20 @@
         <div x-show="modalCampo" x-cloak
              class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
              @click.self="modalCampo=false">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4"
+            <div class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h3 class="text-lg font-semibold text-gray-100 dark:text-gray-200 mb-4"
                     x-text="formCampo.id ? 'Editar campo' : 'Nuevo campo'"></h3>
 
                 <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del campo *</label>
+                        <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Nombre del campo *</label>
                         <input type="text" x-model="formCampo.nombre" placeholder="Ej: Teléfono de contacto"
-                               class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                               class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo *</label>
+                        <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Tipo *</label>
                         <select x-model="formCampo.tipo"
-                                class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="text">Texto</option>
                             <option value="number">Número</option>
                             <option value="date">Fecha</option>
@@ -223,12 +223,12 @@
                     {{-- Opciones para tipo "select" y "multiselect" --}}
                     <template x-if="formCampo.tipo === 'select' || formCampo.tipo === 'multiselect'">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">
                                 Opciones (una por línea)
                             </label>
                             <textarea x-model="formCampo.opciones_texto" rows="3"
                                       placeholder="Opción A&#10;Opción B&#10;Opción C"
-                                      class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                                      class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
                         </div>
                     </template>
 
@@ -236,11 +236,11 @@
                     <template x-if="formCampo.tipo === 'relation'">
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">
                                     Módulo relacionado
                                 </label>
                                 <select x-model="formCampo.modulo_relacion"
-                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="">-- Selecciona módulo --</option>
                                     <template x-for="mod in modulos" :key="mod.slug">
                                         <option :value="mod.slug" x-text="mod.icono + ' ' + mod.nombre"></option>
@@ -249,8 +249,8 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <input type="checkbox" x-model="formCampo.meta_multiple" id="campo-multiple"
-                                       class="rounded border-gray-300 text-indigo-600">
-                                <label for="campo-multiple" class="text-sm text-gray-700 dark:text-gray-300">
+                                       class="rounded border-white/15 text-indigo-600">
+                                <label for="campo-multiple" class="text-sm text-gray-200 dark:text-gray-300">
                                     Permitir selección múltiple
                                 </label>
                             </div>
@@ -259,21 +259,21 @@
 
                     {{-- Configuración para tipo "file" --}}
                     <template x-if="formCampo.tipo === 'file'">
-                        <div class="space-y-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div class="space-y-3 p-3 bg-gray-950 dark:bg-gray-700/50 rounded-lg border border-white/10 dark:border-gray-600">
                             <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Configuración del archivo</p>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipos permitidos</label>
+                                <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Tipos permitidos</label>
                                 <select x-model="formCampo.meta_accept"
-                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="all">Imágenes, videos y documentos</option>
                                     <option value="image">Solo imágenes (jpg, png, gif, webp…)</option>
                                     <option value="video">Solo videos (mp4, mov, webm…)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tamaño máximo (MB)</label>
+                                <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Tamaño máximo (MB)</label>
                                 <input type="number" x-model="formCampo.meta_max_mb" min="1" max="200" step="1"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="10">
                             </div>
                         </div>
@@ -281,12 +281,12 @@
 
                     {{-- Configuración para tipo "id" --}}
                     <template x-if="formCampo.tipo === 'id'">
-                        <div class="space-y-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div class="space-y-3 p-3 bg-gray-950 dark:bg-gray-700/50 rounded-lg border border-white/10 dark:border-gray-600">
                             <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Configuración del identificador</p>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Formato</label>
+                                <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">Formato</label>
                                 <select x-model="formCampo.meta_tipo_id"
-                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="folio">Folio personalizado (ej: ASD-0001)</option>
                                     <option value="autoincrement">Número secuencial (1, 2, 3…)</option>
                                     <option value="uuid">UUID (ej: a1b2c3d4-…)</option>
@@ -298,35 +298,35 @@
                                 <div class="space-y-2">
                                     <div class="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Prefijo</label>
+                                            <label class="block text-xs font-medium text-gray-400 mb-1">Prefijo</label>
                                             <input type="text" x-model="formCampo.meta_folio_prefijo"
                                                    maxlength="20" placeholder="ASD"
-                                                   class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                   class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Separador</label>
+                                            <label class="block text-xs font-medium text-gray-400 mb-1">Separador</label>
                                             <input type="text" x-model="formCampo.meta_folio_separador"
                                                    maxlength="5" placeholder="-"
-                                                   class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                   class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Número de cifras</label>
+                                        <label class="block text-xs font-medium text-gray-400 mb-1">Número de cifras</label>
                                         <input type="number" x-model="formCampo.meta_folio_cifras"
                                                min="1" max="10" step="1" placeholder="4"
-                                               class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                               class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     </div>
                                     <div class="pt-1">
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             Vista previa:
-                                            <code class="bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-xs font-mono"
+                                            <code class="bg-gray-700 dark:bg-gray-600 px-1.5 py-0.5 rounded text-xs font-mono"
                                                   x-text="(formCampo.meta_folio_prefijo || 'PRE') + (formCampo.meta_folio_separador ?? '-') + '0'.repeat(Math.max(0, (parseInt(formCampo.meta_folio_cifras) || 4) - 1)) + '1'">
                                             </code>
                                         </p>
                                     </div>
                                 </div>
                             </template>
-                            <p class="text-xs text-gray-400">
+                            <p class="text-xs text-gray-600">
                                 El valor se genera automáticamente al crear un registro. No puede editarse.
                             </p>
                         </div>
@@ -334,14 +334,14 @@
 
                     <div class="flex items-center gap-2">
                         <input type="checkbox" x-model="formCampo.obligatorio" id="campo-obligatorio"
-                               class="rounded border-gray-300 text-indigo-600">
-                        <label for="campo-obligatorio" class="text-sm text-gray-700 dark:text-gray-300">Campo obligatorio</label>
+                               class="rounded border-white/15 text-indigo-600">
+                        <label for="campo-obligatorio" class="text-sm text-gray-200 dark:text-gray-300">Campo obligatorio</label>
                     </div>
                 </div>
 
                 <div class="mt-5 flex justify-end gap-3">
                     <button @click="modalCampo=false"
-                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900">
+                            class="px-4 py-2 text-sm text-gray-400 border border-white/10 rounded-lg hover:bg-white/5">
                         Cancelar
                     </button>
                     <button @click="guardarCampo()"

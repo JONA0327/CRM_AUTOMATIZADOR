@@ -183,7 +183,7 @@ TXT,
                 }
 
                 $tablaStr = implode(', ', $tablasLista);
-                $preview  = 'BD ' . ($db['driver'] ?? 'mysql') . ' — Tablas: ' . ($tablaStr ?: 'sin tablas');
+                $preview  = 'BD ' . ($db['driver'] ?? 'mysql') . ' — Tablas: ' . (($tablaStr) ?: 'sin tablas');
                 if ($totalCols > 0) {
                     $preview .= " ({$totalCols} campos seleccionados)";
                 }

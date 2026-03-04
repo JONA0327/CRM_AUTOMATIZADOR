@@ -15,28 +15,28 @@
 
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="cerrar()"></div>
 
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        <div class="relative bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 scale-95"
              x-transition:enter-end="opacity-100 scale-100"
              @click.stop>
 
             {{-- Header --}}
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 sticky top-0 bg-gray-900 rounded-t-2xl z-10">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-900">Configurar instancia</h3>
-                        <p class="text-xs text-gray-400" x-text="instancia"></p>
+                        <h3 class="text-base font-bold text-gray-100">Configurar instancia</h3>
+                        <p class="text-xs text-gray-500" x-text="instancia"></p>
                     </div>
                 </div>
-                <button @click="cerrar()" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <button @click="cerrar()" class="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -49,8 +49,8 @@
                 {{-- Alerta de error --}}
                 <div x-show="errorMsg" x-transition
                      role="alert" aria-live="assertive"
-                     class="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-3 text-sm">
-                    <svg class="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                     class="flex items-start gap-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-4 py-3 text-sm">
+                    <svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
                     </svg>
                     <span x-text="errorMsg"></span>
@@ -59,8 +59,8 @@
                 {{-- Alerta de éxito --}}
                 <div x-show="okMsg" x-transition
                      role="status" aria-live="polite"
-                     class="flex items-start gap-3 bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm">
-                    <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                     class="flex items-start gap-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg px-4 py-3 text-sm">
+                    <svg class="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                     </svg>
                     <span x-text="okMsg"></span>
@@ -69,11 +69,11 @@
                 {{-- Skeleton de carga --}}
                 <template x-if="cargando">
                     <div class="space-y-4 animate-pulse">
-                        <div class="h-4 bg-gray-100 rounded w-1/3"></div>
-                        <div class="h-10 bg-gray-100 rounded"></div>
-                        <div class="h-4 bg-gray-100 rounded w-1/4 mt-4"></div>
+                        <div class="h-4 bg-gray-800 rounded w-1/3"></div>
+                        <div class="h-10 bg-gray-800 rounded"></div>
+                        <div class="h-4 bg-gray-800 rounded w-1/4 mt-4"></div>
                         <div class="grid grid-cols-2 gap-3">
-                            <template x-for="i in 6"><div class="h-8 bg-gray-100 rounded"></div></template>
+                            <template x-for="i in 6"><div class="h-8 bg-gray-800 rounded"></div></template>
                         </div>
                     </div>
                 </template>
@@ -91,22 +91,22 @@
                                 Webhook
                             </h4>
                             {{-- URL predefinida (solo lectura) --}}
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">URL del webhook (asignada automáticamente)</label>
+                            <label class="block text-sm font-medium text-gray-200 mb-1.5">URL del webhook (asignada automáticamente)</label>
                             <div class="flex items-center gap-2">
-                                <div class="flex-1 flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-                                    <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <div class="flex-1 flex items-center gap-2 px-3 py-2.5 bg-gray-800 border border-white/10 rounded-lg">
+                                    <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                     </svg>
-                                    <span class="text-xs font-mono text-gray-600 truncate" x-text="webhookUrl"></span>
+                                    <span class="text-xs font-mono text-gray-400 truncate" x-text="webhookUrl"></span>
                                 </div>
                                 <button type="button"
                                         @click="navigator.clipboard.writeText(webhookUrl).then(() => { copied = true; setTimeout(() => copied = false, 2000) })"
-                                        class="flex-shrink-0 px-3 py-2.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg transition-colors">
+                                        class="flex-shrink-0 px-3 py-2.5 text-xs font-semibold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg transition-colors">
                                     <span x-show="!copied">Copiar</span>
                                     <span x-show="copied">✓ Copiado</span>
                                 </button>
                             </div>
-                            <p class="mt-1.5 text-xs text-gray-400">
+                            <p class="mt-1.5 text-xs text-gray-500">
                                 Esta URL es única para esta instancia. Se configura automáticamente al guardar.
                             </p>
                         </div>
@@ -122,16 +122,16 @@
                             </h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <template x-for="ev in eventosDisponibles" :key="ev.value">
-                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                                           :class="form.events.includes(ev.value) ? 'border-blue-200 bg-blue-50/50' : ''">
+                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                                           :class="form.events.includes(ev.value) ? 'border-indigo-500/20 bg-indigo-500/10' : ''">
                                         <input type="checkbox"
                                                :value="ev.value"
                                                :checked="form.events.includes(ev.value)"
                                                @change="toggleEvento(ev.value)"
-                                               class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"/>
+                                               class="w-4 h-4 text-indigo-500 rounded border-white/15 focus:ring-indigo-500 bg-gray-800"/>
                                         <div>
-                                            <p class="text-xs font-semibold text-gray-700" x-text="ev.label"></p>
-                                            <p class="text-xs text-gray-400" x-text="ev.desc"></p>
+                                            <p class="text-xs font-semibold text-gray-200" x-text="ev.label"></p>
+                                            <p class="text-xs text-gray-500" x-text="ev.desc"></p>
                                         </div>
                                     </label>
                                 </template>
@@ -149,15 +149,15 @@
                             </h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <template x-for="s in settingsDisponibles" :key="s.key">
-                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                                           :class="form[s.key] ? 'border-emerald-200 bg-emerald-50/50' : ''">
+                                    <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                                           :class="form[s.key] ? 'border-emerald-500/20 bg-emerald-500/10' : ''">
                                         <input type="checkbox"
                                                :checked="form[s.key]"
                                                @change="form[s.key] = !form[s.key]"
-                                               class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"/>
+                                               class="w-4 h-4 text-emerald-500 rounded border-white/15 focus:ring-emerald-500 bg-gray-800"/>
                                         <div>
-                                            <p class="text-xs font-semibold text-gray-700" x-text="s.label"></p>
-                                            <p class="text-xs text-gray-400" x-text="s.desc"></p>
+                                            <p class="text-xs font-semibold text-gray-200" x-text="s.label"></p>
+                                            <p class="text-xs text-gray-500" x-text="s.desc"></p>
                                         </div>
                                     </label>
                                 </template>
@@ -170,18 +170,18 @@
             </div>
 
             {{-- Footer --}}
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-b-2xl">
+            <div class="px-6 py-4 border-t border-white/5 flex items-center justify-between bg-gray-900/50 rounded-b-2xl">
                 <button @click="seleccionarTodos()"
-                        class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                        class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
                     Seleccionar todos los eventos
                 </button>
                 <div class="flex items-center gap-3">
                     <button @click="cerrar()" type="button"
-                            class="px-5 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                            class="px-5 py-2 text-sm font-medium text-gray-400 hover:text-gray-100 hover:bg-white/10 rounded-lg transition-colors">
                         Cancelar
                     </button>
                     <button @click="guardar()" :disabled="guardando"
-                            class="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                            class="inline-flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors">
                         <template x-if="guardando">
                             <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -419,8 +419,8 @@
 
     {{-- Flash messages --}}
     @if (session('success'))
-        <div role="status" aria-live="polite" class="mb-6 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-4">
-            <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <div role="status" aria-live="polite" class="mb-6 flex items-center gap-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl px-5 py-4">
+            <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
             </svg>
             {{ session('success') }}
@@ -428,8 +428,8 @@
     @endif
 
     @if (session('error'))
-        <div role="alert" aria-live="assertive" class="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-5 py-4">
-            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <div role="alert" aria-live="assertive" class="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-5 py-4">
+            <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
             </svg>
             {{ session('error') }}
@@ -438,8 +438,8 @@
 
     {{-- Banner límite de instancias --}}
     @if ($limitAlcanzado)
-        <div role="status" aria-live="polite" class="mb-6 flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-5 py-4">
-            <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <div role="status" aria-live="polite" class="mb-6 flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-xl px-5 py-4">
+            <svg class="w-5 h-5 text-yellow-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
             <span>
@@ -453,7 +453,7 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-xl font-bold text-gray-900">Números Conectados</h2>
+            <h2 class="text-xl font-bold text-gray-100">Números Conectados</h2>
             <p class="text-sm text-gray-500 mt-0.5">Instancias de WhatsApp activas en Evolution API</p>
         </div>
         <div class="flex items-center gap-3">
@@ -462,14 +462,14 @@
             <form method="POST" action="{{ route('bot.toggle') }}">
                 @csrf
                 <button type="submit"
-                        class="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all
+                        class="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all
                                {{ $botActivo
                                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700' }}">
+                                   : 'bg-gray-700 hover:bg-gray-600 text-gray-200' }}">
                     {{-- Pill switch visual --}}
                     <span class="relative inline-flex w-9 h-5 flex-shrink-0">
                         <span class="block w-full h-full rounded-full transition-colors
-                                     {{ $botActivo ? 'bg-white/30' : 'bg-gray-400/40' }}"></span>
+                                     {{ $botActivo ? 'bg-white/30' : 'bg-gray-500/40' }}"></span>
                         <span class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform
                                      {{ $botActivo ? 'translate-x-4' : 'translate-x-0' }}"></span>
                     </span>
@@ -478,7 +478,7 @@
             </form>
 
             @if ($limitAlcanzado)
-                <div class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-gray-200 cursor-not-allowed select-none"
+                <div class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-800 text-gray-500 text-sm font-semibold rounded-lg border border-white/10 cursor-not-allowed select-none"
                      title="Has alcanzado el límite de {{ $maxInstancias }} instancia(s) de tu plan">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
@@ -487,7 +487,7 @@
                 </div>
             @else
                 <a href="{{ route('bot.conectar') }}"
-                   class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                   class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
@@ -499,23 +499,23 @@
 
     {{-- Tabla de instancias --}}
     @if ($instancias->isEmpty())
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-16 text-center">
-            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-gray-900 rounded-xl border border-white/5 p-16 text-center">
+            <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                 </svg>
             </div>
-            <h3 class="text-gray-700 font-semibold text-lg mb-2">Sin números conectados</h3>
-            <p class="text-gray-400 text-sm mb-6">Escanea un código QR para vincular tu primer número de WhatsApp.</p>
+            <h3 class="text-gray-200 font-semibold text-lg mb-2">Sin números conectados</h3>
+            <p class="text-gray-500 text-sm mb-6">Escanea un código QR para vincular tu primer número de WhatsApp.</p>
             @if ($limitAlcanzado)
-                <p class="text-sm text-amber-600 font-medium bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                <p class="text-sm text-yellow-400 font-medium bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-4 py-2.5">
                     Has alcanzado el límite de instancias de tu plan ({{ $totalInstancias }}/{{ $maxInstancias }}).
                     Contacta al administrador para ampliar tu plan.
                 </p>
             @else
                 <a href="{{ route('bot.conectar') }}"
-                   class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                   class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
@@ -524,17 +524,17 @@
             @endif
         </div>
     @else
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-gray-900 rounded-xl border border-white/5 overflow-hidden">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-gray-100 bg-gray-50">
-                        <th class="text-left px-6 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Instancia</th>
-                        <th class="text-left px-6 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Número / Perfil</th>
-                        <th class="text-left px-6 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Estado</th>
-                        <th class="text-right px-6 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Acciones</th>
+                    <tr class="border-b border-white/5 bg-gray-950">
+                        <th class="text-left px-6 py-3.5 font-semibold text-gray-400 text-xs uppercase tracking-wide">Instancia</th>
+                        <th class="text-left px-6 py-3.5 font-semibold text-gray-400 text-xs uppercase tracking-wide">Número / Perfil</th>
+                        <th class="text-left px-6 py-3.5 font-semibold text-gray-400 text-xs uppercase tracking-wide">Estado</th>
+                        <th class="text-right px-6 py-3.5 font-semibold text-gray-400 text-xs uppercase tracking-wide">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody class="divide-y divide-white/5">
                     @foreach ($instancias as $inst)
                         @php
                             // Evolution API v2: campos planos en la raíz del objeto
@@ -579,7 +579,7 @@
                             // Registro en BD del tenant
                             $dbInst = $dbInstances[$nombre] ?? null;
                         @endphp
-                        <tr class="hover:bg-gray-50 transition-colors"
+                        <tr class="hover:bg-white/5 transition-colors"
                             x-data="{
                                 activo:     {{ $dbInst ? ($dbInst->activo ? 'true' : 'false') : 'false' }},
                                 isDefault:  {{ $dbInst ? ($dbInst->is_default ? 'true' : 'false') : 'false' }},
@@ -639,23 +639,23 @@
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                                         :class="{{ $conectado ? 'true' : 'false' }} ? 'bg-green-100' : (registrado ? 'bg-gray-100' : 'bg-orange-50')">
-                                        <svg class="w-5 h-5" :class="{{ $conectado ? 'true' : 'false' }} ? 'text-green-600' : (registrado ? 'text-gray-400' : 'text-orange-400')" fill="currentColor" viewBox="0 0 24 24">
+                                         :class="{{ $conectado ? 'true' : 'false' }} ? 'bg-green-500/15' : (registrado ? 'bg-gray-800' : 'bg-orange-500/10')">
+                                        <svg class="w-5 h-5" :class="{{ $conectado ? 'true' : 'false' }} ? 'text-green-400' : (registrado ? 'text-gray-500' : 'text-orange-400')" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                                             <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.335-1.54A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.515-5.16-1.41l-.37-.22-3.76.914.949-3.659-.242-.376A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
                                         </svg>
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2 flex-wrap">
-                                            <span class="font-medium text-gray-900">{{ $nombre }}</span>
+                                            <span class="font-medium text-gray-100">{{ $nombre }}</span>
                                             {{-- Badge default --}}
                                             <span x-show="isDefault"
-                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-yellow-500/15 text-yellow-400">
                                                 ★ Predeterminado
                                             </span>
                                             {{-- Badge no registrado --}}
                                             <span x-show="!registrado"
-                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/15 text-orange-400">
                                                 ! Sin registrar
                                             </span>
                                         </div>
@@ -663,12 +663,12 @@
                                         <div x-show="registrado" class="flex items-center gap-1.5 mt-0.5">
                                             <button @click="toggleActivo()" :disabled="cargando"
                                                     class="relative inline-flex h-4 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60"
-                                                    :class="activo ? 'bg-emerald-500' : 'bg-gray-300'"
+                                                    :class="activo ? 'bg-emerald-500' : 'bg-gray-600'"
                                                     :title="activo ? 'Apagar esta instancia' : 'Encender esta instancia'">
                                                 <span class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200"
                                                       :class="activo ? 'translate-x-3' : 'translate-x-0'"></span>
                                             </button>
-                                            <span class="text-xs" :class="activo ? 'text-emerald-600' : 'text-gray-400'"
+                                            <span class="text-xs" :class="activo ? 'text-emerald-400' : 'text-gray-500'"
                                                   x-text="activo ? 'Activo' : 'Pausado'"></span>
                                         </div>
                                     </div>
@@ -678,30 +678,30 @@
                             {{-- Número / Perfil --}}
                             <td class="px-6 py-4">
                                 @if ($numero)
-                                    <p class="font-semibold text-gray-800">+{{ $numero }}</p>
+                                    <p class="font-semibold text-gray-100">+{{ $numero }}</p>
                                 @endif
                                 @if ($perfil)
-                                    <p class="text-xs text-gray-400 mt-0.5">{{ $perfil }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $perfil }}</p>
                                 @endif
                                 @if (! $numero && ! $perfil)
-                                    <span class="text-gray-400 text-sm">Sin información</span>
+                                    <span class="text-gray-500 text-sm">Sin información</span>
                                 @endif
                             </td>
 
                             {{-- Estado --}}
                             <td class="px-6 py-4">
                                 @if ($conectado)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/15 text-green-400">
                                         <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                                         Conectado
                                     </span>
                                 @elseif ($conectando)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/15 text-yellow-400">
                                         <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
                                         Conectando...
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-400">
                                         <span class="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
                                         {{ $statusLabel }}
                                     </span>
@@ -716,7 +716,7 @@
                                             @click="registrar()"
                                             :disabled="cargando"
                                             title="Registrar instancia al negocio"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-60">
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg transition-colors disabled:opacity-60">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                   d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -729,7 +729,7 @@
                                             @click="marcarDefault()"
                                             :disabled="cargando"
                                             title="Marcar como instancia predeterminada"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-60">
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20 rounded-lg transition-colors disabled:opacity-60">
                                         <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                                         </svg>
@@ -741,7 +741,7 @@
                                     <button
                                         onclick="window.dispatchEvent(new CustomEvent('abrir-logs', { detail: '{{ $nombre }}' }))"
                                         title="Ver logs de la instancia"
-                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 hover:bg-purple-100 hover:text-purple-600 rounded-lg transition-colors">
+                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-800 hover:bg-purple-500/15 hover:text-purple-400 rounded-lg transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -753,7 +753,7 @@
                                     <button
                                         onclick="window.dispatchEvent(new CustomEvent('abrir-config', { detail: '{{ $nombre }}' }))"
                                         title="Configurar instancia"
-                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-colors">
+                                        class="inline-flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-800 hover:bg-indigo-500/15 hover:text-indigo-400 rounded-lg transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -768,7 +768,7 @@
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>

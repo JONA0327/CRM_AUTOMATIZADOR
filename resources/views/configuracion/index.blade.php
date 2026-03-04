@@ -1,10 +1,10 @@
-<x-admin-layout title="Configuración">
+﻿<x-admin-layout title="Configuración">
 
     {{-- Flash success --}}
     @if (session('success'))
         <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
              role="status" aria-live="polite"
-             class="mb-5 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-4">
+             class="mb-5 flex items-center gap-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl px-5 py-4">
             <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
             </svg>
@@ -20,8 +20,8 @@
 
             {{-- ═══ SIDEBAR DE TABS ═══ --}}
             <div class="w-56 flex-shrink-0 sticky top-6">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                <div class="bg-indigo-900/30 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-white/5">
                         <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Configuración</p>
                     </div>
                     <nav class="p-2 space-y-0.5" role="tablist" aria-label="Secciones de configuración" aria-orientation="vertical">
@@ -40,8 +40,8 @@
                                 :aria-selected="(activeTab === '{{ $tab['id'] }}').toString()"
                                 :tabindex="activeTab === '{{ $tab['id'] }}' ? 0 : -1"
                                 :class="activeTab === '{{ $tab['id'] }}'
-                                    ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-semibold'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900'"
+                                    ? 'bg-indigo-900/30 text-indigo-700 text-indigo-300 font-semibold'
+                                    : 'text-gray-400 hover:bg-gray-700 hover:text-gray-100'"
                                 class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors text-left focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none">
 
                             {{-- Íconos por tab --}}
@@ -133,9 +133,13 @@
                         $datLineX = $datX - 4;           // 518
                     @endphp
 
-                    <div class="mb-2 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700"
-                         style="background: radial-gradient(ellipse at 30% 50%, #eef2ff 0%, #f8fafc 60%, #faf5ff 100%);">
-                        <div class="relative dark:hidden" style="width:700px; height:{{ $svgH }}px;">
+                      <div class="mb-2 rounded-xl border border-white/10 overflow-hidden relative"
+                           x-data="{ z: 1 }"
+                           x-init="$nextTick(() => { z = $el.offsetWidth / 700 })"
+                           @resize.window="z = $el.offsetWidth / 700"
+                           :style="`height:${Math.round(z * {{ $svgH }})}px`">
+                        <div class="hidden">
+                        <div class="relative">
 
                             {{-- SVG: líneas + fondo punteado (light) --}}
                             <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
@@ -193,7 +197,7 @@
                                      style="width:88px;height:88px;">
                                     <span class="text-4xl leading-none select-none">🤖</span>
                                 </div>
-                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-700 bg-white rounded-full shadow border border-indigo-100">
+                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-700 bg-gray-800 rounded-full shadow border border-indigo-100">
                                     BOT
                                 </span>
                             </div>
@@ -208,8 +212,8 @@
                                             title="{{ $node['activo'] ? $node['preview'] : 'Configura esta API en Modelos de IA o Servicios' }}"
                                             class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
                                                    {{ $node['activo']
-                                                       ? 'border-indigo-300 bg-white text-indigo-700 hover:border-indigo-500 hover:shadow-md cursor-pointer'
-                                                       : 'border-gray-200 bg-white/80 text-gray-400 cursor-not-allowed opacity-60' }}">
+                                                       ? 'border-indigo-300 bg-gray-800 text-indigo-700 hover:border-indigo-500 hover:shadow-md cursor-pointer'
+                                                       : 'border-white/10 bg-gray-800/80 text-gray-400 cursor-not-allowed opacity-60' }}">
                                         <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? 'bg-emerald-400' : 'bg-gray-300' }}"></span>
                                         <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
                                     </button>
@@ -225,8 +229,8 @@
                                             title="{{ $node['preview'] }}"
                                             class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all cursor-pointer
                                                    {{ $node['tipo'] === 'catalogo'
-                                                       ? 'border-purple-300 bg-white text-purple-700 hover:border-purple-500 hover:shadow-md'
-                                                       : 'border-amber-300 bg-white text-amber-700 hover:border-amber-500 hover:shadow-md' }}">
+                                                       ? 'border-purple-300 bg-gray-800 text-purple-700 hover:border-purple-500 hover:shadow-md'
+                                                       : 'border-amber-300 bg-gray-800 text-amber-700 hover:border-amber-500 hover:shadow-md' }}">
                                         <span class="truncate text-left leading-tight flex-1">{{ $node['label'] }}</span>
                                         <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['tipo'] === 'catalogo' ? 'bg-purple-400' : 'bg-amber-400' }}"></span>
                                     </button>
@@ -234,8 +238,11 @@
                             @endforeach
                         </div>
 
+                        </div>{{-- /scale light --}}
+
                         {{-- Dark mode version --}}
-                        <div class="relative hidden dark:block" style="width:700px; height:{{ $svgH }}px; background: radial-gradient(ellipse at 30% 50%, #1e1b4b 0%, #111827 60%, #1a0a2e 100%);">
+                        <div class="absolute top-0 left-0">
+                        <div class="relative origin-top-left" :style="`width:700px;height:{{ $svgH }}px;background:radial-gradient(ellipse at 30% 50%,#1e1b4b 0%,#111827 60%,#1a0a2e 100%);transform:scale(${z})`">
                             <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
                                 <defs>
                                     <pattern id="dotsD" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -311,7 +318,8 @@
                                 </div>
                             @endforeach
                         </div>
-                    </div>
+                        </div>{{-- /scale dark --}}
+                        </div>{{-- /diagrama container --}}
 
                     {{-- Leyenda (fuera del diagrama para no superponerse) --}}
                     <div class="mb-5 mt-2.5 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
@@ -331,15 +339,15 @@
                     </div>
 
                     {{-- Selector de proveedor --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                    <div class="bg-indigo-900/30 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                                 </svg>
                             </div>
                             <div>
-                                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Proveedor de IA activo</p>
+                                <p class="text-sm font-semibold text-gray-100">Proveedor de IA activo</p>
                                 <p class="text-xs text-gray-400">El bot usará este modelo para generar respuestas</p>
                             </div>
                         </div>
@@ -351,11 +359,11 @@
                                     ['value' => 'gemini',   'label' => 'Gemini',     'sub' => 'gemini-1.5-pro/flash',   'color' => 'orange'],
                                 ] as $prov)
                                 <label class="relative flex flex-col gap-1 p-3.5 rounded-xl border-2 cursor-pointer transition-all
-                                              {{ $botProveedor === $prov['value'] ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300' }}">
+                                              {{ $botProveedor === $prov['value'] ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-900/20' : 'border-white/10 border-white/10 hover:border-white/10' }}">
                                     <input type="radio" name="bot_ia_proveedor" value="{{ $prov['value'] }}"
                                            {{ $botProveedor === $prov['value'] ? 'checked' : '' }}
                                            class="sr-only"/>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $prov['label'] }}</p>
+                                    <p class="text-sm font-semibold text-gray-100">{{ $prov['label'] }}</p>
                                     <p class="text-xs text-gray-400">{{ $prov['sub'] }}</p>
                                     @if ($botProveedor === $prov['value'])
                                         <svg class="absolute top-2.5 right-2.5 w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
@@ -370,10 +378,10 @@
                     </div>
 
                     {{-- System Prompt --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mt-5"
+                    <div class="bg-indigo-900/30 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
                          x-data="savedPromptsManager()"
                          x-init="init()">
-                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +389,7 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Prompt del sistema</p>
+                                    <p class="text-sm font-semibold text-gray-100">Prompt del sistema</p>
                                     <p class="text-xs text-gray-400">Instrucciones base del bot en cada conversación</p>
                                 </div>
                             </div>
@@ -402,7 +410,7 @@
                                             <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer"
                                                  :class="promptActivo === p.id
                                                      ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
-                                                     : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 hover:bg-purple-50/50'">
+                                                     : 'border-white/10 border-white/10 hover:border-purple-300 hover:bg-purple-50/50'">
                                                 <button type="button"
                                                         @click="cargarPrompt(p)"
                                                         class="flex-1 text-left min-w-0">
@@ -412,7 +420,7 @@
                                                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                                         </svg>
-                                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate" x-text="p.nombre"></span>
+                                                        <span class="text-sm font-medium text-gray-200 text-gray-100 truncate" x-text="p.nombre"></span>
                                                         <template x-if="promptActivo === p.id">
                                                             <span class="text-xs text-purple-600 font-semibold flex-shrink-0">● activo</span>
                                                         </template>
@@ -422,7 +430,7 @@
                                                 <button type="button"
                                                         @click="eliminarPrompt(p)"
                                                         title="Eliminar prompt"
-                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all">
+                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-all">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                     </svg>
@@ -436,7 +444,7 @@
                             {{-- Guardar prompt actual con nombre --}}
                             <div class="mb-3 flex items-center gap-2">
                                 <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
-                                       class="flex-1 text-xs px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
+                                       class="flex-1 text-xs px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
                                        @keydown.enter.prevent="guardarPrompt()">
                                 <button type="button"
                                         @click="guardarPrompt()"
@@ -455,10 +463,10 @@
                                 x-ref="textarea"
                                 @input="chars = $event.target.value.length"
                                 placeholder="Eres un asistente de ventas especializado en... Responde siempre en español, de forma clara y amable..."
-                                class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
+                                class="w-full px-4 py-3 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
                             >{{ $systemPrompt }}</textarea>
                             <div class="mt-1.5 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Usa <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">[ETIQUETA]</code> para inyectar datos al enviar. Clic en el diagrama o en los chips para insertar.</p>
+                                <p class="text-xs text-gray-400">Usa <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-900/50 border border-indigo-700/50 text-indigo-300 font-mono text-[10px]"><span class="opacity-50">{}</span> ETIQUETA</span> para inyectar datos al enviar. Clic en el diagrama o en los chips para insertar.</p>
                                 <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
                                     <span x-text="chars"></span>/<span x-text="max"></span>
                                 </span>
@@ -472,7 +480,7 @@
                                 $tagsDbExt    = $tagsActivos->where('tipo', 'db_ext');
                             @endphp
                             @if($tagsActivos->isNotEmpty())
-                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                            <div class="mt-3 pt-3 border-t border-white/5 space-y-2">
                                 @if($tagsApis->isNotEmpty())
                                 <div class="flex items-start gap-2 flex-wrap">
                                     <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">APIs</span>
@@ -480,8 +488,8 @@
                                         @foreach($tagsApis as $tag)
                                         <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
                                                 title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 text-xs font-mono hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer">
-                                            [{{ $tag['tag'] }}]
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-900/40 border border-indigo-700/60 text-indigo-300 text-xs font-mono hover:bg-indigo-900/70 hover:border-indigo-500 transition-colors cursor-pointer select-none">
+                                            <span class="text-indigo-500 text-[10px]">{}</span>{{ $tag['tag'] }}
                                         </button>
                                         @endforeach
                                     </div>
@@ -494,8 +502,8 @@
                                         @foreach($tagsCatalogo as $tag)
                                         <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
                                                 title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 text-xs font-mono hover:bg-purple-100 transition-colors cursor-pointer">
-                                            [{{ $tag['tag'] }}]
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-900/40 border border-purple-700/60 text-purple-300 text-xs font-mono hover:bg-purple-900/70 hover:border-purple-500 transition-colors cursor-pointer select-none">
+                                            <span class="text-purple-500 text-[10px]">{}</span>{{ $tag['tag'] }}
                                         </button>
                                         @endforeach
                                     </div>
@@ -508,8 +516,8 @@
                                         @foreach($tagsDbExt as $tag)
                                         <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
                                                 title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 text-xs font-mono hover:bg-amber-100 transition-colors cursor-pointer">
-                                            [{{ $tag['tag'] }}]
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-900/40 border border-amber-700/60 text-amber-300 text-xs font-mono hover:bg-amber-900/70 hover:border-amber-500 transition-colors cursor-pointer select-none">
+                                            <span class="text-amber-500 text-[10px]">{}</span>{{ $tag['tag'] }}
                                         </button>
                                         @endforeach
                                     </div>
@@ -525,9 +533,9 @@
                     </div>
 
                     {{-- Prompt verificación WhatsApp --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mt-5"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
                          x-data="{ chars: {{ strlen($promptVerificacion ?? '') }}, max: 1000 }">
-                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24">
@@ -536,7 +544,7 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Mensaje de verificación WhatsApp</p>
+                                    <p class="text-sm font-semibold text-gray-100">Mensaje de verificación WhatsApp</p>
                                     <p class="text-xs text-gray-400">Enviado al pulsar el ícono WhatsApp en campos de teléfono</p>
                                 </div>
                             </div>
@@ -546,7 +554,7 @@
                             <textarea name="bot_prompt_verificacion" rows="4" maxlength="1000"
                                 @input="chars = $event.target.value.length"
                                 placeholder="Hola, te contactamos para verificar tu número de WhatsApp. ¿Confirmas que este número te pertenece?"
-                                class="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition resize-y"
+                                class="w-full px-4 py-3 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition resize-y"
                             >{{ $promptVerificacion }}</textarea>
                             <div class="mt-1.5 flex items-center justify-between">
                                 <p class="text-xs text-gray-400">Requiere Evolution API configurada e instancia activa.</p>
@@ -561,8 +569,8 @@
                 {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
                 <div x-show="activeTab === 'whatsapp'" x-cloak
                      id="panel-whatsapp" role="tabpanel" aria-labelledby="tab-whatsapp">
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
@@ -571,7 +579,7 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Evolution API</p>
+                                    <p class="text-sm font-semibold text-gray-100">Evolution API</p>
                                     <p class="text-xs text-gray-400">Gestiona instancias y mensajes de WhatsApp</p>
                                 </div>
                             </div>
@@ -607,7 +615,7 @@
                      id="panel-ia" role="tabpanel" aria-labelledby="tab-ia">
 
                     {{-- Info banner --}}
-                    <div class="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800">
+                    <div class="flex items-start gap-3 bg-blue-500/10 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-400">
                         <svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
@@ -615,7 +623,7 @@
                     </div>
 
                     {{-- ════ OPENAI ════ --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{
                              open:        {{ $estado['openai_key'] ? 'true' : 'false' }},
                              modelo:      @js($iaModelos['openai']),
@@ -645,7 +653,7 @@
 
                         {{-- Header --}}
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="currentColor">
@@ -653,7 +661,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">ChatGPT (OpenAI)</p>
+                                    <p class="text-sm font-semibold text-gray-100">ChatGPT (OpenAI)</p>
                                     <p class="text-xs text-gray-400" x-text="modeloFinal || 'GPT-4o · DALL-E 3 · Whisper'"></p>
                                 </div>
                             </div>
@@ -665,7 +673,7 @@
                             </div>
                         </button>
 
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-5 space-y-5">
 
                                 {{-- API Key --}}
@@ -679,9 +687,9 @@
                                             <button type="button" @click="elegir(m.id)"
                                                     :class="modelo === m.id && !customOn
                                                         ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200'
-                                                        : 'border-gray-200 hover:border-teal-300 hover:bg-gray-50'"
+                                                        : 'border-white/10 hover:border-teal-300 hover:bg-gray-800'"
                                                     class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                                <span class="text-xs font-semibold text-gray-800 leading-tight" x-text="m.label"></span>
+                                                <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
                                                 <span x-show="m.tag" class="text-[10px] text-teal-600 font-medium mt-0.5" x-text="m.tag"></span>
                                                 <span x-show="modelo === m.id && !customOn"
                                                       class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-teal-500 rounded-full flex items-center justify-center">
@@ -693,7 +701,7 @@
                                         </template>
                                         {{-- Personalizado --}}
                                         <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200' : 'border-dashed border-gray-300 hover:border-teal-300'"
+                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200' : 'border-dashed border-white/10 hover:border-teal-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
                                             <span class="text-xs font-semibold text-gray-600">Personalizado</span>
                                             <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
@@ -701,7 +709,7 @@
                                     </div>
                                     <div x-show="customOn" x-transition>
                                         <input type="text" x-model="customVal" placeholder="ej: gpt-4o-2024-11-20"
-                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"/>
+                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"/>
                                     </div>
                                     <input type="hidden" name="openai_model" :value="modeloFinal">
                                 </div>
@@ -712,7 +720,7 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                                         {{-- Whisper --}}
-                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                                                      :class="whisper ? 'bg-teal-100' : 'bg-gray-200'">
@@ -721,7 +729,7 @@
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <p class="text-xs font-semibold text-gray-800">Whisper</p>
+                                                    <p class="text-xs font-semibold text-gray-200">Whisper</p>
                                                     <p class="text-[10px] text-gray-400">Transcripción de voz a texto</p>
                                                 </div>
                                             </div>
@@ -729,13 +737,13 @@
                                                     :class="whisper ? 'bg-teal-500' : 'bg-gray-300'"
                                                     class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
                                                 <span :class="whisper ? 'translate-x-5' : 'translate-x-0'"
-                                                      class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                                      class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
                                             </button>
                                             <input type="hidden" name="openai_whisper_activo" :value="whisper ? '1' : '0'">
                                         </div>
 
                                         {{-- DALL-E 3 --}}
-                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                                                      :class="imagen ? 'bg-purple-100' : 'bg-gray-200'">
@@ -744,7 +752,7 @@
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <p class="text-xs font-semibold text-gray-800">DALL-E 3</p>
+                                                    <p class="text-xs font-semibold text-gray-200">DALL-E 3</p>
                                                     <p class="text-[10px] text-gray-400">Generación de imágenes con IA</p>
                                                 </div>
                                             </div>
@@ -752,7 +760,7 @@
                                                     :class="imagen ? 'bg-purple-500' : 'bg-gray-300'"
                                                     class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
                                                 <span :class="imagen ? 'translate-x-5' : 'translate-x-0'"
-                                                      class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                                      class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
                                             </button>
                                             <input type="hidden" name="openai_imagen_activo" :value="imagen ? '1' : '0'">
                                         </div>
@@ -765,7 +773,7 @@
                     </div>
 
                     {{-- ════ DEEPSEEK ════ --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{
                              open:     {{ $estado['deepseek_key'] ? 'true' : 'false' }},
                              modelo:   @js($iaModelos['deepseek']),
@@ -790,7 +798,7 @@
 
                         {{-- Header --}}
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -798,7 +806,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">DeepSeek</p>
+                                    <p class="text-sm font-semibold text-gray-100">DeepSeek</p>
                                     <p class="text-xs text-gray-400" x-text="modeloFinal || 'deepseek-chat · deepseek-reasoner'"></p>
                                 </div>
                             </div>
@@ -810,7 +818,7 @@
                             </div>
                         </button>
 
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-5 space-y-5">
 
                                 {{-- API Key --}}
@@ -823,10 +831,10 @@
                                         <template x-for="m in modelos" :key="m.id">
                                             <button type="button" @click="elegir(m.id)"
                                                     :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200'
-                                                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'"
+                                                        ? 'ring-2 ring-blue-500 bg-blue-500/10 border-blue-500/30'
+                                                        : 'border-white/10 hover:border-blue-300 hover:bg-gray-800'"
                                                     class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                                <span class="text-xs font-semibold text-gray-800 leading-tight" x-text="m.label"></span>
+                                                <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
                                                 <span x-show="m.tag" class="text-[10px] text-blue-600 font-medium mt-0.5" x-text="m.tag"></span>
                                                 <span x-show="modelo === m.id && !customOn"
                                                       class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
@@ -837,7 +845,7 @@
                                             </button>
                                         </template>
                                         <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' : 'border-dashed border-gray-300 hover:border-blue-300'"
+                                                :class="customOn ? 'ring-2 ring-blue-500 bg-blue-500/10 border-blue-500/30' : 'border-dashed border-white/10 hover:border-blue-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
                                             <span class="text-xs font-semibold text-gray-600">Personalizado</span>
                                             <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
@@ -845,7 +853,7 @@
                                     </div>
                                     <div x-show="customOn" x-transition>
                                         <input type="text" x-model="customVal" placeholder="ej: deepseek-v3"
-                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
                                     </div>
                                     <input type="hidden" name="deepseek_model" :value="modeloFinal">
                                 </div>
@@ -863,7 +871,7 @@
                     </div>
 
                     {{-- ════ GEMINI ════ --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{
                              open:     {{ $estado['gemini_key'] ? 'true' : 'false' }},
                              modelo:   @js($iaModelos['gemini']),
@@ -903,7 +911,7 @@
 
                         {{-- Header --}}
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
@@ -911,7 +919,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Google Gemini</p>
+                                    <p class="text-sm font-semibold text-gray-100">Google Gemini</p>
                                     <p class="text-xs text-gray-400" x-text="modeloFinal || 'gemini-1.5-flash · gemini-1.5-pro'"></p>
                                 </div>
                             </div>
@@ -923,7 +931,7 @@
                             </div>
                         </button>
 
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-5 space-y-5">
 
                                 {{-- API Key --}}
@@ -936,11 +944,11 @@
                                         <template x-for="m in modelos" :key="m.id">
                                             <button type="button" @click="elegir(m.id)"
                                                     :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-orange-500 bg-orange-50 border-orange-200'
-                                                        : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'"
+                                                        ? 'ring-2 ring-orange-500 bg-orange-500/10 border-orange-200'
+                                                        : 'border-white/10 hover:border-orange-300 hover:bg-gray-800'"
                                                     class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
                                                 <div class="flex items-center gap-1 w-full">
-                                                    <span class="text-xs font-semibold text-gray-800 leading-tight flex-1" x-text="m.label"></span>
+                                                    <span class="text-xs font-semibold text-gray-200 leading-tight flex-1" x-text="m.label"></span>
                                                     {{-- Ícono audio para modelos que lo soportan --}}
                                                     <svg x-show="m.audio" class="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
@@ -956,7 +964,7 @@
                                             </button>
                                         </template>
                                         <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-orange-500 bg-orange-50 border-orange-200' : 'border-dashed border-gray-300 hover:border-orange-300'"
+                                                :class="customOn ? 'ring-2 ring-orange-500 bg-orange-500/10 border-orange-200' : 'border-dashed border-white/10 hover:border-orange-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
                                             <span class="text-xs font-semibold text-gray-600">Personalizado</span>
                                             <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
@@ -964,7 +972,7 @@
                                     </div>
                                     <div x-show="customOn" x-transition>
                                         <input type="text" x-model="customVal" placeholder="ej: gemini-2.0-flash-thinking-exp"
-                                               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"/>
+                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"/>
                                     </div>
                                     <input type="hidden" name="gemini_model" :value="modeloFinal">
                                 </div>
@@ -972,7 +980,7 @@
                                 {{-- Capacidades adicionales (solo si el modelo las soporta) --}}
                                 <div x-show="soportaAudio" x-transition>
                                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Capacidades adicionales</p>
-                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
                                         <div class="flex items-center gap-3">
                                             <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                                                  :class="audio ? 'bg-orange-100' : 'bg-gray-200'">
@@ -981,7 +989,7 @@
                                                 </svg>
                                             </div>
                                             <div>
-                                                <p class="text-xs font-semibold text-gray-800">Audio nativo</p>
+                                                <p class="text-xs font-semibold text-gray-200">Audio nativo</p>
                                                 <p class="text-[10px] text-gray-400">Transcripción multimodal integrada en el modelo</p>
                                             </div>
                                         </div>
@@ -989,7 +997,7 @@
                                                 :class="audio ? 'bg-orange-500' : 'bg-gray-300'"
                                                 class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
                                             <span :class="audio ? 'translate-x-5' : 'translate-x-0'"
-                                                  class="inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200"></span>
+                                                  class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
                                         </button>
                                     </div>
                                     <input type="hidden" name="gemini_audio_activo" :value="audio ? '1' : '0'">
@@ -1014,10 +1022,10 @@
                      id="panel-servicios" role="tabpanel" aria-labelledby="tab-servicios">
 
                     {{-- Google --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{ open: {{ ($estado['google_client_id'] || $estado['google_client_secret'] || $googleConectado) ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -1028,7 +1036,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Google (Calendar & Drive)</p>
+                                    <p class="text-sm font-semibold text-gray-100">Google (Calendar & Drive)</p>
                                     @if($googleConectado)
                                         <p class="text-xs text-green-600 font-medium flex items-center gap-1">
                                             <span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
@@ -1046,7 +1054,7 @@
                                 </svg>
                             </div>
                         </button>
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-5 space-y-5">
 
                                 {{-- Paso 1: Credenciales OAuth2 --}}
@@ -1064,20 +1072,20 @@
                                             Google Cloud Console
                                         </a>
                                         como «Aplicación web». Agrega
-                                        <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded text-xs font-mono">{{ route('configuracion.google.callback') }}</code>
+                                        <code class="bg-gray-700 px-1 rounded text-xs font-mono">{{ route('configuracion.google.callback') }}</code>
                                         como URI de redireccionamiento autorizado.
                                     </p>
                                 </div>
 
                                 {{-- Paso 2: Autorizar cuenta --}}
-                                <div class="border-t border-gray-100 dark:border-gray-700 pt-4">
+                                <div class="border-t border-white/5 pt-4">
                                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
                                         Paso 2 — Autorizar cuenta de Google
                                     </p>
 
                                     @if($googleConectado)
                                         {{-- Conectado: mostrar cuenta y botón desconectar --}}
-                                        <div class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3">
+                                        <div class="flex items-center justify-between bg-green-500/10 dark:bg-green-900/20 border border-green-500/30 dark:border-green-800 rounded-xl px-4 py-3">
                                             <div class="flex items-center gap-3">
                                                 <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                                                     <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -1085,7 +1093,7 @@
                                                     </svg>
                                                 </div>
                                                 <div>
-                                                    <p class="text-sm font-semibold text-green-800 dark:text-green-300">Cuenta conectada</p>
+                                                    <p class="text-sm font-semibold text-green-400 dark:text-green-300">Cuenta conectada</p>
                                                     <p class="text-xs text-green-600 dark:text-green-400">{{ $googleEmail }}</p>
                                                 </div>
                                             </div>
@@ -1094,7 +1102,7 @@
                                                 @method('DELETE')
                                                 <button type="submit"
                                                         onclick="return confirm('¿Desconectar la cuenta de Google? El bot no podrá acceder a Calendar ni Drive.')"
-                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-500/10 hover:bg-red-100 border border-red-500/30 rounded-lg transition-colors">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                                     </svg>
@@ -1104,16 +1112,16 @@
                                         </div>
                                     @else
                                         {{-- No conectado: instrucciones + botón --}}
-                                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 px-4 py-4 flex items-center justify-between gap-4">
-                                            <div class="text-sm text-gray-600 dark:text-gray-300">
-                                                <p class="font-medium text-gray-700 dark:text-gray-200 mb-0.5">Sin cuenta conectada</p>
+                                        <div class="bg-gray-800 bg-gray-700/50 rounded-xl border border-white/10 border-white/10 px-4 py-4 flex items-center justify-between gap-4">
+                                            <div class="text-sm text-gray-600 text-gray-300">
+                                                <p class="font-medium text-gray-300 text-gray-200 mb-0.5">Sin cuenta conectada</p>
                                                 <p class="text-xs text-gray-400">
                                                     Guarda primero el Client ID y Client Secret, luego haz clic en «Conectar con Google» para autorizar el acceso a Calendar y Drive.
                                                 </p>
                                             </div>
                                             @if($estado['google_client_id'] && $estado['google_client_secret'])
                                                 <a href="{{ route('configuracion.google.redirect') }}"
-                                                   class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 shadow-sm transition-colors">
+                                                   class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-800 text-gray-300 text-sm font-semibold rounded-lg border border-white/10 shadow-sm transition-colors">
                                                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
                                                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                                                         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -1123,7 +1131,7 @@
                                                     Conectar con Google
                                                 </a>
                                             @else
-                                                <span class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-gray-200 cursor-not-allowed select-none"
+                                                <span class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-white/10 cursor-not-allowed select-none"
                                                       title="Guarda primero el Client ID y Client Secret">
                                                     Conectar con Google
                                                 </span>
@@ -1137,10 +1145,10 @@
                     </div>
 
                     {{-- AssemblyAI --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{ open: {{ $estado['assembly_key'] ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1148,7 +1156,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">AssemblyAI</p>
+                                    <p class="text-sm font-semibold text-gray-100">AssemblyAI</p>
                                     <p class="text-xs text-gray-400">Transcripción de audio y voz a texto</p>
                                 </div>
                             </div>
@@ -1159,7 +1167,7 @@
                                 </svg>
                             </div>
                         </button>
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-4">
                                 <x-config-field name="assembly_key" label="API Key" tipo="password" placeholder="Tu API Key de AssemblyAI" :configured="$estado['assembly_key']"/>
                             </div>
@@ -1167,10 +1175,10 @@
                     </div>
 
                     {{-- Zoom --}}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
                          x-data="{ open: {{ ($estado['zoom_account_id'] || $estado['zoom_client_id']) ? 'true' : 'false' }} }">
                         <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-sky-600" fill="currentColor" viewBox="0 0 24 24">
@@ -1178,7 +1186,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Zoom</p>
+                                    <p class="text-sm font-semibold text-gray-100">Zoom</p>
                                     <p class="text-xs text-gray-400">Integración con reuniones y webinars</p>
                                 </div>
                             </div>
@@ -1189,7 +1197,7 @@
                                 </svg>
                             </div>
                         </button>
-                        <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                        <div x-show="open" x-collapse class="border-t border-white/5">
                             <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <x-config-field name="zoom_account_id" label="Account ID" tipo="password" placeholder="Tu Account ID" :configured="$estado['zoom_account_id']"/>
                                 <x-config-field name="zoom_client_id" label="Client ID" tipo="password" placeholder="Tu Client ID" :configured="$estado['zoom_client_id']"/>
@@ -1205,8 +1213,8 @@
 
                     <input type="hidden" name="ext_dbs" :value="jsonFinal"/>
 
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1214,7 +1222,7 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Bases de Datos Externas</p>
+                                    <p class="text-sm font-semibold text-gray-100">Bases de Datos Externas</p>
                                     <p class="text-xs text-gray-400">El bot usará los datos de estas BDs como contexto</p>
                                 </div>
                             </div>
@@ -1237,11 +1245,11 @@
 
                             <template x-for="(conn, idx) in conexiones" :key="conn.id">
                                 <div>
-                                    <div class="flex items-center gap-3 px-5 py-3 bg-gray-50 dark:bg-gray-750">
+                                    <div class="flex items-center gap-3 px-5 py-3 bg-gray-800 dark:bg-gray-750">
                                         <input type="text" x-model="conn.nombre"
                                                placeholder="✏ Escribe un nombre para esta BD…"
-                                               class="flex-1 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-400 focus:outline-none focus:ring-0 placeholder-gray-400 transition-colors"/>
-                                        <span class="px-2 py-0.5 rounded text-xs font-mono bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 flex-shrink-0"
+                                               class="flex-1 text-sm font-semibold text-gray-200 bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-400 focus:outline-none focus:ring-0 placeholder-gray-400 transition-colors"/>
+                                        <span class="px-2 py-0.5 rounded text-xs font-mono bg-indigo-100 dark:bg-indigo-900 text-indigo-700 text-indigo-300 flex-shrink-0"
                                               x-text="conn.driver.toUpperCase()"></span>
                                         <button type="button" @click="conn._expandido = !conn._expandido"
                                                 class="text-gray-400 hover:text-gray-600 flex-shrink-0">
@@ -1260,46 +1268,46 @@
                                     <div x-show="conn._expandido" class="px-5 py-4 space-y-4">
                                         {{-- Nombre --}}
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nombre de esta conexión <span class="text-red-400">*</span></label>
+                                            <label class="block text-xs font-medium text-gray-400 mb-1">Nombre de esta conexión <span class="text-red-400">*</span></label>
                                             <input type="text" x-model="conn.nombre" placeholder="Ej: BD Clientes, ERP, CRM…"
-                                                   class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                                                   class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition">
                                         </div>
                                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tipo de BD</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Tipo de BD</label>
                                                 <select x-model="conn.driver"
-                                                        class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition">
+                                                        class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition">
                                                     <option value="mysql">MySQL</option>
                                                     <option value="pgsql">PostgreSQL</option>
                                                     <option value="mongodb">MongoDB</option>
                                                 </select>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Host</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Host</label>
                                                 <input type="text" x-model="conn.host" placeholder="127.0.0.1"
-                                                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
+                                                       class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Puerto</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Puerto</label>
                                                 <input type="text" x-model="conn.port"
                                                        :placeholder="conn.driver === 'pgsql' ? '5432' : conn.driver === 'mongodb' ? '27017' : '3306'"
-                                                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
+                                                       class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Base de datos</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Base de datos</label>
                                                 <input type="text" x-model="conn.database" placeholder="nombre_bd"
-                                                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
+                                                       class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Usuario</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Usuario</label>
                                                 <input type="text" x-model="conn.username" placeholder="root"
-                                                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
+                                                       class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Contraseña</label>
+                                                <label class="block text-xs font-medium text-gray-400 mb-1">Contraseña</label>
                                                 <input type="password" x-model="conn.password" autocomplete="new-password"
                                                        :placeholder="conn.has_password ? '(guardada)' : '(vacía)'"
-                                                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
+                                                       class="w-full px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition"/>
                                             </div>
                                         </div>
 
@@ -1316,29 +1324,29 @@
                                                 <span x-text="conn._probando ? 'Probando…' : 'Probar conexión'"></span>
                                             </button>
                                             <template x-if="conn._mensaje">
-                                                <p class="text-sm font-medium" :class="conn._error ? 'text-red-600' : 'text-green-700'" x-text="conn._mensaje"></p>
+                                                <p class="text-sm font-medium" :class="conn._error ? 'text-red-600' : 'text-green-400'" x-text="conn._mensaje"></p>
                                             </template>
                                         </div>
 
                                         {{-- Tablas disponibles (post-test) --}}
                                         <template x-if="conn._tablas_disponibles.length > 0">
                                             <div>
-                                                <p class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                                <p class="text-xs font-semibold text-gray-300 mb-2">
                                                     Selecciona las tablas que el bot usará como contexto:
                                                 </p>
-                                                <div class="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+                                                <div class="rounded-lg border border-white/10 border-white/10 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
                                                     <template x-for="tabla in conn._tablas_disponibles" :key="tabla">
                                                         <div>
                                                             {{-- Fila principal de la tabla --}}
                                                             <div class="flex items-center gap-3 px-3 py-2.5 transition-colors"
                                                                  :class="conn.tablas.includes(tabla)
-                                                                     ? 'bg-indigo-50 dark:bg-indigo-900/25'
-                                                                     : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'">
+                                                                     ? 'bg-indigo-900/30 dark:bg-indigo-900/25'
+                                                                     : 'bg-gray-800 hover:bg-gray-800 dark:hover:bg-gray-750'">
                                                                 <input type="checkbox"
                                                                        :checked="conn.tablas.includes(tabla)"
                                                                        @change="toggleTabla(idx, tabla)"
-                                                                       class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 flex-shrink-0 cursor-pointer"/>
-                                                                <span class="font-mono text-sm text-gray-800 dark:text-gray-200 flex-1 select-none cursor-pointer"
+                                                                       class="w-4 h-4 text-indigo-600 border-white/10 rounded focus:ring-indigo-500 flex-shrink-0 cursor-pointer"/>
+                                                                <span class="font-mono text-sm text-gray-200 flex-1 select-none cursor-pointer"
                                                                       @click="toggleTabla(idx, tabla)"
                                                                       x-text="tabla"></span>
                                                                 {{-- Contador de columnas --}}
@@ -1360,7 +1368,7 @@
                                                             </div>
                                                             {{-- Panel de columnas expandible --}}
                                                             <div x-show="conn._esquemaVisible[tabla]"
-                                                                 class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
+                                                                 class="px-4 pb-3 pt-2 bg-gray-800 bg-gray-900/40 border-t border-white/5">
                                                                 <div class="flex items-center justify-between mb-2">
                                                                     <p class="text-xs text-gray-500 font-medium">Columnas para el bot:</p>
                                                                     <div class="flex gap-2">
@@ -1371,7 +1379,7 @@
                                                                 <div class="flex flex-wrap gap-1.5">
                                                                     <template x-for="col in columnasDe(conn, tabla)" :key="col">
                                                                         <label class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-mono cursor-pointer transition-colors"
-                                                                               :class="colSeleccionada(conn, tabla, col) ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-500'">
+                                                                               :class="colSeleccionada(conn, tabla, col) ? 'border-indigo-400 bg-indigo-900/30 text-indigo-700' : 'border-white/10 bg-gray-800 text-gray-500'">
                                                                             <input type="checkbox" :checked="colSeleccionada(conn, tabla, col)"
                                                                                    @change="toggleColumna(idx, tabla, col)"
                                                                                    class="w-3 h-3 text-indigo-600 rounded cursor-pointer">
@@ -1398,8 +1406,8 @@
                                         {{-- Tablas guardadas (sin re-test) --}}
                                         <template x-if="conn._tablas_disponibles.length === 0 && conn.tablas.length > 0">
                                             <div class="rounded-lg border border-indigo-100 dark:border-indigo-800 overflow-hidden divide-y divide-indigo-50 dark:divide-indigo-900">
-                                                <div class="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-between">
-                                                    <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                                                <div class="px-3 py-2 bg-indigo-900/30 dark:bg-indigo-900/30 flex items-center justify-between">
+                                                    <p class="text-xs font-semibold text-indigo-700 text-indigo-300">
                                                         Tablas guardadas
                                                     </p>
                                                     <p class="text-xs text-indigo-500 dark:text-indigo-400">
@@ -1408,9 +1416,9 @@
                                                 </div>
                                                 <template x-for="t in conn.tablas" :key="t">
                                                     <div>
-                                                        <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-800">
+                                                        <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-800">
                                                             <span class="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0"></span>
-                                                            <span class="font-mono text-sm text-gray-800 dark:text-gray-200 flex-1" x-text="t"></span>
+                                                            <span class="font-mono text-sm text-gray-200 flex-1" x-text="t"></span>
                                                             <span class="text-xs text-gray-400 font-mono flex-shrink-0"
                                                                   x-show="(conn._esquemas?.[t] ?? []).length > 0"
                                                                   x-text="(conn._esquemas?.[t] ?? []).length + ' cols'"></span>
@@ -1426,7 +1434,7 @@
                                                             </button>
                                                         </div>
                                                         <div x-show="conn._esquemaVisible[t]"
-                                                             class="px-4 pb-3 pt-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700">
+                                                             class="px-4 pb-3 pt-2 bg-gray-800 bg-gray-900/40 border-t border-white/5">
                                                             <div class="flex items-center justify-between mb-2">
                                                                 <p class="text-xs text-gray-500 font-medium">Columnas para el bot:</p>
                                                                 <div class="flex gap-2">
@@ -1437,7 +1445,7 @@
                                                             <div class="flex flex-wrap gap-1.5">
                                                                 <template x-for="col in (conn._esquemas?.[t] ?? [])" :key="col">
                                                                     <label class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-mono cursor-pointer transition-colors"
-                                                                           :class="colSeleccionada(conn, t, col) ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-500'">
+                                                                           :class="colSeleccionada(conn, t, col) ? 'border-indigo-400 bg-indigo-900/30 text-indigo-700' : 'border-white/10 bg-gray-800 text-gray-500'">
                                                                         <input type="checkbox" :checked="colSeleccionada(conn, t, col)"
                                                                                @change="toggleColumna(idx, t, col)"
                                                                                class="w-3 h-3 text-indigo-600 rounded cursor-pointer">
@@ -1458,7 +1466,7 @@
                             </template>
                         </div>
 
-                        <div class="px-5 py-4 border-t border-gray-100 dark:border-gray-700">
+                        <div class="px-5 py-4 border-t border-white/5">
                             <button type="button" @click="agregar()"
                                     class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-indigo-300 hover:border-indigo-500 text-indigo-600 hover:text-indigo-700 text-sm font-medium rounded-xl transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1737,3 +1745,4 @@ function savedPromptsManager() {
 </script>
 
 </x-admin-layout>
+

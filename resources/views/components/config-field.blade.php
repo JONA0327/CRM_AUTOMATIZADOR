@@ -7,10 +7,10 @@
 ])
 
 <div x-data="{ show: false }">
-    <label for="{{ $name }}" class="block text-sm font-medium text-gray-700 mb-1.5">
+    <label for="{{ $name }}" class="block text-sm font-medium text-gray-300 mb-1.5">
         {{ $label }}
         @if ($configured)
-            <span class="ml-1 text-xs text-green-600 font-normal">✓ guardado</span>
+            <span class="ml-1 text-xs text-green-400 font-normal">✓ guardado</span>
         @endif
     </label>
 
@@ -21,16 +21,16 @@
             :type="show ? 'text' : '{{ $tipo }}'"
             placeholder="{{ $configured ? '••••• — dejar vacío para mantener' : $placeholder }}"
             autocomplete="off"
-            class="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm
-                   focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition
-                   {{ $configured ? 'border-green-300 bg-green-50/40' : '' }}"
+            class="w-full px-4 py-2.5 pr-10 bg-gray-800 border rounded-lg text-sm text-gray-100 placeholder-gray-600
+                   focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition
+                   {{ $configured ? 'border-green-500/40 bg-green-500/5' : 'border-white/10' }}"
         >
 
         {{-- Botón mostrar/ocultar (solo para campos password) --}}
         @if ($tipo === 'password')
             <button type="button"
                     @click="show = !show"
-                    class="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                    class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-300 focus:outline-none">
                 <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>

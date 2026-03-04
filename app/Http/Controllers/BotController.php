@@ -286,7 +286,7 @@ class BotController extends Controller
         $nombre = $request->nombre;
         $usarQr = $request->input('metodo', 'qr') !== 'phone';
         // Teléfono opcional para modo phone — dígitos únicamente con código de país
-        $telefono = $usarQr ? null : preg_replace('/\D/', '', (string) $request->input('telefono', '')) ?: null;
+        $telefono = $usarQr ? null : (preg_replace('/\D/', '', (string) $request->input('telefono', '')) ?: null);
 
         // Verificar límite de instancias del plan
         $user = auth()->user();

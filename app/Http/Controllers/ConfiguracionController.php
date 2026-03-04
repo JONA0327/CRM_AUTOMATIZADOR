@@ -131,7 +131,7 @@ class ConfiguracionController extends Controller
             $availableTags = app(PromptTagResolverService::class)->availableTags();
         } catch (\Exception) {}
 
-        $savedPrompts = [];
+        $savedPrompts = collect();
         try {
             $savedPrompts = SavedPrompt::orderBy('nombre')->get();
         } catch (\Exception) {}

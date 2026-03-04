@@ -56,7 +56,7 @@
             </div>
 
             {{-- Tabla --}}
-            <div x-show="vista === 'tabla'" class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+            <div x-show="vista === 'tabla'" class="bg-indigo-50 dark:bg-indigo-900/40 rounded-xl shadow overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-700">
@@ -215,7 +215,7 @@
                          tabindex="0"
                          role="button"
                          :aria-label="'Ver detalle de ' + getCardTitle(record)"
-                         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none">
+                         class="bg-indigo-50 dark:bg-indigo-900/40 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none">
 
                         {{-- Media (imagen o video) --}}
                         <template x-if="getCoverMedia(record) && getCoverMedia(record).tipo === 'imagen'">
