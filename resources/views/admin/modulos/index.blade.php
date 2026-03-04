@@ -216,6 +216,7 @@
                             <option value="tags">Etiquetas (tags)</option>
                             <option value="select">Selección única (lista)</option>
                             <option value="multiselect">Selección múltiple (lista)</option>
+                            <option value="category_select">Selección por categoría (con ítems)</option>
                             <option value="relation">Relación (otro módulo)</option>
                         </select>
                     </div>
@@ -229,6 +230,19 @@
                             <textarea x-model="formCampo.opciones_texto" rows="3"
                                       placeholder="Opción A&#10;Opción B&#10;Opción C"
                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                        </div>
+                    </template>
+
+                    {{-- Opciones para tipo "category_select" --}}
+                    <template x-if="formCampo.tipo === 'category_select'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-1">
+                                Categorías e ítems
+                            </label>
+                            <textarea x-model="formCampo.opciones_texto" rows="5"
+                                      placeholder="Electrónica: Celular, Laptop, Tablet&#10;Ropa: Camisa, Pantalón, Zapatos&#10;Alimentos: Fruta, Verdura"
+                                      class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                            <p class="mt-1 text-xs text-gray-500">Formato: <code class="text-gray-400">Categoría: ítem1, ítem2, ítem3</code> — una categoría por línea.</p>
                         </div>
                     </template>
 
@@ -434,7 +448,11 @@
                         nombre: campo.nombre,
                         tipo: campo.tipo,
                         obligatorio: !!campo.obligatorio,
-                        opciones_texto: (campo.opciones || []).join('\n'),
+                        opciones_texto: Array.isArray(campo.opciones)
+                            ? (campo.opciones || []).join('\n')
+                            : (campo.opciones && typeof campo.opciones === 'object')
+                                ? Object.entries(campo.opciones).map(([cat, items]) => `${cat}: ${items.join(', ')}`).join('\n')
+                                : '',
                         modulo_relacion: campo.modulo_relacion || '',
                         meta_accept:           campo.meta?.accept           || 'all',
                         meta_max_mb:           campo.meta?.max_mb           || 10,
@@ -457,7 +475,19 @@
                     obligatorio: this.formCampo.obligatorio,
                     opciones: ['select', 'multiselect'].includes(this.formCampo.tipo)
                         ? this.formCampo.opciones_texto.split('\n').map(s => s.trim()).filter(Boolean)
-                        : null,
+                        : this.formCampo.tipo === 'category_select'
+                            ? (() => {
+                                const obj = {};
+                                this.formCampo.opciones_texto.split('\n').forEach(line => {
+                                    const colon = line.indexOf(':');
+                                    if (colon === -1) return;
+                                    const cat   = line.slice(0, colon).trim();
+                                    const items = line.slice(colon + 1).split(',').map(s => s.trim()).filter(Boolean);
+                                    if (cat && items.length) obj[cat] = items;
+                                });
+                                return obj;
+                              })()
+                            : null,
                     modulo_relacion: this.formCampo.tipo === 'relation' ? this.formCampo.modulo_relacion : null,
                     meta: this.formCampo.tipo === 'file'
                         ? { accept: this.formCampo.meta_accept || 'all', max_mb: parseInt(this.formCampo.meta_max_mb) || 10 }

@@ -95,6 +95,17 @@
                                                     @endforeach
                                                 </div>
 
+                                            @elseif($field->tipo === 'category_select' && $val)
+                                                @php $cs = is_array($val) ? $val : []; @endphp
+                                                @if(!empty($cs['categoria']))
+                                                    <div class="flex flex-wrap items-center gap-1">
+                                                        <span class="text-xs text-gray-500 font-medium">{{ $cs['categoria'] }}:</span>
+                                                        @foreach($cs['items'] ?? [] as $item)
+                                                            <span class="inline-block bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 text-xs px-2 py-0.5 rounded-full">{{ $item }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+
                                             @elseif($field->tipo === 'tags' && $val)
                                                 <div class="flex flex-wrap gap-1">
                                                     @foreach((array)$val as $tag)
@@ -430,6 +441,37 @@
                                     @endforeach
                                 </select>
 
+                            @elseif($field->tipo === 'category_select')
+                                {{-- Paso 1: categoría; Paso 2: ítems de esa categoría (multi) --}}
+                                <div class="space-y-2">
+                                    <select @change="setCatFor('{{ $field->slug }}', $event.target.value)"
+                                            :value="form['{{ $field->slug }}']?.categoria || ''"
+                                            class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        <option value="">-- Selecciona categoría --</option>
+                                        @foreach(array_keys($field->opciones ?? []) as $cat)
+                                            <option value="{{ $cat }}">{{ $cat }}</option>
+                                        @endforeach
+                                    </select>
+                                    @foreach($field->opciones ?? [] as $cat => $items)
+                                        <div x-show="form['{{ $field->slug }}']?.categoria === '{{ $cat }}'"
+                                             class="border border-white/10 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 bg-gray-800/50">
+                                            @foreach($items as $item)
+                                                <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 px-1 py-0.5 rounded">
+                                                    <input type="checkbox"
+                                                           value="{{ $item }}"
+                                                           :checked="(form['{{ $field->slug }}']?.items || []).includes('{{ $item }}')"
+                                                           @change="toggleCategoryItem('{{ $field->slug }}', '{{ $cat }}', '{{ $item }}')"
+                                                           class="rounded border-gray-600 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-gray-200">{{ $item }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                    <p x-show="(form['{{ $field->slug }}']?.items || []).length > 0"
+                                       class="text-xs text-indigo-400"
+                                       x-text="(form['{{ $field->slug }}']?.items || []).length + ' seleccionado(s)'"></p>
+                                </div>
+
                             @elseif($field->tipo === 'multiselect')
                                 {{-- Lista de opciones con multi-selección por checkboxes --}}
                                 <div class="border dark:border-gray-600 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 dark:bg-gray-700">
@@ -721,6 +763,8 @@
                 this.campos.forEach(c => {
                     if ((c.tipo === 'relation' && c.meta?.multiple) || c.tipo === 'multiselect') {
                         this.form[c.slug] = [];
+                    } else if (c.tipo === 'category_select') {
+                        this.form[c.slug] = { categoria: '', items: [] };
                     } else {
                         this.form[c.slug] = '';
                     }
@@ -740,13 +784,23 @@
                             this.form[c.slug] = datos[c.slug];
                         } else if (c.tipo === 'relation' && c.meta?.multiple && Array.isArray(datos[c.slug])) {
                             this.form[c.slug] = (datos[c.slug] || []).map(Number);
+                        } else if (c.tipo === 'category_select') {
+                            this.form[c.slug] = datos[c.slug] && datos[c.slug].categoria
+                                ? { categoria: datos[c.slug].categoria, items: datos[c.slug].items || [] }
+                                : { categoria: '', items: [] };
                         } else {
                             this.form[c.slug] = datos[c.slug] ?? '';
                         }
                     });
                 } else {
                     this.campos.forEach(c => {
-                        this.form[c.slug] = ((c.tipo === 'relation' && c.meta?.multiple) || c.tipo === 'multiselect') ? [] : '';
+                        if ((c.tipo === 'relation' && c.meta?.multiple) || c.tipo === 'multiselect') {
+                            this.form[c.slug] = [];
+                        } else if (c.tipo === 'category_select') {
+                            this.form[c.slug] = { categoria: '', items: [] };
+                        } else {
+                            this.form[c.slug] = '';
+                        }
                     });
                 }
                 this.modal = true;
@@ -773,6 +827,19 @@
                 if (idx === -1) arr.push(id);
                 else arr.splice(idx, 1);
                 this.form = { ...this.form, [slug]: arr };
+            },
+
+            // ── Category select ───────────────────────────────────────────
+            setCatFor(slug, categoria) {
+                this.form = { ...this.form, [slug]: { categoria, items: [] } };
+            },
+            toggleCategoryItem(slug, categoria, item) {
+                const current = this.form[slug] || { categoria, items: [] };
+                const items   = [...(current.items || [])];
+                const idx     = items.indexOf(item);
+                if (idx === -1) items.push(item);
+                else items.splice(idx, 1);
+                this.form = { ...this.form, [slug]: { categoria, items } };
             },
 
             // ── Multiselect (opciones fijas) ──────────────────────────────
