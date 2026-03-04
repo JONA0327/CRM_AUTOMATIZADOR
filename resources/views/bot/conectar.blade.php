@@ -42,20 +42,6 @@
                     <p id="instancia-nombre-hint" class="mt-1.5 text-xs text-gray-600">Solo letras, números, guiones y guiones bajos. Sin espacios.</p>
                 </div>
 
-                {{-- Número de teléfono --}}
-                <div>
-                    <label for="instancia-telefono" class="block text-sm font-medium text-gray-300 mb-1.5">
-                        Número de teléfono WhatsApp
-                    </label>
-                    <div class="flex items-center bg-gray-800 border border-white/10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition">
-                        <span class="px-3 py-3 bg-gray-700 text-gray-400 text-sm border-r border-white/10 select-none" aria-hidden="true">+</span>
-                        <input id="instancia-telefono" x-model="telefono" type="tel"
-                               placeholder="521234567890  (con código de país)"
-                               class="flex-1 px-3 py-3 text-sm outline-none bg-gray-800 text-gray-100 placeholder-gray-600">
-                    </div>
-                    <p class="mt-1.5 text-xs text-gray-600">Incluye el código de país sin el +. Ej: 521234567890</p>
-                </div>
-
                 {{-- Botón continuar --}}
                 <button @click="continuar"
                         :disabled="cargando || !nombre.trim()"
