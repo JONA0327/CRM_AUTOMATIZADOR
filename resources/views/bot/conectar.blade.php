@@ -10,12 +10,12 @@
                 <div class="w-12 h-12 bg-indigo-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
                     <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
                     </svg>
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-100">Conectar Número de WhatsApp</h2>
-                    <p class="text-sm text-gray-500 mt-0.5">Vincula un número mediante QR o código de teléfono</p>
+                    <p class="text-sm text-gray-500 mt-0.5">Escanea el código QR con tu teléfono</p>
                 </div>
             </div>
 
@@ -42,58 +42,23 @@
                     <p id="instancia-nombre-hint" class="mt-1.5 text-xs text-gray-600">Solo letras, números, guiones y guiones bajos. Sin espacios.</p>
                 </div>
 
-                {{-- Selector de método --}}
+                {{-- Número de teléfono --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Método de vinculación</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        {{-- Opción QR --}}
-                        <button type="button" @click="metodo = 'qr'"
-                                :class="metodo === 'qr'
-                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300 ring-1 ring-indigo-500'
-                                    : 'border-white/10 bg-gray-800 text-gray-400 hover:border-white/20 hover:bg-gray-750'"
-                                class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all cursor-pointer">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-                            </svg>
-                            <span class="text-sm font-semibold">Código QR</span>
-                            <span class="text-xs text-center opacity-60">Escanea con la cámara</span>
-                        </button>
-
-                        {{-- Opción Teléfono --}}
-                        <button type="button" @click="metodo = 'phone'"
-                                :class="metodo === 'phone'
-                                    ? 'border-green-500 bg-green-500/10 text-green-300 ring-1 ring-green-500'
-                                    : 'border-white/10 bg-gray-800 text-gray-400 hover:border-white/20 hover:bg-gray-750'"
-                                class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all cursor-pointer">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                      d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                            </svg>
-                            <span class="text-sm font-semibold">Número de teléfono</span>
-                            <span class="text-xs text-center opacity-60">Código de 8 dígitos</span>
-                        </button>
-                    </div>
-                </div>
-
-                {{-- Número de teléfono (solo modo phone) --}}
-                <div x-show="metodo === 'phone'" x-transition>
                     <label for="instancia-telefono" class="block text-sm font-medium text-gray-300 mb-1.5">
                         Número de teléfono WhatsApp
                     </label>
-                    <div class="flex items-center bg-gray-800 border border-white/10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-green-500 focus-within:border-green-500 transition">
+                    <div class="flex items-center bg-gray-800 border border-white/10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition">
                         <span class="px-3 py-3 bg-gray-700 text-gray-400 text-sm border-r border-white/10 select-none" aria-hidden="true">+</span>
                         <input id="instancia-telefono" x-model="telefono" type="tel"
                                placeholder="521234567890  (con código de país)"
-                               aria-describedby="instancia-telefono-hint"
                                class="flex-1 px-3 py-3 text-sm outline-none bg-gray-800 text-gray-100 placeholder-gray-600">
                     </div>
-                    <p id="instancia-telefono-hint" class="mt-1.5 text-xs text-gray-600">Incluye el código de país sin el +. Ej: 521234567890</p>
+                    <p class="mt-1.5 text-xs text-gray-600">Incluye el código de país sin el +. Ej: 521234567890</p>
                 </div>
 
                 {{-- Botón continuar --}}
                 <button @click="continuar"
-                        :disabled="cargando || !nombre.trim() || (metodo === 'phone' && !telefono.trim())"
+                        :disabled="cargando || !nombre.trim()"
                         class="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors">
                     <template x-if="cargando">
                         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -101,16 +66,13 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                         </svg>
                     </template>
-                    <span x-text="cargando
-                        ? (metodo === 'phone' ? 'Generando código… (puede tardar ~5s)' : 'Creando instancia...')
-                        : (metodo === 'qr' ? 'Generar código QR' : 'Obtener código de emparejamiento')">
-                    </span>
+                    <span x-text="cargando ? 'Creando instancia...' : 'Generar código QR'"></span>
                 </button>
             </div>
         </div>
     </div>
 
-    {{-- ── Paso 2a: Escaneo del QR ─────────────────────────────────────────── --}}
+    {{-- ── Paso 2: Escaneo del QR ───────────────────────────────────────────── --}}
     <div x-show="paso === 'qr'" x-transition>
         <div class="bg-gray-900 rounded-xl border border-white/5 p-8 text-center">
 
@@ -169,155 +131,6 @@
         </div>
     </div>
 
-    {{-- ── Paso 2b: Ingresar teléfono para pairing code ────────────────────── --}}
-    <div x-show="paso === 'pairing-phone'" x-transition>
-        <div class="bg-gray-900 rounded-xl border border-white/5 p-8">
-
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-10 h-10 bg-green-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-lg font-bold text-gray-100">Vincular por número</h2>
-                    <p class="text-xs text-gray-500">Instancia: <span class="font-semibold text-gray-300" x-text="instancia"></span></p>
-                </div>
-            </div>
-
-            <div x-show="errorMsg" x-transition
-                 role="alert" aria-live="assertive"
-                 class="mb-4 flex items-start gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm">
-                <svg class="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                </svg>
-                <span x-text="errorMsg"></span>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-1.5">Número de WhatsApp</label>
-                    <input x-model="telefono" type="tel"
-                           placeholder="Ej: 5215512345678"
-                           class="w-full px-4 py-3 bg-gray-800 border border-white/10 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
-                    <p class="mt-1.5 text-xs text-gray-600">
-                        Incluye el código de país sin el signo +. Ej: <strong class="text-gray-400">52</strong>1234567890 (México).
-                    </p>
-                </div>
-
-                <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
-                    <p class="text-xs text-amber-400">
-                        <strong>Importante:</strong> El número debe coincidir exactamente con el número de WhatsApp que quieres vincular.
-                    </p>
-                </div>
-
-                <div class="flex gap-3">
-                    <button @click="solicitarCodigo" :disabled="cargando || !telefono.trim()"
-                            class="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors">
-                        <template x-if="cargando">
-                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                            </svg>
-                        </template>
-                        <span x-text="cargando ? 'Iniciando conexión… (puede tardar ~5s)' : 'Obtener código'"></span>
-                    </button>
-                    <button @click="cancelar"
-                            class="px-4 py-3 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
-                        Cancelar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- ── Paso 3b: Mostrar código de emparejamiento ────────────────────────── --}}
-    <div x-show="paso === 'pairing-code'" x-transition>
-        <div class="bg-gray-900 rounded-xl border border-white/5 p-6 sm:p-8">
-
-            <div class="flex items-center gap-4 mb-6 pb-5 border-b border-white/5">
-                <div class="w-12 h-12 bg-green-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-lg font-bold text-gray-100">Código de vinculación</h2>
-                    <p class="text-sm text-gray-500">
-                        Instancia: <span class="font-semibold text-gray-300" x-text="instancia"></span>
-                    </p>
-                </div>
-            </div>
-
-            {{-- Bloque del código + botón copiar --}}
-            <div class="relative bg-gray-950 border-2 border-dashed border-white/10 rounded-2xl p-5 mb-5">
-
-                <button @click="copiarCodigo"
-                        class="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                        :class="copiado
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : 'bg-gray-800 text-gray-400 border border-white/10 hover:bg-gray-700 hover:text-gray-200'">
-                    <template x-if="!copiado">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                    </template>
-                    <template x-if="copiado">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                    </template>
-                    <span x-text="copiado ? 'Copiado' : 'Copiar'"></span>
-                </button>
-
-                <div class="pr-20 text-left">
-                    <p class="font-mono font-bold text-white break-all select-all leading-snug"
-                       :class="pairingCode.length <= 12 ? 'text-4xl tracking-[0.25em]' : 'text-sm'"
-                       x-text="pairingCode"></p>
-                </div>
-                <p class="text-xs text-gray-600 mt-3"
-                   x-text="copiado ? '¡Código copiado al portapapeles!' : 'Selecciona el texto o usa el botón para copiar'"></p>
-            </div>
-
-            <div class="bg-green-500/10 border border-green-500/20 rounded-xl px-5 py-4 mb-5 text-left">
-                <p class="text-sm font-semibold text-green-400 mb-2">¿Cómo ingresar el código?</p>
-                <ol class="text-sm text-green-500 space-y-1 list-decimal list-inside">
-                    <li>Abre WhatsApp en tu teléfono</li>
-                    <li>Ve a <strong>Menú → Dispositivos vinculados</strong></li>
-                    <li>Toca <strong>Vincular un dispositivo</strong></li>
-                    <li>Selecciona <strong>Vincular con número de teléfono</strong></li>
-                    <li>Ingresa el código copiado y confirma</li>
-                </ol>
-            </div>
-
-            <div class="flex items-center gap-2 text-xs text-gray-600 mb-5 justify-center">
-                <svg class="w-3.5 h-3.5 animate-spin text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                Esperando vinculación… verificando cada 3 segundos
-            </div>
-
-            <div class="flex gap-3">
-                <button @click="solicitarCodigo" :disabled="cargando"
-                        class="flex-1 flex items-center justify-center gap-2 py-2.5 border border-white/10 text-gray-400 hover:bg-white/5 disabled:opacity-50 font-medium text-sm rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Nuevo código
-                </button>
-                <button @click="cancelar"
-                        class="flex-1 py-2.5 text-gray-500 hover:text-gray-300 font-medium text-sm rounded-lg border border-white/10 hover:bg-white/5 transition-colors">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    </div>
-
     {{-- ── Paso final: Conexión exitosa ─────────────────────────────────────── --}}
     <div x-show="paso === 'exito'" x-transition>
         <div class="bg-gray-900 rounded-xl border border-white/5 p-12 text-center">
@@ -349,23 +162,20 @@
 function qrScanner() {
     return {
         paso:        'formulario',
-        metodo:      'qr',
         nombre:      '',
+        telefono:    '',
         instancia:   '',
         qrSrc:       '',
-        pairingCode: '',
-        telefono:    '',
         cargando:    false,
         refrescando: false,
         errorMsg:    '',
         pollingId:   null,
-        copiado:     false,
         _csrf:       '{{ csrf_token() }}',
 
         async continuar() {
             if (!this.nombre.trim()) return;
-            this.cargando  = true;
-            this.errorMsg  = '';
+            this.cargando = true;
+            this.errorMsg = '';
 
             try {
                 const res = await fetch('{{ route('bot.crear') }}', {
@@ -377,7 +187,7 @@ function qrScanner() {
                     },
                     body: JSON.stringify({
                         nombre:   this.nombre.trim(),
-                        metodo:   this.metodo,
+                        metodo:   'qr',
                         telefono: this.telefono.trim(),
                     }),
                 });
@@ -390,54 +200,10 @@ function qrScanner() {
                 }
 
                 this.instancia = data.instancia;
-
-                if (this.metodo === 'qr') {
-                    this.qrSrc = data.qr
-                        ? `data:image/png;base64,${data.qr.replace(/^data:image\/\w+;base64,/, '')}`
-                        : '';
-                    this.paso = 'qr';
-                    this.iniciarPolling();
-                } else if (data.pairingCode) {
-                    this.pairingCode = data.pairingCode;
-                    this.paso        = 'pairing-code';
-                    this.iniciarPolling();
-                } else {
-                    this.paso = 'pairing-phone';
-                }
-
-            } catch (e) {
-                this.errorMsg = 'Error de red. Verifica tu conexión.';
-            } finally {
-                this.cargando = false;
-            }
-        },
-
-        async solicitarCodigo() {
-            if (!this.telefono.trim()) return;
-            this.cargando  = true;
-            this.errorMsg  = '';
-
-            try {
-                const url = `{{ url('/bot/pairing-code') }}/${encodeURIComponent(this.instancia)}`;
-                const res = await fetch(url, {
-                    method:  'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': this._csrf,
-                        'Accept':       'application/json',
-                    },
-                    body: JSON.stringify({ phone: this.telefono.trim() }),
-                });
-
-                const data = await res.json();
-
-                if (!data.success) {
-                    this.errorMsg = data.message ?? 'No se pudo generar el código.';
-                    return;
-                }
-
-                this.pairingCode = data.code ?? '';
-                this.paso        = 'pairing-code';
+                this.qrSrc = data.qr
+                    ? `data:image/png;base64,${data.qr.replace(/^data:image\/\w+;base64,/, '')}`
+                    : '';
+                this.paso = 'qr';
                 this.iniciarPolling();
 
             } catch (e) {
@@ -485,30 +251,13 @@ function qrScanner() {
             }
         },
 
-        async copiarCodigo() {
-            try {
-                await navigator.clipboard.writeText(this.pairingCode);
-                this.copiado = true;
-                setTimeout(() => { this.copiado = false; }, 2500);
-            } catch (e) {
-                const el = document.querySelector('[x-text="pairingCode"]');
-                if (el) {
-                    const range = document.createRange();
-                    range.selectNodeContents(el);
-                    window.getSelection().removeAllRanges();
-                    window.getSelection().addRange(range);
-                }
-            }
-        },
-
         cancelar() {
             this.detenerPolling();
-            this.paso        = 'formulario';
-            this.qrSrc       = '';
-            this.pairingCode = '';
-            this.instancia   = '';
-            this.telefono    = '';
-            this.errorMsg    = '';
+            this.paso      = 'formulario';
+            this.qrSrc     = '';
+            this.instancia = '';
+            this.telefono  = '';
+            this.errorMsg  = '';
         },
     };
 }
