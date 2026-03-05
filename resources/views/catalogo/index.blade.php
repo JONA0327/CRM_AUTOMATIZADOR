@@ -581,9 +581,22 @@
                                 </template>
 
                             @elseif($field->tipo === 'file')
-                                {{-- Vista previa del archivo actual --}}
-                                <template x-if="form['{{ $field->slug }}']">
-                                    <div class="mb-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                {{-- Preview local (mientras sube) --}}
+                                <template x-if="localPreviews['{{ $field->slug }}']">
+                                    <div class="mb-2 p-2 bg-gray-800/50 rounded-lg border border-white/10">
+                                        <template x-if="localPreviews['{{ $field->slug }}'].isImg">
+                                            <img :src="localPreviews['{{ $field->slug }}'].url"
+                                                 class="max-h-48 w-auto rounded object-contain mx-auto" alt="Preview">
+                                        </template>
+                                        <template x-if="localPreviews['{{ $field->slug }}'].isVid">
+                                            <video :src="localPreviews['{{ $field->slug }}'].url"
+                                                   class="max-h-48 w-full rounded" controls muted></video>
+                                        </template>
+                                    </div>
+                                </template>
+                                {{-- Preview del servidor (archivo ya guardado) --}}
+                                <template x-if="form['{{ $field->slug }}'] && !localPreviews['{{ $field->slug }}']">
+                                    <div class="mb-2 p-2 bg-gray-800/50 rounded-lg border border-white/10">
                                         <template x-if="esImagen(form['{{ $field->slug }}'])">
                                             <img :src="urlArchivo(form['{{ $field->slug }}'])"
                                                  class="max-h-48 w-auto rounded object-contain mx-auto"
@@ -594,10 +607,10 @@
                                                    class="max-h-48 w-full rounded" controls muted></video>
                                         </template>
                                         <template x-if="!esImagen(form['{{ $field->slug }}']) && !esVideo(form['{{ $field->slug }}'])">
-                                            <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <div class="flex items-center gap-2 text-sm text-gray-300">
                                                 <span class="text-2xl">📎</span>
                                                 <a :href="urlArchivo(form['{{ $field->slug }}'])" target="_blank"
-                                                   class="text-blue-600 hover:underline text-sm">Ver archivo actual</a>
+                                                   class="text-indigo-400 hover:underline text-sm">Ver archivo actual</a>
                                             </div>
                                         </template>
                                     </div>
@@ -693,8 +706,9 @@
             modal:   false,
             editId:  null,
             form:    {},
-            relaciones: {},
-            subiendo:   {},
+            relaciones:    {},
+            subiendo:      {},
+            localPreviews: {},
             flash:   { msg: '', ok: true },
             errores: [],
 
@@ -896,18 +910,30 @@
             async subirArchivo(slug, event) {
                 const file = event.target.files[0];
                 if (!file) return;
+
+                // Preview local inmediato (blob URL)
+                const localUrl = URL.createObjectURL(file);
+                this.localPreviews = { ...this.localPreviews, [slug]: { url: localUrl, isImg: file.type.startsWith('image/'), isVid: file.type.startsWith('video/') } };
+
                 this.subiendo = { ...this.subiendo, [slug]: true };
                 const fd = new FormData();
                 fd.append('file', file);
                 fd.append('field_slug', slug);
                 fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
                 try {
-                    const res  = await fetch(`/catalogo/${this.module}/upload-file`, { method: 'POST', body: fd });
+                    const res  = await fetch(`/catalogo/${this.module}/upload-file`, {
+                        method:  'POST',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        body:    fd,
+                    });
                     const data = await res.json();
                     if (!res.ok) { this.errores = [data.message || 'Error al subir el archivo.']; return; }
                     this.form = { ...this.form, [slug]: data.path };
+                    // Liberar blob URL ya que tenemos la URL del servidor
+                    URL.revokeObjectURL(localUrl);
+                    const p = { ...this.localPreviews }; delete p[slug]; this.localPreviews = p;
                 } catch (e) {
-                    this.errores = ['Error inesperado al subir: ' + e.message];
+                    this.errores = ['Error al subir: ' + e.message];
                 } finally {
                     this.subiendo = { ...this.subiendo, [slug]: false };
                 }
