@@ -59,23 +59,23 @@
             <div x-show="vista === 'tabla'" class="bg-indigo-50 dark:bg-indigo-900/40 rounded-xl shadow overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <thead class="bg-gray-50 dark:bg-gray-700">
+                        <thead class="bg-gray-800/60">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
                                 @foreach($fields as $field)
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                         {{ $field->nombre }}
                                     </th>
                                 @endforeach
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <tbody class="divide-y divide-white/5">
                             @forelse($records as $record)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-750 transition">
-                                    <td class="px-4 py-3 text-gray-400 text-xs">#{{ $record->id }}</td>
+                                <tr class="hover:bg-white/[0.03] transition">
+                                    <td class="px-4 py-3 text-gray-500 text-xs">#{{ $record->id }}</td>
                                     @foreach($fields as $field)
-                                        <td class="px-4 py-3 text-gray-800 dark:text-gray-200">
+                                        <td class="px-4 py-3 text-gray-300 align-top">
                                             @php $val = $record->datos[$field->slug] ?? null; @endphp
 
                                             @if($field->tipo === 'id' && $val)
@@ -87,9 +87,9 @@
                                                 {{ \Carbon\Carbon::parse($val)->format('d/m/Y') }}
 
                                             @elseif($field->tipo === 'multiselect' && $val)
-                                                <div class="flex flex-wrap gap-1">
+                                                <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
                                                     @foreach((array)$val as $item)
-                                                        <span class="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                                                        <span class="inline-block bg-blue-900/40 border border-blue-700/40 text-blue-300 text-xs px-2 py-0.5 rounded-full">
                                                             {{ $item }}
                                                         </span>
                                                     @endforeach
@@ -107,9 +107,9 @@
                                                 @endif
 
                                             @elseif($field->tipo === 'tags' && $val)
-                                                <div class="flex flex-wrap gap-1">
+                                                <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
                                                     @foreach((array)$val as $tag)
-                                                        <span class="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
+                                                        <span class="inline-block bg-purple-900/40 border border-purple-700/40 text-purple-300 text-xs px-2 py-0.5 rounded-full">
                                                             {{ $tag }}
                                                         </span>
                                                     @endforeach
@@ -119,13 +119,13 @@
                                                 @if(is_array($val))
                                                     <div class="flex flex-wrap gap-1">
                                                         @foreach($val as $rid)
-                                                            <span class="inline-block bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">
+                                                            <span class="inline-block bg-indigo-900/40 border border-indigo-700/40 text-indigo-300 text-xs px-2 py-0.5 rounded-full">
                                                                 ID: {{ $rid }}
                                                             </span>
                                                         @endforeach
                                                     </div>
                                                 @else
-                                                    <span class="inline-block bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full">
+                                                    <span class="inline-block bg-indigo-900/40 border border-indigo-700/40 text-indigo-300 text-xs px-2 py-0.5 rounded-full">
                                                         ID: {{ $val }}
                                                     </span>
                                                 @endif
@@ -135,7 +135,7 @@
 
                                             @elseif($field->tipo === 'url' && $val)
                                                 <a href="{{ $val }}" target="_blank" rel="noopener"
-                                                   class="text-blue-600 hover:text-blue-800 hover:underline text-xs flex items-center gap-1">
+                                                   class="text-blue-400 hover:text-blue-300 hover:underline text-xs flex items-center gap-1">
                                                     <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                               d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -153,16 +153,16 @@
                                                 @if(in_array($ext, ['jpg','jpeg','png','gif','webp','svg','bmp']))
                                                     <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
                                                         <img src="{{ $fileUrl }}"
-                                                             class="h-12 w-12 object-cover rounded border border-gray-200 hover:opacity-80 transition"
+                                                             class="h-12 w-12 object-cover rounded border border-white/10 hover:opacity-80 transition"
                                                              loading="lazy" alt="{{ $field->nombre }}">
                                                     </a>
                                                 @elseif(in_array($ext, ['mp4','webm','mov','avi','mkv']))
                                                     <video src="{{ $fileUrl }}"
-                                                           class="h-12 w-20 object-cover rounded border border-gray-200"
+                                                           class="h-12 w-20 object-cover rounded border border-white/10"
                                                            controls muted playsinline></video>
                                                 @else
                                                     <a href="{{ $fileUrl }}" target="_blank" rel="noopener"
-                                                       class="text-blue-600 hover:underline text-xs flex items-center gap-1">
+                                                       class="text-indigo-400 hover:text-indigo-300 hover:underline text-xs flex items-center gap-1">
                                                         📎 Descargar
                                                     </a>
                                                 @endif
@@ -184,7 +184,7 @@
                                             </button>
                                         @endif
                                         <button @click="abrirModal({{ $record->id }}, {{ json_encode($record->datos) }})"
-                                                class="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-3">
+                                                class="text-indigo-400 hover:text-indigo-300 text-xs font-medium mr-3">
                                             Editar
                                         </button>
                                         <button @click="eliminar({{ $record->id }})"
