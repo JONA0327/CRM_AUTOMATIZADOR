@@ -306,6 +306,12 @@ class CatalogRecordController extends Controller
                 case 'file':
                     $rules[$key] = "$req|string|max:500";
                     break;
+                case 'category_select':
+                    $rules[$key]                 = "$req|array";
+                    $rules["$key.categoria"]     = 'nullable|string|max:200';
+                    $rules["$key.items"]         = 'nullable|array';
+                    $rules["$key.items.*"]       = 'nullable|string|max:200';
+                    break;
                 case 'tags':
                     $rules[$key]     = "$req|array";
                     $rules["$key.*"] = 'nullable|string|max:500';
