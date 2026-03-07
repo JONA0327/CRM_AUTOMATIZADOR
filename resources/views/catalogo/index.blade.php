@@ -61,7 +61,6 @@
                     <table class="w-full text-sm">
                         <thead class="bg-gray-800/60">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
                                 @foreach($fields as $field)
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                         {{ $field->nombre }}
@@ -73,7 +72,6 @@
                         <tbody class="divide-y divide-white/5">
                             @forelse($records as $record)
                                 <tr class="hover:bg-white/[0.03] transition">
-                                    <td class="px-4 py-3 text-gray-500 text-xs">#{{ $record->id }}</td>
                                     @foreach($fields as $field)
                                         <td class="px-4 py-3 text-gray-300 align-top">
                                             @php $val = $record->datos[$field->slug] ?? null; @endphp
@@ -344,7 +342,7 @@
 
                             {{-- Todos los campos --}}
                             <template x-for="campo in campos" :key="campo.slug">
-                                <div x-show="campo.tipo !== 'file' || recordDetalle?.datos?.[campo.slug]"
+                                <div x-show="(campo.tipo !== 'file' || recordDetalle?.datos?.[campo.slug]) && campo.tipo !== 'id'"
                                      class="grid grid-cols-3 gap-2 text-sm items-start">
                                     <span class="text-gray-400 font-medium col-span-1 pt-0.5" x-text="campo.nombre"></span>
                                     <div class="col-span-2">
@@ -371,8 +369,22 @@
                                                 </template>
                                             </div>
                                         </template>
+                                        {{-- Category select: chips --}}
+                                        <template x-if="campo.tipo === 'category_select'">
+                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                <template x-if="recordDetalle?.datos?.[campo.slug]?.categoria">
+                                                    <span class="text-xs text-gray-400 font-medium" x-text="recordDetalle.datos[campo.slug].categoria + ':'"></span>
+                                                </template>
+                                                <template x-for="item in (recordDetalle?.datos?.[campo.slug]?.items || [])" :key="item">
+                                                    <span class="inline-block bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 text-xs px-2 py-0.5 rounded-full" x-text="item"></span>
+                                                </template>
+                                                <template x-if="!recordDetalle?.datos?.[campo.slug]?.categoria">
+                                                    <span class="text-gray-500">—</span>
+                                                </template>
+                                            </div>
+                                        </template>
                                         {{-- Resto de tipos: texto --}}
-                                        <template x-if="campo.tipo !== 'file'">
+                                        <template x-if="campo.tipo !== 'file' && campo.tipo !== 'category_select'">
                                             <span class="text-gray-800 dark:text-gray-200 break-words"
                                                   x-text="getFieldDisplay(recordDetalle, campo)"></span>
                                         </template>
@@ -756,6 +768,11 @@
             getFieldDisplay(record, campo) {
                 const val = record.datos?.[campo.slug];
                 if (val === null || val === undefined || val === '') return '—';
+                if (campo.tipo === 'category_select') {
+                    if (!val || typeof val !== 'object' || !val.categoria) return '—';
+                    const items = Array.isArray(val.items) && val.items.length ? ': ' + val.items.join(', ') : '';
+                    return val.categoria + items;
+                }
                 if (Array.isArray(val)) return val.join(', ');
                 if (campo.tipo === 'date' && val) {
                     try { return new Date(val).toLocaleDateString('es-MX'); } catch { /* fallthrough */ }
