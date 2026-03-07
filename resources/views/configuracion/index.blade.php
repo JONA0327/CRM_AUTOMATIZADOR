@@ -1097,18 +1097,14 @@
                                                     <p class="text-xs text-green-600 dark:text-green-400">{{ $googleEmail }}</p>
                                                 </div>
                                             </div>
-                                            <form method="POST" action="{{ route('configuracion.google.revoke') }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                        onclick="return confirm('¿Desconectar la cuenta de Google? El bot no podrá acceder a Calendar ni Drive.')"
-                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-500/10 hover:bg-red-100 border border-red-500/30 rounded-lg transition-colors">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                                    </svg>
-                                                    Desconectar
-                                                </button>
-                                            </form>
+                                            <button type="button"
+                                                    onclick="if(confirm('¿Desconectar la cuenta de Google? El bot no podrá acceder a Calendar ni Drive.')){const f=document.createElement('form');f.method='POST';f.action='{{ route('configuracion.google.revoke') }}';const c=document.createElement('input');c.type='hidden';c.name='_token';c.value=document.querySelector('meta[name=csrf-token]').content;f.appendChild(c);const m=document.createElement('input');m.type='hidden';m.name='_method';m.value='DELETE';f.appendChild(m);document.body.appendChild(f);f.submit();}"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-500/10 hover:bg-red-100 border border-red-500/30 rounded-lg transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                                </svg>
+                                                Desconectar
+                                            </button>
                                         </div>
                                     @else
                                         {{-- No conectado: instrucciones + botón --}}
