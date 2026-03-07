@@ -30,9 +30,9 @@
                 <div class="flex items-center gap-3">
                     <span class="text-sm text-gray-500">{{ $records->total() }} registro(s)</span>
                     {{-- Toggle tabla / cards --}}
-                    <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+                    <div class="flex items-center bg-gray-800 border border-white/10 rounded-lg p-0.5">
                         <button @click="setVista('tabla')" title="Vista tabla"
-                                :class="vista === 'tabla' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'"
+                                :class="vista === 'tabla' ? 'bg-indigo-600 shadow text-white' : 'text-gray-500 hover:text-gray-300'"
                                 class="p-1.5 rounded-md transition-all">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -40,7 +40,7 @@
                             </svg>
                         </button>
                         <button @click="setVista('cards')" title="Vista tarjetas"
-                                :class="vista === 'cards' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'"
+                                :class="vista === 'cards' ? 'bg-indigo-600 shadow text-white' : 'text-gray-500 hover:text-gray-300'"
                                 class="p-1.5 rounded-md transition-all">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -66,24 +66,24 @@
             </div>
 
             {{-- Tabla --}}
-            <div x-show="vista === 'tabla'" class="bg-indigo-50 dark:bg-indigo-900/40 rounded-xl shadow overflow-hidden">
+            <div x-show="vista === 'tabla'" class="bg-gray-900/60 border border-white/5 rounded-xl shadow overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <thead class="bg-gray-800/60">
+                        <thead class="bg-gray-800/80 border-b border-white/10">
                             <tr>
                                 @foreach($fields as $field)
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                         {{ $field->nombre }}
                                     </th>
                                 @endforeach
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/5">
                             @forelse($records as $record)
-                                <tr class="hover:bg-white/[0.03] transition">
+                                <tr class="bg-gray-900/30 hover:bg-indigo-900/20 transition">
                                     @foreach($fields as $field)
-                                        <td class="px-4 py-3 text-gray-300 align-top">
+                                        <td class="px-4 py-3 text-gray-200 align-top">
                                             @php $val = $record->datos[$field->slug] ?? null; @endphp
 
                                             @if($field->tipo === 'id' && $val)
@@ -203,7 +203,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ $fields->count() + 2 }}" class="px-4 py-12 text-center text-gray-400">
+                                    <td colspan="{{ $fields->count() + 2 }}" class="px-4 py-12 text-center text-gray-500">
                                         <div class="text-4xl mb-2">{{ $modulo->icono ?? '📋' }}</div>
                                         <p>No hay registros aún. Crea el primero.</p>
                                     </td>
@@ -259,7 +259,7 @@
 
                         {{-- Contenido --}}
                         <div class="p-4 flex-1 space-y-1.5">
-                            <p class="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate"
+                            <p class="font-semibold text-gray-100 text-sm truncate"
                                x-text="getCardTitle(record)"></p>
                             <template x-for="campo in getCardFields(record)" :key="campo.slug">
                                 <div class="flex gap-1 leading-tight"

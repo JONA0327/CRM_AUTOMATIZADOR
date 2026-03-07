@@ -686,11 +686,11 @@
                                         <template x-for="m in modelos" :key="m.id">
                                             <button type="button" @click="elegir(m.id)"
                                                     :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200'
+                                                        ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40'
                                                         : 'border-white/10 hover:border-teal-300 hover:bg-gray-800'"
                                                     class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
                                                 <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
-                                                <span x-show="m.tag" class="text-[10px] text-teal-600 font-medium mt-0.5" x-text="m.tag"></span>
+                                                <span x-show="m.tag" class="text-[10px] text-teal-400 font-medium mt-0.5" x-text="m.tag"></span>
                                                 <span x-show="modelo === m.id && !customOn"
                                                       class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-teal-500 rounded-full flex items-center justify-center">
                                                     <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
@@ -701,10 +701,10 @@
                                         </template>
                                         {{-- Personalizado --}}
                                         <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-50 border-teal-200' : 'border-dashed border-white/10 hover:border-teal-300'"
+                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40' : 'border-dashed border-white/10 hover:border-teal-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
-                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
                                         </button>
                                     </div>
                                     <div x-show="customOn" x-transition>
@@ -847,8 +847,8 @@
                                         <button type="button" @click="elegir('__custom__')"
                                                 :class="customOn ? 'ring-2 ring-blue-500 bg-blue-500/10 border-blue-500/30' : 'border-dashed border-white/10 hover:border-blue-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
-                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
                                         </button>
                                     </div>
                                     <div x-show="customOn" x-transition>
@@ -966,8 +966,8 @@
                                         <button type="button" @click="elegir('__custom__')"
                                                 :class="customOn ? 'ring-2 ring-orange-500 bg-orange-500/10 border-orange-200' : 'border-dashed border-white/10 hover:border-orange-300'"
                                                 class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-600">Personalizado</span>
-                                            <span class="text-[10px] text-gray-400 mt-0.5">Escribe el ID del modelo</span>
+                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
                                         </button>
                                     </div>
                                     <div x-show="customOn" x-transition>
