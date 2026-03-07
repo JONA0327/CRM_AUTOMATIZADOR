@@ -329,6 +329,26 @@ class ConfiguracionController extends Controller
     }
 
     /**
+     * Actualiza nombre y/o contenido de un prompt guardado.
+     * PUT /configuracion/prompts/{id} → JSON
+     */
+    public function updatePrompt(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:8000'],
+        ]);
+
+        $prompt = SavedPrompt::findOrFail($id);
+        $prompt->update([
+            'nombre'    => trim($request->nombre),
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'prompt' => $prompt]);
+    }
+
+    /**
      * Elimina un prompt guardado.
      * DELETE /configuracion/prompts/{id} → JSON
      */

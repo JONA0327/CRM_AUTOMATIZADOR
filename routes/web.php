@@ -96,8 +96,9 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::post('/',                [ConfiguracionController::class, 'update'])->name('update');
             Route::delete('/{clave}',       [ConfiguracionController::class, 'limpiar'])->name('limpiar');
             Route::post('/test-db',         [ConfiguracionController::class, 'testExternalDb'])->name('test-db');
-            Route::post('/prompts',         [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
-            Route::delete('/prompts/{id}',  [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
+            Route::post('/prompts',          [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
+            Route::put('/prompts/{id}',      [ConfiguracionController::class, 'updatePrompt'])->name('prompts.update');
+            Route::delete('/prompts/{id}',   [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
 
             // Google OAuth2
             Route::get('/google/redirect',  [GoogleAuthController::class, 'redirect'])->name('google.redirect');

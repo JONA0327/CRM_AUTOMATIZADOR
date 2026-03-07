@@ -428,6 +428,14 @@
                                                     <p class="text-xs text-gray-400 truncate mt-0.5 ml-5.5" x-text="p.contenido.substring(0,80) + (p.contenido.length > 80 ? '…' : '')"></p>
                                                 </button>
                                                 <button type="button"
+                                                        @click="editarPrompt(p)"
+                                                        title="Editar prompt"
+                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 rounded transition-all">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button"
                                                         @click="eliminarPrompt(p)"
                                                         title="Eliminar prompt"
                                                         class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-all">
@@ -441,20 +449,32 @@
                                 </div>
                             </template>
 
-                            {{-- Guardar prompt actual con nombre --}}
-                            <div class="mb-3 flex items-center gap-2">
-                                <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
-                                       class="flex-1 text-xs px-3 py-2 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
-                                       @keydown.enter.prevent="guardarPrompt()">
-                                <button type="button"
-                                        @click="guardarPrompt()"
-                                        :disabled="!nuevoNombre.trim() || guardando"
-                                        class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors disabled:opacity-50">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                                    </svg>
-                                    Guardar prompt
-                                </button>
+                            {{-- Guardar / Editar prompt --}}
+                            <div class="mb-3 space-y-2">
+                                <template x-if="editandoId">
+                                    <p class="text-xs text-purple-400 font-medium flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        Editando — el contenido actual del textarea se guardará
+                                    </p>
+                                </template>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
+                                           class="flex-1 text-xs px-3 py-2 border border-white/10 bg-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
+                                           @keydown.enter.prevent="editandoId ? actualizarPrompt() : guardarPrompt()">
+                                    <template x-if="editandoId">
+                                        <button type="button" @click="cancelarEdicion()"
+                                                class="px-2.5 py-2 text-xs text-gray-400 hover:text-gray-200 border border-white/10 rounded-lg transition-colors">✕</button>
+                                    </template>
+                                    <button type="button"
+                                            @click="editandoId ? actualizarPrompt() : guardarPrompt()"
+                                            :disabled="!nuevoNombre.trim() || guardando"
+                                            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg transition-colors disabled:opacity-50">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                        </svg>
+                                        <span x-text="editandoId ? 'Actualizar' : 'Guardar prompt'"></span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1677,6 +1697,7 @@ function savedPromptsManager() {
         nuevoNombre: '',
         guardando: false,
         promptActivo: null,
+        editandoId: null,
 
         init() {
             // Determinar el prompt activo comparando contenido con el system_prompt actual
@@ -1719,6 +1740,53 @@ function savedPromptsManager() {
                 }
             } catch (e) {
                 alert('No se pudo guardar el prompt.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        editarPrompt(p) {
+            this.editandoId = p.id;
+            this.nuevoNombre = p.nombre;
+            // Cargar el contenido en el textarea para que el usuario lo edite
+            const ta = document.getElementById('system_prompt');
+            if (ta) {
+                ta.value = p.contenido;
+                this.chars = p.contenido.length;
+                ta.dispatchEvent(new Event('input'));
+            }
+            this.promptActivo = p.id;
+        },
+
+        cancelarEdicion() {
+            this.editandoId = null;
+            this.nuevoNombre = '';
+        },
+
+        async actualizarPrompt() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre || !this.editandoId) return;
+            const ta = document.getElementById('system_prompt');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea del prompt está vacío.');
+                return;
+            }
+            this.guardando = true;
+            try {
+                const res = await axios.put(`{{ url('/configuracion/prompts') }}/${this.editandoId}`, { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    const idx = this.prompts.findIndex(p => p.id === this.editandoId);
+                    if (idx !== -1) this.prompts[idx] = res.data.prompt;
+                    this.prompts.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    this.promptActivo = res.data.prompt.id;
+                    this.editandoId = null;
+                    this.nuevoNombre = '';
+                }
+            } catch (e) {
+                alert('No se pudo actualizar el prompt.');
             } finally {
                 this.guardando = false;
             }
