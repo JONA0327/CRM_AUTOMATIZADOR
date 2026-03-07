@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Models\TenantInstance;
 use App\Services\ExternalDbService;
+use App\Services\MediaPipelineService;
 use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -195,31 +196,138 @@ class BotController extends Controller
         }
 
         // Extraer texto del mensaje
-        $texto = data_get($data, 'message.conversation')
+        $texto   = data_get($data, 'message.conversation')
             ?? data_get($data, 'message.extendedTextMessage.text')
-            ?? data_get($data, 'message.imageMessage.caption')
             ?? '';
+        $caption = data_get($data, 'message.imageMessage.caption', ''); // caption de imagen (compat)
 
-        // Texto que se guardará en BD (puede incluir prefijo de audio 🎙)
+        // Texto que se guardará en BD
         $mensajeParaGuardar = $texto;
 
-        // Si no hay texto, intentar transcribir si es un mensaje de audio/PTT
-        if (empty(trim($texto))) {
-            $messageKeys = array_keys(data_get($data, 'message', []) ?: []);
-            $esAudio = in_array('audioMessage', $messageKeys) || in_array('pttMessage', $messageKeys);
+        $messageKeys = array_keys(data_get($data, 'message', []) ?: []);
 
-            if ($esAudio) {
-                $transcripcion = $this->transcribirAudio($instancia, $data);
-                if ($transcripcion !== null) {
-                    $texto              = $transcripcion;
-                    $mensajeParaGuardar = '🎙 ' . $transcripcion;
-                    Log::info("[Bot] Audio transcrito — instancia={$instancia}", [
-                        'chars' => strlen($transcripcion),
-                        'preview' => substr($transcripcion, 0, 80),
+        // ── Detección de tipo de media ────────────────────────────────────────
+        $mediaTipo   = null;
+        $mediaMsgKey = null;
+        if (in_array('imageMessage', $messageKeys)) {
+            $mediaTipo = 'image';    $mediaMsgKey = 'imageMessage';
+        } elseif (in_array('videoMessage', $messageKeys)) {
+            $mediaTipo = 'video';    $mediaMsgKey = 'videoMessage';
+        } elseif (in_array('documentMessage', $messageKeys)) {
+            $mediaTipo = 'documento'; $mediaMsgKey = 'documentMessage';
+        } elseif (in_array('audioMessage', $messageKeys) || in_array('pttMessage', $messageKeys)) {
+            $mediaTipo = 'audio';
+            $mediaMsgKey = in_array('audioMessage', $messageKeys) ? 'audioMessage' : 'pttMessage';
+        }
+
+        if ($mediaTipo !== null) {
+            $captionMedia = data_get($data, "message.{$mediaMsgKey}.caption", '');
+            if ($mediaTipo === 'image') $caption = $captionMedia; // compatibilidad
+
+            $pipeline = app(MediaPipelineService::class);
+
+            if ($pipeline->handler($mediaTipo)) {
+                // ── Pipeline configurado ──────────────────────────────────────
+                $mediaData = $this->descargarMedia($instancia, $data);
+
+                if ($mediaData) {
+                    $resultado = $pipeline->procesar([
+                        'tipo'     => $mediaTipo,
+                        'base64'   => $mediaData['base64'],
+                        'mimeType' => $mediaData['mimeType'],
+                        'caption'  => $captionMedia ?: $texto,
+                        'filename' => data_get($data, "message.{$mediaMsgKey}.fileName", ''),
                     ]);
+
+                    if ($resultado['ok']) {
+                        $destino = $resultado['destino'];
+
+                        if ($destino === 'enviar_texto') {
+                            $this->enviarTexto($instancia, $remoteJid, $resultado['texto']);
+                            $conv = Conversation::create([
+                                'phone'        => preg_replace('/@.*/', '', $remoteJid),
+                                'instancia'    => $instancia,
+                                'contact_name' => null,
+                                'user_message' => $resultado['texto_label'],
+                                'bot_response' => $resultado['texto'],
+                                'status'       => 'ok',
+                            ]);
+                            broadcast(new MensajeBot($conv));
+                            return response()->json(['status' => 'ok_pipeline_texto']);
+                        }
+
+                        if (!empty($resultado['media_url'])) {
+                            $this->enviarMedia($instancia, $remoteJid, 'image', $resultado['media_url'], $resultado['texto']);
+                            if ($destino === 'enviar_media') {
+                                $conv = Conversation::create([
+                                    'phone'        => preg_replace('/@.*/', '', $remoteJid),
+                                    'instancia'    => $instancia,
+                                    'contact_name' => null,
+                                    'user_message' => $resultado['texto_label'],
+                                    'bot_response' => '[Imagen generada]',
+                                    'status'       => 'ok',
+                                ]);
+                                broadcast(new MensajeBot($conv));
+                                return response()->json(['status' => 'ok_pipeline_media']);
+                            }
+                        }
+
+                        // pasar_a_bot / ambos → el texto va al LLM
+                        $texto              = $resultado['texto'];
+                        $mensajeParaGuardar = $resultado['texto_label'];
+
+                    } else {
+                        if (!empty(trim($captionMedia))) {
+                            $texto = $mensajeParaGuardar = $captionMedia;
+                        } else {
+                            Log::warning("[Bot] Pipeline para {$mediaTipo} falló — instancia={$instancia}");
+                            return response()->json(['status' => 'pipeline_failed']);
+                        }
+                    }
                 } else {
-                    Log::info("[Bot] Audio recibido sin servicio de transcripción activo — instancia={$instancia}");
-                    return response()->json(['status' => 'audio_no_transcripcion']);
+                    if (!empty(trim($captionMedia))) {
+                        $texto = $mensajeParaGuardar = $captionMedia;
+                    } else {
+                        Log::warning("[Bot] No se pudo descargar {$mediaTipo} — instancia={$instancia}");
+                        return response()->json(['status' => 'media_download_failed']);
+                    }
+                }
+
+            } else {
+                // ── Fallback: toggles legacy ──────────────────────────────────
+                if ($mediaTipo === 'image') {
+                    if (Configuracion::get('bot_vision_activo', '0') === '1') {
+                        $descripcion = $this->analizarImagen($instancia, $data, $captionMedia);
+                        if ($descripcion !== null) {
+                            $texto              = $descripcion;
+                            $mensajeParaGuardar = '🖼 ' . $descripcion;
+                            Log::info("[Bot] Imagen analizada — instancia={$instancia}", ['preview' => substr($descripcion, 0, 80)]);
+                        } elseif (!empty(trim($captionMedia))) {
+                            $texto = $mensajeParaGuardar = $captionMedia;
+                        } else {
+                            Log::info("[Bot] Imagen recibida sin descripción disponible — instancia={$instancia}");
+                            return response()->json(['status' => 'imagen_sin_vision']);
+                        }
+                    } elseif (!empty(trim($captionMedia))) {
+                        $texto = $mensajeParaGuardar = $captionMedia;
+                    }
+                } elseif ($mediaTipo === 'audio') {
+                    if (Configuracion::get('bot_audio_activo', '0') !== '1') {
+                        Log::info("[Bot] Audio recibido pero transcripción desactivada — instancia={$instancia}");
+                        return response()->json(['status' => 'audio_desactivado']);
+                    }
+                    $transcripcion = $this->transcribirAudio($instancia, $data);
+                    if ($transcripcion !== null) {
+                        $texto              = $transcripcion;
+                        $mensajeParaGuardar = '🎙 ' . $transcripcion;
+                        Log::info("[Bot] Audio transcrito — instancia={$instancia}", [
+                            'chars'   => strlen($transcripcion),
+                            'preview' => substr($transcripcion, 0, 80),
+                        ]);
+                    } else {
+                        Log::info("[Bot] Audio recibido sin servicio de transcripción activo — instancia={$instancia}");
+                        return response()->json(['status' => 'audio_no_transcripcion']);
+                    }
                 }
             }
         }
@@ -798,6 +906,165 @@ class BotController extends Controller
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // HELPERS — DESCARGA DE MEDIA
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Descarga cualquier media de Evolution API y devuelve base64 + mimeType.
+     * Retorna null si la descarga falla.
+     */
+    private function descargarMedia(string $instancia, array $data): ?array
+    {
+        $enc = rawurlencode($instancia);
+        try {
+            $res = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(30)
+                ->post("{$this->apiUrl}/chat/getBase64FromMediaMessage/{$enc}", [
+                    'message' => [
+                        'key'     => data_get($data, 'key'),
+                        'message' => data_get($data, 'message'),
+                    ],
+                ]);
+
+            if (!$res->successful()) {
+                Log::warning("[Bot] descargarMedia HTTP {$res->status()} — instancia={$instancia}");
+                return null;
+            }
+
+            $base64   = data_get($res->json(), 'base64');
+            $mimeType = data_get($res->json(), 'mediaType') ?? 'application/octet-stream';
+
+            return $base64 ? compact('base64', 'mimeType') : null;
+        } catch (\Exception $e) {
+            Log::warning("[Bot] descargarMedia error — instancia={$instancia}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ANÁLISIS DE IMÁGENES (VISION) — legacy
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Descarga la imagen de Evolution API y la analiza con OpenAI Vision o Gemini.
+     * Retorna la descripción/análisis de la imagen, o null si falla.
+     *
+     * Evolution API: POST /chat/getBase64FromMediaMessage/{instance}
+     * Body: { "message": { "key": {...}, "message": {...} } }
+     */
+    private function analizarImagen(string $instancia, array $data, string $caption = ''): ?string
+    {
+        $proveedor = Configuracion::get('bot_vision_proveedor', 'openai');
+
+        // Descargar imagen desde Evolution API → base64
+        $enc = rawurlencode($instancia);
+        try {
+            $res = Http::withHeaders(['apikey' => $this->apiKey])
+                ->timeout(30)
+                ->post("{$this->apiUrl}/chat/getBase64FromMediaMessage/{$enc}", [
+                    'message' => [
+                        'key'     => data_get($data, 'key'),
+                        'message' => data_get($data, 'message'),
+                    ],
+                ]);
+
+            if (!$res->successful()) {
+                Log::warning("[Bot] No se pudo descargar imagen — instancia={$instancia}: HTTP {$res->status()}");
+                return null;
+            }
+
+            $base64   = data_get($res->json(), 'base64');
+            $mimeType = data_get($res->json(), 'mediaType')
+                ?? data_get($data, 'message.imageMessage.mimetype')
+                ?? 'image/jpeg';
+
+            if (!$base64) {
+                Log::warning("[Bot] Respuesta de descarga de imagen sin base64 — instancia={$instancia}");
+                return null;
+            }
+        } catch (\Exception $e) {
+            Log::warning("[Bot] Error al descargar imagen — instancia={$instancia}: " . $e->getMessage());
+            return null;
+        }
+
+        $promptVision = 'Describe detalladamente el contenido de esta imagen en español. '
+            . 'Si contiene texto, transcríbelo. Si es una captura de pantalla, documento o formulario, extrae la información relevante.';
+
+        if (!empty(trim($caption))) {
+            $promptVision .= ' El usuario también escribió: "' . $caption . '"';
+        }
+
+        if ($proveedor === 'gemini') {
+            return $this->analizarImagenGemini($base64, $mimeType, $promptVision);
+        }
+
+        return $this->analizarImagenOpenAI($base64, $mimeType, $promptVision);
+    }
+
+    /**
+     * Analiza una imagen con OpenAI GPT-4o Vision.
+     * Formato: message.content = [ { type: image_url, ... }, { type: text, ... } ]
+     */
+    private function analizarImagenOpenAI(string $base64, string $mimeType, string $prompt): ?string
+    {
+        $apiKey = Configuracion::get('openai_key');
+        $model  = Configuracion::get('openai_model', 'gpt-4o');
+        if (!$apiKey) return null;
+
+        try {
+            $res = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ])->timeout(30)->post('https://api.openai.com/v1/chat/completions', [
+                'model' => $model,
+                'messages' => [[
+                    'role'    => 'user',
+                    'content' => [
+                        [
+                            'type'      => 'image_url',
+                            'image_url' => ['url' => "data:{$mimeType};base64,{$base64}", 'detail' => 'auto'],
+                        ],
+                        ['type' => 'text', 'text' => $prompt],
+                    ],
+                ]],
+                'max_tokens' => 1000,
+            ]);
+
+            return data_get($res->json(), 'choices.0.message.content');
+        } catch (\Exception $e) {
+            Log::warning("[Bot] Error vision OpenAI: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Analiza una imagen con Gemini (multimodal inline_data).
+     */
+    private function analizarImagenGemini(string $base64, string $mimeType, string $prompt): ?string
+    {
+        $apiKey = Configuracion::get('gemini_key');
+        $model  = Configuracion::get('gemini_model', 'gemini-1.5-flash');
+        if (!$apiKey) return null;
+
+        try {
+            $res = Http::withHeaders(['Content-Type' => 'application/json'])
+                ->timeout(30)
+                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
+                    'contents' => [[
+                        'parts' => [
+                            ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64]],
+                            ['text' => $prompt],
+                        ],
+                    ]],
+                ]);
+
+            return data_get($res->json(), 'candidates.0.content.parts.0.text');
+        } catch (\Exception $e) {
+            Log::warning("[Bot] Error vision Gemini: " . $e->getMessage());
+            return null;
+        }
+    }
+
     // TRANSCRIPCIÓN DE AUDIO
     // ──────────────────────────────────────────────────────────────────────────
 

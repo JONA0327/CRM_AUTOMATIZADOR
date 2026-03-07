@@ -99,6 +99,7 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::post('/prompts',          [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
             Route::put('/prompts/{id}',      [ConfiguracionController::class, 'updatePrompt'])->name('prompts.update');
             Route::delete('/prompts/{id}',   [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
+            Route::post('/pipeline',         [ConfiguracionController::class, 'savePipeline'])->name('pipeline.save');
 
             // Google OAuth2
             Route::get('/google/redirect',  [GoogleAuthController::class, 'redirect'])->name('google.redirect');

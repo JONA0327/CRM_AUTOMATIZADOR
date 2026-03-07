@@ -7,6 +7,7 @@ use App\Models\CatalogModule;
 use App\Models\Configuracion;
 use App\Models\SavedPrompt;
 use App\Services\ExternalDbService;
+use App\Services\MediaPipelineService;
 use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -107,6 +108,21 @@ class ConfiguracionController extends Controller
             'gemini_audio'   => Configuracion::get('gemini_audio_activo',   '0') === '1',
         ];
 
+        // Toggles de análisis de medios del bot (imagen/audio entrante) — legacy
+        $botMedia = [
+            'vision_activo'    => Configuracion::get('bot_vision_activo',   '0') === '1',
+            'vision_proveedor' => Configuracion::get('bot_vision_proveedor', 'openai'),
+            'audio_activo'     => Configuracion::get('bot_audio_activo',    '0') === '1',
+        ];
+
+        // Pipeline de medios (nuevo — reemplaza los toggles legacy si está configurado)
+        $pipelineRaw = Configuracion::get('bot_media_pipeline', '');
+        $pipeline = !empty($pipelineRaw)
+            ? (json_decode($pipelineRaw, true) ?: MediaPipelineService::defaultPipeline())
+            : MediaPipelineService::defaultPipeline();
+        $pasosDisponibles  = MediaPipelineService::pasosDisponibles();
+        $destinosDisponibles = MediaPipelineService::destinosDisponibles();
+
         // Load all external DB connections; strip passwords before passing to the view.
         $extDbsRaw = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
         $extDbs = array_map(function ($conn) {
@@ -151,7 +167,11 @@ class ConfiguracionController extends Controller
             'availableTags'      => $availableTags,
             'iaModelos'          => $iaModelos,
             'iaToggles'          => $iaToggles,
-            'savedPrompts'       => $savedPrompts,
+            'botMedia'              => $botMedia,
+            'pipeline'              => $pipeline,
+            'pasosDisponibles'      => $pasosDisponibles,
+            'destinosDisponibles'   => $destinosDisponibles,
+            'savedPrompts'          => $savedPrompts,
             'googleConectado'    => $googleConectado,
             'googleEmail'        => $googleEmail,
         ]);
@@ -355,6 +375,24 @@ class ConfiguracionController extends Controller
     public function destroyPrompt(int $id): JsonResponse
     {
         SavedPrompt::findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Guarda el pipeline de medios completo como JSON.
+     * POST /configuracion/pipeline → JSON
+     */
+    public function savePipeline(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'pipeline' => ['required', 'array'],
+        ]);
+
+        $allowed = ['image', 'audio', 'video', 'documento'];
+        $clean   = array_intersect_key($data['pipeline'], array_flip($allowed));
+
+        Configuracion::set('bot_media_pipeline', json_encode($clean), 'bot', 'Pipeline de procesamiento de medios entrantes');
 
         return response()->json(['success' => true]);
     }

@@ -584,7 +584,272 @@
                             </div>
                         </div>
                     </div>
+                    {{-- ═══ PIPELINE DE MEDIOS ═══ --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-4"
+                         x-data="mediaPipelineManager()"
+                         x-init="init()">
+
+                        {{-- Header --}}
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-100">Pipeline de Medios</p>
+                                    <p class="text-xs text-gray-400">Define cómo procesar imágenes, audios, videos y documentos entrantes</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="guardar()"
+                                    :disabled="saving"
+                                    class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                    :class="saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-60'">
+                                <svg x-show="saving" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span x-text="saved ? 'Guardado' : (saving ? 'Guardando...' : 'Guardar pipeline')"></span>
+                            </button>
+                        </div>
+
+                        {{-- Tabs de tipo de media --}}
+                        <div class="flex border-b border-white/5 overflow-x-auto">
+                            <template x-for="mt in mediaTypes" :key="mt.key">
+                                <button type="button"
+                                        @click="activeType = mt.key"
+                                        class="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors"
+                                        :class="activeType === mt.key
+                                            ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
+                                            : 'border-transparent text-gray-400 hover:text-gray-200'">
+                                    <span x-text="mt.icon"></span>
+                                    <span x-text="mt.label"></span>
+                                    <span x-show="pipeline[mt.key] && pipeline[mt.key].activo"
+                                          class="w-1.5 h-1.5 rounded-full bg-green-400 ml-0.5"></span>
+                                </button>
+                            </template>
+                        </div>
+
+                        {{-- Panel de cada tipo de media --}}
+                        <template x-for="mt in mediaTypes" :key="mt.key">
+                            <div x-show="activeType === mt.key" class="p-5 space-y-4">
+
+                                {{-- Toggle activo --}}
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-200" x-text="'Procesar ' + mt.label.toLowerCase() + ' entrante'"></p>
+                                        <p class="text-xs text-gray-400 mt-0.5" x-text="mt.desc"></p>
+                                    </div>
+                                    <button type="button" @click="pipeline[mt.key].activo = !pipeline[mt.key].activo"
+                                            :class="pipeline[mt.key].activo ? 'bg-indigo-500' : 'bg-gray-600'"
+                                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                        <span :class="pipeline[mt.key].activo ? 'translate-x-5' : 'translate-x-0'"
+                                              class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
+                                    </button>
+                                </div>
+
+                                {{-- Pasos (solo si activo) --}}
+                                <div x-show="pipeline[mt.key].activo" x-transition class="space-y-2">
+                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pasos del pipeline</p>
+
+                                    <template x-for="(paso, idx) in pipeline[mt.key].pasos" :key="idx">
+                                        <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3 space-y-2">
+                                            <div class="flex items-center gap-2">
+                                                {{-- Número de paso --}}
+                                                <span class="w-5 h-5 rounded-full bg-indigo-900/60 text-indigo-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0"
+                                                      x-text="idx + 1"></span>
+
+                                                {{-- Tipo de paso --}}
+                                                <select x-model="paso.tipo"
+                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                                                    <template x-for="(info, key) in stepTypes" :key="key">
+                                                        <option :value="key" x-text="info.icon + ' ' + info.label"></option>
+                                                    </template>
+                                                </select>
+
+                                                {{-- Proveedor --}}
+                                                <select x-model="paso.proveedor"
+                                                        class="w-36 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                                                    <option value="auto">Auto</option>
+                                                    <option value="openai">OpenAI</option>
+                                                    <option value="gemini">Gemini</option>
+                                                    <option value="whisper">Whisper</option>
+                                                </select>
+
+                                                {{-- Eliminar paso --}}
+                                                <button type="button" @click="removerPaso(mt.key, idx)"
+                                                        x-show="pipeline[mt.key].pasos.length > 1"
+                                                        class="w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {{-- Prompt personalizado --}}
+                                            <input x-model="paso.prompt"
+                                                   type="text"
+                                                   placeholder="Prompt personalizado (opcional)..."
+                                                   class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 placeholder-gray-600 focus:outline-none focus:border-indigo-500">
+
+                                            {{-- Opciones extra para generar_imagen --}}
+                                            <div x-show="paso.tipo === 'generar_imagen'" class="grid grid-cols-3 gap-2">
+                                                <div>
+                                                    <p class="text-[10px] text-gray-500 mb-1">Tamaño</p>
+                                                    <select x-model="paso.size"
+                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                                        <option value="1024x1024">1024×1024</option>
+                                                        <option value="1792x1024">1792×1024</option>
+                                                        <option value="1024x1792">1024×1792</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] text-gray-500 mb-1">Calidad</p>
+                                                    <select x-model="paso.quality"
+                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                                        <option value="standard">Standard</option>
+                                                        <option value="hd">HD</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[10px] text-gray-500 mb-1">Estilo</p>
+                                                    <select x-model="paso.style"
+                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                                        <option value="vivid">Vívido</option>
+                                                        <option value="natural">Natural</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    {{-- Agregar paso --}}
+                                    <button type="button" @click="agregarPaso(mt.key)"
+                                            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-white/10 text-xs text-gray-500 hover:border-indigo-500/40 hover:text-indigo-400 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Agregar paso
+                                    </button>
+
+                                    {{-- Destino --}}
+                                    <div class="pt-2 border-t border-white/5">
+                                        <p class="text-xs font-semibold text-gray-400 mb-2">Destino del resultado</p>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <template x-for="(dest, key) in destinoTypes" :key="key">
+                                                <label class="flex items-start gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all"
+                                                       :class="pipeline[mt.key].destino === key
+                                                           ? 'border-indigo-500/60 bg-indigo-500/10'
+                                                           : 'border-white/5 hover:border-white/15'">
+                                                    <input type="radio" :name="'destino_' + mt.key" :value="key"
+                                                           x-model="pipeline[mt.key].destino" class="sr-only">
+                                                    <span class="text-base leading-none mt-0.5" x-text="dest.icon"></span>
+                                                    <div>
+                                                        <p class="text-xs font-medium text-gray-200" x-text="dest.label"></p>
+                                                        <p class="text-[10px] text-gray-500 mt-0.5" x-text="dest.desc"></p>
+                                                    </div>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Info cuando está inactivo --}}
+                                <div x-show="!pipeline[mt.key].activo" class="py-2">
+                                    <p class="text-xs text-gray-500">Activa este tipo para configurar su pipeline de procesamiento.</p>
+                                </div>
+
+                            </div>
+                        </template>
+
+                        {{-- Mensaje de error --}}
+                        <div x-show="saveError" x-transition class="px-5 pb-4">
+                            <p class="text-xs text-red-400 bg-red-900/20 border border-red-500/20 rounded-lg px-3 py-2" x-text="saveError"></p>
+                        </div>
+                    </div>
                 </div>
+
+                <script>
+                function mediaPipelineManager() {
+                    return {
+                        activeType: 'image',
+                        saving: false,
+                        saved: false,
+                        saveError: null,
+                        pipeline: @json($pipeline),
+
+                        stepTypes: {
+                            vision:         { label: 'Analizar imagen',       icon: '👁' },
+                            ocr:            { label: 'Extraer texto (OCR)',    icon: '📝' },
+                            transcribir:    { label: 'Transcribir audio',      icon: '🎙' },
+                            resumir:        { label: 'Resumir con IA',         icon: '📋' },
+                            generar_imagen: { label: 'Generar imagen (DALL-E)','icon': '🎨' },
+                        },
+
+                        destinoTypes: @json($destinosDisponibles),
+
+                        mediaTypes: [
+                            { key: 'image',     label: 'Imagen',      icon: '🖼', desc: 'Imágenes enviadas por el usuario' },
+                            { key: 'audio',     label: 'Audio / Voz', icon: '🎙', desc: 'Audios y notas de voz (PTT)' },
+                            { key: 'video',     label: 'Video',       icon: '🎬', desc: 'Videos enviados por el usuario' },
+                            { key: 'documento', label: 'Documento',   icon: '📄', desc: 'PDFs y archivos adjuntos' },
+                        ],
+
+                        init() {
+                            // Asegurar que cada tipo tenga estructura válida
+                            const defaults = {
+                                image:     { activo: false, pasos: [{ tipo: 'vision',      proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
+                                audio:     { activo: false, pasos: [{ tipo: 'transcribir', proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
+                                video:     { activo: false, pasos: [{ tipo: 'transcribir', proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
+                                documento: { activo: false, pasos: [{ tipo: 'vision',      proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
+                            };
+                            for (const key of Object.keys(defaults)) {
+                                if (!this.pipeline[key]) this.pipeline[key] = defaults[key];
+                                if (!Array.isArray(this.pipeline[key].pasos) || !this.pipeline[key].pasos.length) {
+                                    this.pipeline[key].pasos = defaults[key].pasos;
+                                }
+                                if (!this.pipeline[key].destino) this.pipeline[key].destino = 'pasar_a_bot';
+                            }
+                        },
+
+                        agregarPaso(tipo) {
+                            this.pipeline[tipo].pasos.push({ tipo: 'vision', proveedor: 'auto', prompt: '' });
+                        },
+
+                        removerPaso(tipo, idx) {
+                            this.pipeline[tipo].pasos.splice(idx, 1);
+                        },
+
+                        async guardar() {
+                            this.saving = true;
+                            this.saveError = null;
+                            try {
+                                const res = await fetch('{{ route("configuracion.pipeline.save") }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                        'Accept': 'application/json',
+                                    },
+                                    body: JSON.stringify({ pipeline: this.pipeline }),
+                                });
+                                if (res.ok) {
+                                    this.saved = true;
+                                    setTimeout(() => this.saved = false, 2500);
+                                } else {
+                                    const data = await res.json().catch(() => ({}));
+                                    this.saveError = data.message || 'Error al guardar el pipeline.';
+                                }
+                            } catch (e) {
+                                this.saveError = 'Error de conexión al guardar.';
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    };
+                }
+                </script>
 
                 {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
                 <div x-show="activeTab === 'whatsapp'" x-cloak
