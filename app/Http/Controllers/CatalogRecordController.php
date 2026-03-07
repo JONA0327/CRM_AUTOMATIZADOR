@@ -206,9 +206,9 @@ class CatalogRecordController extends Controller
         try {
             $res = Http::withHeaders(['apikey' => $apiKey])
                 ->post(rtrim($apiUrl, '/') . '/message/sendText/' . urlencode($instance->instance_name), [
-                    'number'      => $cleanPhone,
-                    'options'     => ['delay' => 1200],
-                    'textMessage' => ['text' => $prompt],
+                    'number' => $cleanPhone,
+                    'text'   => $prompt,
+                    'delay'  => 1200,
                 ]);
 
             if ($res->successful()) {
