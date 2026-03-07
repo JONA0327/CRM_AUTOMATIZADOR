@@ -107,12 +107,27 @@ class CatalogRecordController extends Controller
             ->latest()
             ->limit(500)
             ->get()
-            ->map(fn($r) => [
-                'id'    => $r->id,
-                'label' => $primerCampo
-                    ? ($r->datos[$primerCampo->slug] ?? "Registro #{$r->id}")
-                    : "Registro #{$r->id}",
-            ]);
+            ->map(function ($r) use ($primerCampo) {
+                $label = "Registro #{$r->id}";
+                if ($primerCampo) {
+                    $val = $r->datos[$primerCampo->slug] ?? null;
+                    if (is_array($val)) {
+                        // category_select: {categoria, items:[...]}
+                        if (isset($val['categoria'])) {
+                            $label = $val['categoria'];
+                            if (!empty($val['items'])) {
+                                $label .= ': ' . implode(', ', (array) $val['items']);
+                            }
+                        } else {
+                            // multiselect or tags stored as array
+                            $label = implode(', ', $val) ?: "Registro #{$r->id}";
+                        }
+                    } elseif ($val !== null && $val !== '') {
+                        $label = (string) $val;
+                    }
+                }
+                return ['id' => $r->id, 'label' => $label];
+            });
 
         return response()->json($records);
     }
