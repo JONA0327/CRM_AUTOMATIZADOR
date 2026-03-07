@@ -921,7 +921,10 @@
                 // Use configured title field first
                 if (this.cardConfig.titleSlug) {
                     const campo = this.campos.find(c => c.slug === this.cardConfig.titleSlug);
-                    if (campo) return String(record.datos?.[campo.slug] || '') || '#' + record.id;
+                    if (campo) {
+                        const display = this.getFieldDisplay(record, campo);
+                        return (display && display !== '—') ? display : '#' + record.id;
+                    }
                 }
                 // Auto: first text/email/phone field (never id)
                 const first = this.campos.find(c =>
