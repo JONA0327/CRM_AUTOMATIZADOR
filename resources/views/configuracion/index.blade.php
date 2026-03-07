@@ -409,8 +409,8 @@
                                         <template x-for="p in prompts" :key="p.id">
                                             <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer"
                                                  :class="promptActivo === p.id
-                                                     ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
-                                                     : 'border-white/10 border-white/10 hover:border-purple-300 hover:bg-purple-50/50'">
+                                                     ? 'border-purple-500/60 bg-purple-500/15'
+                                                     : 'border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10'">
                                                 <button type="button"
                                                         @click="cargarPrompt(p)"
                                                         class="flex-1 text-left min-w-0">
