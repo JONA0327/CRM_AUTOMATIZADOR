@@ -48,6 +48,16 @@
                             </svg>
                         </button>
                     </div>
+                    {{-- Gear: configure cards (visible only in cards view) --}}
+                    <button x-show="vista === 'cards'" @click="openCardConfig()"
+                            title="Configurar tarjetas"
+                            class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
                 </div>
                 <button @click="abrirModal(null)"
                         class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
@@ -251,8 +261,9 @@
                         <div class="p-4 flex-1 space-y-1.5">
                             <p class="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate"
                                x-text="getCardTitle(record)"></p>
-                            <template x-for="campo in getCardFields(record).slice(1, 4)" :key="campo.slug">
-                                <div class="flex gap-1 text-xs leading-tight">
+                            <template x-for="campo in getCardFields(record)" :key="campo.slug">
+                                <div class="flex gap-1 leading-tight"
+                                     :class="campo.cardSize === 'base' ? 'text-sm' : campo.cardSize === 'xs' ? 'text-[10px]' : 'text-xs'">
                                     <span class="text-gray-400 flex-shrink-0" x-text="campo.nombre + ':'"></span>
                                     <span class="text-gray-600 dark:text-gray-300 truncate"
                                           x-text="getFieldDisplay(record, campo)"></span>
@@ -302,6 +313,110 @@
             @if($records->hasPages())
                 <div class="mt-4">{{ $records->links() }}</div>
             @endif
+        </div>
+
+        {{-- ═══ MODAL: Configuración de tarjetas ═══ --}}
+        <div x-show="modalCardConfig" x-cloak
+             class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+             @click.self="modalCardConfig = false">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col border border-white/10"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+
+                <div class="flex justify-between items-center px-5 py-4 border-b border-white/10 flex-shrink-0">
+                    <h3 class="text-base font-semibold text-gray-100 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Configurar tarjetas
+                    </h3>
+                    <button @click="modalCardConfig = false" class="text-gray-400 hover:text-gray-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto flex-1 p-5 space-y-5">
+
+                    {{-- Campo título --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Campo de título</label>
+                        <select x-model="cardConfig.titleSlug" @change="saveCardConfig()"
+                                class="w-full bg-gray-700 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="">— Auto (primer campo de texto) —</option>
+                            @foreach($fields as $f)
+                                @if(!in_array($f->tipo, ['file','id']))
+                                    <option value="{{ $f->slug }}">{{ $f->nombre }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Campos visibles --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Campos visibles</label>
+                        <p class="text-xs text-gray-500 mb-3">Activa, reordena y elige el tamaño de cada campo.</p>
+                        <div class="space-y-2">
+                            <template x-for="(cf, idx) in cardConfig.fields" :key="cf.slug">
+                                <div class="flex items-center gap-2 bg-gray-700/50 rounded-lg px-3 py-2 border border-white/5"
+                                     :class="!cf.show ? 'opacity-50' : ''">
+
+                                    {{-- Reorder arrows --}}
+                                    <div class="flex flex-col gap-0.5 flex-shrink-0">
+                                        <button @click="moveCardField(idx, -1)" :disabled="idx === 0"
+                                                class="text-gray-500 hover:text-gray-200 disabled:opacity-20 leading-none">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
+                                            </svg>
+                                        </button>
+                                        <button @click="moveCardField(idx, 1)" :disabled="idx === cardConfig.fields.length - 1"
+                                                class="text-gray-500 hover:text-gray-200 disabled:opacity-20 leading-none">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    {{-- Checkbox show/hide --}}
+                                    <input type="checkbox" :checked="cf.show"
+                                           @change="updateCardFieldProp(cf.slug, 'show', $event.target.checked)"
+                                           class="rounded border-gray-500 text-indigo-600 focus:ring-indigo-500 flex-shrink-0">
+
+                                    {{-- Field name --}}
+                                    <span class="flex-1 text-sm text-gray-200 truncate"
+                                          x-text="campos.find(c => c.slug === cf.slug)?.nombre || cf.slug"></span>
+
+                                    {{-- Font size selector --}}
+                                    <select :value="cf.size"
+                                            @change="updateCardFieldProp(cf.slug, 'size', $event.target.value)"
+                                            :disabled="!cf.show"
+                                            class="bg-gray-600 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 outline-none disabled:opacity-40 w-24 flex-shrink-0">
+                                        <option value="xs">Pequeño</option>
+                                        <option value="sm">Normal</option>
+                                        <option value="base">Grande</option>
+                                    </select>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="px-5 py-4 border-t border-white/10 flex justify-between items-center flex-shrink-0">
+                    <button @click="cardConfig = { titleSlug: '', fields: campos.filter(c => c.tipo !== 'file' && c.tipo !== 'id').map(c => ({ slug: c.slug, show: true, size: 'sm' })) }; saveCardConfig()"
+                            class="text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                        Restaurar por defecto
+                    </button>
+                    <button @click="modalCardConfig = false"
+                            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                        Listo
+                    </button>
+                </div>
+            </div>
         </div>
 
         {{-- ═══ MODAL: Detalle de card ═══ --}}
@@ -732,6 +847,55 @@
                 localStorage.setItem('catalogo_vista_' + this.module, v);
             },
 
+            // ── Card config ───────────────────────────────────────────────
+            modalCardConfig: false,
+            cardConfig: { titleSlug: '', fields: [] },
+
+            loadCardConfig() {
+                const saved = localStorage.getItem('catalogo_card_cfg_' + this.module);
+                if (saved) {
+                    try { this.cardConfig = JSON.parse(saved); return; } catch {}
+                }
+                this.cardConfig = {
+                    titleSlug: '',
+                    fields: this.campos
+                        .filter(c => c.tipo !== 'file' && c.tipo !== 'id')
+                        .map(c => ({ slug: c.slug, show: true, size: 'sm' })),
+                };
+            },
+
+            saveCardConfig() {
+                localStorage.setItem('catalogo_card_cfg_' + this.module, JSON.stringify(this.cardConfig));
+            },
+
+            openCardConfig() {
+                // Sync: add any new campos not yet in config, keep existing settings
+                const existing = {};
+                (this.cardConfig.fields || []).forEach(f => existing[f.slug] = f);
+                const synced = this.campos
+                    .filter(c => c.tipo !== 'file' && c.tipo !== 'id')
+                    .map(c => existing[c.slug] || { slug: c.slug, show: true, size: 'sm' });
+                this.cardConfig = { ...this.cardConfig, fields: synced };
+                this.modalCardConfig = true;
+            },
+
+            moveCardField(idx, dir) {
+                const fields = [...this.cardConfig.fields];
+                const target = idx + dir;
+                if (target < 0 || target >= fields.length) return;
+                [fields[idx], fields[target]] = [fields[target], fields[idx]];
+                this.cardConfig = { ...this.cardConfig, fields };
+                this.saveCardConfig();
+            },
+
+            updateCardFieldProp(slug, prop, val) {
+                const fields = this.cardConfig.fields.map(f =>
+                    f.slug === slug ? { ...f, [prop]: val } : f
+                );
+                this.cardConfig = { ...this.cardConfig, fields };
+                this.saveCardConfig();
+            },
+
             // ── Modal detalle (cards) ─────────────────────────────────────
             modalDetalle:  false,
             recordDetalle: null,
@@ -754,15 +918,29 @@
             },
 
             getCardTitle(record) {
+                // Use configured title field first
+                if (this.cardConfig.titleSlug) {
+                    const campo = this.campos.find(c => c.slug === this.cardConfig.titleSlug);
+                    if (campo) return String(record.datos?.[campo.slug] || '') || '#' + record.id;
+                }
+                // Auto: first text/email/phone field (never id)
                 const first = this.campos.find(c =>
-                    ['text', 'email', 'phone', 'id'].includes(c.tipo) && record.datos?.[c.slug]
+                    ['text', 'email', 'phone'].includes(c.tipo) && record.datos?.[c.slug]
                 );
                 return first ? String(record.datos[first.slug]) : '#' + record.id;
             },
 
             getCardFields(record) {
-                // Campos no-file, no-id con valor o todos si no hay ninguno con valor
-                return this.campos.filter(c => c.tipo !== 'file');
+                if (this.cardConfig.fields && this.cardConfig.fields.length) {
+                    return this.cardConfig.fields
+                        .filter(f => f.show && f.slug !== this.cardConfig.titleSlug)
+                        .map(f => {
+                            const c = this.campos.find(c => c.slug === f.slug);
+                            return c ? { ...c, cardSize: f.size || 'sm' } : null;
+                        })
+                        .filter(Boolean);
+                }
+                return this.campos.filter(c => c.tipo !== 'file' && c.tipo !== 'id');
             },
 
             getFieldDisplay(record, campo) {
@@ -785,6 +963,7 @@
             },
 
             init() {
+                this.loadCardConfig();
                 this.resetForm();
             },
 
