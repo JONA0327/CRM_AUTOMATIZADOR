@@ -87,7 +87,7 @@
                                             @php $val = $record->datos[$field->slug] ?? null; @endphp
 
                                             @if($field->tipo === 'id' && $val)
-                                                <code class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded font-mono">
+                                                <code class="text-xs bg-gray-800 text-indigo-300 px-2 py-0.5 rounded font-mono">
                                                     {{ $val }}
                                                 </code>
 
@@ -535,18 +535,18 @@
         <div x-show="modal" x-cloak
              class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
              @click.self="modal=false">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div class="bg-gray-900 border border-white/10 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
 
-                <div class="flex justify-between items-center p-5 border-b dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200"
+                <div class="flex justify-between items-center p-5 border-b border-white/10">
+                    <h3 class="text-lg font-semibold text-gray-100"
                         x-text="editId ? 'Editar registro' : 'Nuevo registro'"></h3>
-                    <button @click="modal=false" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                    <button @click="modal=false" class="text-gray-500 hover:text-gray-200 text-xl">✕</button>
                 </div>
 
                 <div class="overflow-y-auto p-5 space-y-4">
                     @foreach($fields as $field)
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            <label class="block text-sm font-medium text-gray-300 mb-1">
                                 {{ $field->nombre }}
                                 @if($field->obligatorio)
                                     <span class="text-red-500">*</span>
@@ -555,12 +555,12 @@
 
                             @if($field->tipo === 'textarea')
                                 <textarea x-model="form['{{ $field->slug }}']" rows="3"
-                                          class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                          class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                           placeholder="{{ $field->nombre }}..."></textarea>
 
                             @elseif($field->tipo === 'select')
                                 <select x-model="form['{{ $field->slug }}']"
-                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="">-- Selecciona --</option>
                                     @foreach($field->opciones ?? [] as $opcion)
                                         <option value="{{ $opcion }}">{{ $opcion }}</option>
@@ -600,15 +600,15 @@
 
                             @elseif($field->tipo === 'multiselect')
                                 {{-- Lista de opciones con multi-selección por checkboxes --}}
-                                <div class="border dark:border-gray-600 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 dark:bg-gray-700">
+                                <div class="border border-white/10 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 bg-gray-800">
                                     @forelse($field->opciones ?? [] as $opcion)
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 px-1 py-0.5 rounded">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 px-1 py-0.5 rounded">
                                             <input type="checkbox"
                                                    value="{{ $opcion }}"
                                                    :checked="(form['{{ $field->slug }}'] || []).includes('{{ $opcion }}')"
                                                    @change="toggleMultiselect('{{ $field->slug }}', '{{ $opcion }}')"
-                                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            <span class="dark:text-gray-200">{{ $opcion }}</span>
+                                                   class="rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700">
+                                            <span class="text-gray-200">{{ $opcion }}</span>
                                         </label>
                                     @empty
                                         <p class="text-xs text-gray-400">Sin opciones definidas.</p>
@@ -621,18 +621,18 @@
                             @elseif($field->tipo === 'relation' && ($field->meta['multiple'] ?? false))
                                 {{-- Relación múltiple: checkboxes --}}
                                 <div x-init="cargarRelacion('{{ $field->slug }}', '{{ $field->modulo_relacion }}')"
-                                     class="border dark:border-gray-600 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 dark:bg-gray-700">
+                                     class="border border-white/10 rounded-lg p-3 max-h-44 overflow-y-auto space-y-1.5 bg-gray-800">
                                     <template x-if="!relaciones['{{ $field->slug }}']">
                                         <p class="text-xs text-gray-400">Cargando opciones...</p>
                                     </template>
                                     <template x-for="opt in relaciones['{{ $field->slug }}'] || []" :key="opt.id">
-                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 px-1 rounded">
+                                        <label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 px-1 rounded">
                                             <input type="checkbox"
                                                    :value="opt.id"
                                                    :checked="(form['{{ $field->slug }}'] || []).map(Number).includes(opt.id)"
                                                    @change="toggleRelacion('{{ $field->slug }}', opt.id)"
                                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                            <span x-text="opt.label" class="dark:text-gray-200"></span>
+                                            <span x-text="opt.label" class="text-gray-200"></span>
                                         </label>
                                     </template>
                                     <p x-show="(relaciones['{{ $field->slug }}'] || []).length === 0 && relaciones['{{ $field->slug }}'] !== undefined"
@@ -646,7 +646,7 @@
                             @elseif($field->tipo === 'relation')
                                 <select x-model="form['{{ $field->slug }}']"
                                         x-init="cargarRelacion('{{ $field->slug }}', '{{ $field->modulo_relacion }}')"
-                                        class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="">-- Cargando... --</option>
                                     <template x-for="opt in relaciones['{{ $field->slug }}'] || []" :key="opt.id">
                                         <option :value="opt.id" x-text="opt.label"></option>
@@ -657,13 +657,13 @@
                                 {{-- Input de texto para las etiquetas (smart comma parsing) --}}
                                 <input type="text"
                                        x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="Etiqueta1, Etiqueta2, Etiqueta3...">
                                 {{-- Vista previa de chips --}}
                                 <template x-if="parseTags(form['{{ $field->slug }}']).length > 0">
                                     <div class="mt-1.5 flex flex-wrap gap-1">
                                         <template x-for="tag in parseTags(form['{{ $field->slug }}'])" :key="tag">
-                                            <span class="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full" x-text="tag"></span>
+                                            <span class="inline-block bg-purple-900/40 text-purple-300 text-xs px-2 py-0.5 rounded-full" x-text="tag"></span>
                                         </template>
                                     </div>
                                 </template>
@@ -673,26 +673,26 @@
 
                             @elseif($field->tipo === 'date')
                                 <input type="date" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none">
 
                             @elseif($field->tipo === 'number')
                                 <input type="number" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="{{ $field->nombre }}">
 
                             @elseif($field->tipo === 'email')
                                 <input type="email" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="correo@ejemplo.com">
 
                             @elseif($field->tipo === 'phone')
                                 <input type="tel" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="+52 55 1234 5678">
 
                             @elseif($field->tipo === 'url')
                                 <input type="url" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="https://ejemplo.com">
                                 {{-- Vista previa de URL --}}
                                 <template x-if="form['{{ $field->slug }}']">
@@ -785,7 +785,7 @@
 
                             @elseif($field->tipo === 'id')
                                 {{-- Auto-generado — solo lectura --}}
-                                <div class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700/50 font-mono flex items-center gap-2 min-h-[38px]">
+                                <div class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800/60 font-mono flex items-center gap-2 min-h-[38px]">
                                     <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                               d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
@@ -800,16 +800,16 @@
 
                             @else
                                 <input type="text" x-model="form['{{ $field->slug }}']"
-                                       class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                       class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 outline-none"
                                        placeholder="{{ $field->nombre }}...">
                             @endif
                         </div>
                     @endforeach
                 </div>
 
-                <div class="p-5 border-t dark:border-gray-700 flex justify-end gap-3">
+                <div class="p-5 border-t border-white/10 flex justify-end gap-3">
                     <button @click="modal=false"
-                            class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900">
+                            class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200">
                         Cancelar
                     </button>
                     <button @click="guardar()" :disabled="Object.values(subiendo).some(v => v)"
