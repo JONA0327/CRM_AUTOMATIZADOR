@@ -263,7 +263,7 @@
                                x-text="getCardTitle(record)"></p>
                             <template x-for="campo in getCardFields(record)" :key="campo.slug">
                                 <div class="flex gap-1 leading-tight"
-                                     :class="campo.cardSize === 'base' ? 'text-sm' : campo.cardSize === 'xs' ? 'text-[10px]' : 'text-xs'">
+                                     :style="campo.cardSize === 'base' ? 'font-size:14px' : campo.cardSize === 'xs' ? 'font-size:10px' : 'font-size:12px'">
                                     <span class="text-gray-400 flex-shrink-0" x-text="campo.nombre + ':'"></span>
                                     <span class="text-gray-600 dark:text-gray-300 truncate"
                                           x-text="getFieldDisplay(record, campo)"></span>
@@ -391,13 +391,12 @@
                                           x-text="campos.find(c => c.slug === cf.slug)?.nombre || cf.slug"></span>
 
                                     {{-- Font size selector --}}
-                                    <select :value="cf.size"
-                                            @change="updateCardFieldProp(cf.slug, 'size', $event.target.value)"
+                                    <select @change="updateCardFieldProp(cf.slug, 'size', $event.target.value)"
                                             :disabled="!cf.show"
                                             class="bg-gray-600 border border-white/10 rounded px-2 py-1 text-xs text-gray-200 outline-none disabled:opacity-40 w-24 flex-shrink-0">
-                                        <option value="xs">Pequeño</option>
-                                        <option value="sm">Normal</option>
-                                        <option value="base">Grande</option>
+                                        <option value="xs" :selected="cf.size === 'xs'">Pequeño</option>
+                                        <option value="sm" :selected="!cf.size || cf.size === 'sm'">Normal</option>
+                                        <option value="base" :selected="cf.size === 'base'">Grande</option>
                                     </select>
                                 </div>
                             </template>
@@ -1021,10 +1020,14 @@
 
             async cargarRelacion(slug, moduloRelacion) {
                 if (!moduloRelacion || this.relaciones[slug] !== undefined) return;
+                const campo = this.campos.find(c => c.slug === slug);
+                const labelField = campo?.meta?.label_field || '';
                 // Mark as loading (undefined → null means "in progress")
                 this.relaciones = { ...this.relaciones, [slug]: null };
+                const params = new URLSearchParams({ modulo_relacion: moduloRelacion });
+                if (labelField) params.set('label_field', labelField);
                 const res = await fetch(
-                    `/catalogo/${this.module}/opciones-relation?modulo_relacion=${encodeURIComponent(moduloRelacion)}`,
+                    `/catalogo/${this.module}/opciones-relation?${params}`,
                     { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
                 );
                 if (res.ok) {

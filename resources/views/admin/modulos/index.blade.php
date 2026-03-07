@@ -254,6 +254,7 @@
                                     Módulo relacionado
                                 </label>
                                 <select x-model="formCampo.modulo_relacion"
+                                        @change="formCampo.meta_label_field = ''"
                                         class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="">-- Selecciona módulo --</option>
                                     <template x-for="mod in modulos" :key="mod.slug">
@@ -261,6 +262,22 @@
                                     </template>
                                 </select>
                             </div>
+                            {{-- Campo a mostrar como etiqueta --}}
+                            <template x-if="formCampo.modulo_relacion">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-200 dark:text-gray-300 mb-1">
+                                        Campo a mostrar
+                                        <span class="text-gray-500 font-normal ml-1">(etiqueta en el selector)</span>
+                                    </label>
+                                    <select x-model="formCampo.meta_label_field"
+                                            class="w-full border border-white/10 rounded-lg px-3 py-2 text-sm bg-gray-800 text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        <option value="">— Auto (primer campo de texto) —</option>
+                                        <template x-for="c in (modulos.find(m => m.slug === formCampo.modulo_relacion)?.campos || []).filter(c => c.tipo !== 'file')" :key="c.slug">
+                                            <option :value="c.slug" x-text="c.nombre + ' (' + c.tipo + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
                             <div class="flex items-center gap-2">
                                 <input type="checkbox" x-model="formCampo.meta_multiple" id="campo-multiple"
                                        class="rounded border-white/15 text-indigo-600">
@@ -380,7 +397,7 @@
             dragSrcIdx: null,
             dragOverIdx: null,
             formModulo: { id: null, nombre: '', icono: '📋', color: '#6366f1', activo: true },
-            formCampo:  { id: null, nombre: '', tipo: 'text', obligatorio: false, opciones_texto: '', modulo_relacion: '', meta_accept: 'all', meta_max_mb: 10, meta_multiple: false, meta_tipo_id: 'folio', meta_folio_prefijo: '', meta_folio_separador: '-', meta_folio_cifras: 4 },
+            formCampo:  { id: null, nombre: '', tipo: 'text', obligatorio: false, opciones_texto: '', modulo_relacion: '', meta_accept: 'all', meta_max_mb: 10, meta_multiple: false, meta_label_field: '', meta_tipo_id: 'folio', meta_folio_prefijo: '', meta_folio_separador: '-', meta_folio_cifras: 4 },
 
             async cargar() {
                 const res = await fetch('/admin/modulos', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
@@ -457,13 +474,14 @@
                         meta_accept:           campo.meta?.accept           || 'all',
                         meta_max_mb:           campo.meta?.max_mb           || 10,
                         meta_multiple:         campo.meta?.multiple         ?? false,
+                        meta_label_field:      campo.meta?.label_field      || '',
                         meta_tipo_id:          campo.meta?.tipo_id          || 'folio',
                         meta_folio_prefijo:    campo.meta?.folio_prefijo    ?? '',
                         meta_folio_separador:  campo.meta?.folio_separador  ?? '-',
                         meta_folio_cifras:     campo.meta?.folio_cifras     ?? 4,
                     };
                 } else {
-                    this.formCampo = { id: null, nombre: '', tipo: 'text', obligatorio: false, opciones_texto: '', modulo_relacion: '', meta_accept: 'all', meta_max_mb: 10, meta_multiple: false, meta_tipo_id: 'folio', meta_folio_prefijo: '', meta_folio_separador: '-', meta_folio_cifras: 4 };
+                    this.formCampo = { id: null, nombre: '', tipo: 'text', obligatorio: false, opciones_texto: '', modulo_relacion: '', meta_accept: 'all', meta_max_mb: 10, meta_multiple: false, meta_label_field: '', meta_tipo_id: 'folio', meta_folio_prefijo: '', meta_folio_separador: '-', meta_folio_cifras: 4 };
                 }
                 this.modalCampo = true;
             },
@@ -492,7 +510,7 @@
                     meta: this.formCampo.tipo === 'file'
                         ? { accept: this.formCampo.meta_accept || 'all', max_mb: parseInt(this.formCampo.meta_max_mb) || 10 }
                         : this.formCampo.tipo === 'relation'
-                            ? { multiple: !!this.formCampo.meta_multiple }
+                            ? { multiple: !!this.formCampo.meta_multiple, label_field: this.formCampo.meta_label_field || null }
                             : this.formCampo.tipo === 'id'
                                 ? {
                                     tipo_id: this.formCampo.meta_tipo_id || 'folio',

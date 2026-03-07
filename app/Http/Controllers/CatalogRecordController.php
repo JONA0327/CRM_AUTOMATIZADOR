@@ -97,11 +97,11 @@ class CatalogRecordController extends Controller
         $slugRelacion   = $request->query('modulo_relacion');
         $moduloRelacion = CatalogModule::where('slug', $slugRelacion)->firstOrFail();
 
-        // Devuelve id + primer campo de texto para mostrar en el select
-        $primerCampo = $moduloRelacion->fields()
-            ->whereIn('tipo', ['text', 'email', 'phone'])
-            ->orderBy('orden')
-            ->first();
+        // Devuelve id + campo elegido (o primer campo de texto) como label
+        $labelSlug   = $request->query('label_field');
+        $primerCampo = $labelSlug
+            ? $moduloRelacion->fields()->where('slug', $labelSlug)->first()
+            : $moduloRelacion->fields()->whereIn('tipo', ['text', 'email', 'phone'])->orderBy('orden')->first();
 
         $records = CatalogRecord::where('module_id', $moduloRelacion->id)
             ->latest()
