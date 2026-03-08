@@ -1966,7 +1966,7 @@
         </div>
 
     {{-- Prompt activo persistido en el form --}}
-    <input type="hidden" name="bot_prompt_activo" id="bot_prompt_activo_input" value="{{ Configuracion::get('bot_prompt_activo', '') }}">
+    <input type="hidden" name="bot_prompt_activo" id="bot_prompt_activo_input" value="{{ $promptActivoId ?? '' }}">
 
     </form>
 

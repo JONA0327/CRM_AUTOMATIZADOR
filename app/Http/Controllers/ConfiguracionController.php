@@ -159,9 +159,11 @@ class ConfiguracionController extends Controller
             $availableTags = app(PromptTagResolverService::class)->availableTags();
         } catch (\Exception) {}
 
-        $savedPrompts = collect();
+        $savedPrompts   = collect();
+        $promptActivoId = null;
         try {
-            $savedPrompts = SavedPrompt::orderBy('nombre')->get();
+            $savedPrompts   = SavedPrompt::orderBy('nombre')->get();
+            $promptActivoId = (int) (Configuracion::get('bot_prompt_activo', '0')) ?: null;
         } catch (\Exception) {}
 
         // Estado de conexión con Google (OAuth2)
@@ -186,6 +188,7 @@ class ConfiguracionController extends Controller
             'modulosConArchivos'    => $modulosConArchivos,
             'catalogMediaConfig'    => $catalogMediaConfig,
             'savedPrompts'          => $savedPrompts,
+            'promptActivoId'        => $promptActivoId,
             'googleConectado'    => $googleConectado,
             'googleEmail'        => $googleEmail,
         ]);
