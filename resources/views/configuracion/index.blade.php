@@ -407,25 +407,28 @@
                                     </div>
                                     <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                                         <template x-for="p in prompts" :key="p.id">
-                                            <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer"
+                                            <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
                                                  :class="promptActivo === p.id
                                                      ? 'border-purple-500/60 bg-purple-500/15'
-                                                     : 'border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10'">
+                                                     : 'border-white/10 hover:border-white/20'">
+                                                {{-- Toggle activar/desactivar --}}
+                                                <button type="button"
+                                                        @click="togglePrompt(p)"
+                                                        :class="promptActivo === p.id ? 'bg-purple-500' : 'bg-gray-600'"
+                                                        class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"
+                                                        :title="promptActivo === p.id ? 'Desactivar prompt' : 'Activar prompt'">
+                                                    <span :class="promptActivo === p.id ? 'translate-x-4' : 'translate-x-0'"
+                                                          class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200"></span>
+                                                </button>
                                                 <button type="button"
                                                         @click="cargarPrompt(p)"
                                                         class="flex-1 text-left min-w-0">
                                                     <div class="flex items-center gap-2">
-                                                        <svg class="w-3.5 h-3.5 flex-shrink-0"
-                                                             :class="promptActivo === p.id ? 'text-purple-600' : 'text-gray-400'"
-                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                        </svg>
-                                                        <span class="text-sm font-medium text-gray-200 text-gray-100 truncate" x-text="p.nombre"></span>
-                                                        <template x-if="promptActivo === p.id">
-                                                            <span class="text-xs text-purple-600 font-semibold flex-shrink-0">● activo</span>
-                                                        </template>
+                                                        <span class="text-sm font-medium truncate"
+                                                              :class="promptActivo === p.id ? 'text-purple-300' : 'text-gray-200'"
+                                                              x-text="p.nombre"></span>
                                                     </div>
-                                                    <p class="text-xs text-gray-400 truncate mt-0.5 ml-5.5" x-text="p.contenido.substring(0,80) + (p.contenido.length > 80 ? '…' : '')"></p>
+                                                    <p class="text-xs text-gray-400 truncate mt-0.5" x-text="p.contenido.substring(0,80) + (p.contenido.length > 80 ? '…' : '')"></p>
                                                 </button>
                                                 <button type="button"
                                                         @click="editarPrompt(p)"
@@ -1962,6 +1965,9 @@
             </div>{{-- /content --}}
         </div>
 
+    {{-- Prompt activo persistido en el form --}}
+    <input type="hidden" name="bot_prompt_activo" id="bot_prompt_activo_input" value="{{ Configuracion::get('bot_prompt_activo', '') }}">
+
     </form>
 
 <script>
@@ -2165,10 +2171,20 @@ function savedPromptsManager() {
         editandoId: null,
 
         init() {
-            // Determinar el prompt activo comparando contenido con el system_prompt actual
-            const current = document.getElementById('system_prompt')?.value ?? '';
-            const match = this.prompts.find(p => p.contenido === current);
-            this.promptActivo = match ? match.id : null;
+            // Leer el ID del prompt activo desde la configuración guardada
+            const storedId = parseInt(document.getElementById('bot_prompt_activo_input')?.value ?? '0');
+            this.promptActivo = storedId > 0 ? storedId : null;
+        },
+
+        togglePrompt(p) {
+            if (this.promptActivo === p.id) {
+                // Desactivar
+                this.promptActivo = null;
+                document.getElementById('bot_prompt_activo_input').value = '';
+            } else {
+                // Activar y cargar contenido
+                this.cargarPrompt(p);
+            }
         },
 
         cargarPrompt(p) {
@@ -2177,7 +2193,7 @@ function savedPromptsManager() {
             ta.value = p.contenido;
             this.chars = p.contenido.length;
             this.promptActivo = p.id;
-            // Flash visual
+            document.getElementById('bot_prompt_activo_input').value = p.id;
             ta.classList.add('ring-2', 'ring-purple-400');
             setTimeout(() => ta.classList.remove('ring-2', 'ring-purple-400'), 1200);
         },

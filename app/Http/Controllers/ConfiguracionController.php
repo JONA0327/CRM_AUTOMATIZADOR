@@ -211,6 +211,17 @@ class ConfiguracionController extends Controller
             $guardados++;
         }
 
+        // Guardar ID del prompt activo
+        if ($request->has('bot_prompt_activo')) {
+            $id = (int) $request->input('bot_prompt_activo');
+            if ($id > 0) {
+                Configuracion::set('bot_prompt_activo', (string) $id, 'bot', 'ID del prompt activo del bot');
+            } else {
+                Configuracion::clear('bot_prompt_activo');
+            }
+            $guardados++;
+        }
+
         // Guardar system_prompt
         if ($request->has('system_prompt')) {
             $prompt = $request->input('system_prompt', '');
