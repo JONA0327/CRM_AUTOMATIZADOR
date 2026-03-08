@@ -109,7 +109,7 @@
 
                     {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
                     @php
-                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo', 'pipeline'])->values();
+                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo', 'pipeline'])->where('activo', true)->values();
                         $datos  = collect($availableTags)->whereIn('tipo', ['catalogo', 'db_ext'])->values();
                         $nApis  = $apis->count();
                         $nDatos = $datos->count();
@@ -297,17 +297,22 @@
                             </div>
                             {{-- API nodes dark --}}
                             @foreach($apis as $i => $node)
+                                @php
+                                    $esPipelineD = $node['tipo'] === 'pipeline';
+                                    $esTiempoD   = $node['tipo'] === 'tiempo';
+                                    $darkClass   = $esTiempoD   ? 'border-cyan-600 bg-gray-800 text-cyan-300 hover:border-cyan-400 hover:shadow-md cursor-pointer'
+                                                 : ($esPipelineD ? 'border-orange-600 bg-gray-800 text-orange-300 hover:border-orange-400 hover:shadow-md cursor-default'
+                                                                 : 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer');
+                                    $dotD        = $esTiempoD ? 'bg-cyan-400' : ($esPipelineD ? 'bg-orange-400' : 'bg-emerald-400');
+                                @endphp
                                 <div class="absolute z-10"
                                      style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
                                     <button type="button"
-                                            {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
-                                            {{ $node['activo'] ? '' : 'disabled' }}
-                                            title="{{ $node['activo'] ? $node['preview'] : ($node['tipo'] === 'tiempo' ? 'Configura la zona horaria del bot' : 'Configura esta API en Modelos de IA o Servicios') }}"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
-                                                   {{ $node['activo']
-                                                       ? ($node['tipo'] === 'tiempo' ? 'border-cyan-600 bg-gray-800 text-cyan-300 hover:border-cyan-400 hover:shadow-md cursor-pointer' : 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer')
-                                                       : 'border-gray-700 bg-gray-800/60 text-gray-500 cursor-not-allowed opacity-50' }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? ($node['tipo'] === 'tiempo' ? 'bg-cyan-400' : 'bg-emerald-400') : 'bg-gray-600' }}"></span>
+                                            {{ (!$esPipelineD && !empty($node['tag'])) ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
+                                            {{ $esPipelineD ? 'disabled' : '' }}
+                                            title="{{ $node['preview'] }}"
+                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all {{ $darkClass }}">
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $dotD }}"></span>
                                         <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
                                     </button>
                                 </div>
@@ -336,9 +341,6 @@
                     <div class="mb-5 mt-2.5 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Activo
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-gray-300 inline-block"></span>Sin configurar
                         </span>
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Catálogo

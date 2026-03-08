@@ -107,7 +107,7 @@
 <script>
 function logsManager() {
     return {
-        canalActivo: 'bot',
+        canalActivo: 'sistema',
         cargando: false,
         limpiando: false,
         entries: [],
