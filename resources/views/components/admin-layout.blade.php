@@ -201,7 +201,7 @@
 
         {{-- Versión --}}
         <div class="px-5 py-2 text-center">
-            <span class="text-gray-600 text-[10px] font-medium tracking-widest">v4.1.2</span>
+            <span class="text-gray-600 text-[10px] font-medium tracking-widest">v4.1.3</span>
         </div>
 
         {{-- Usuario (parte inferior) --}}
