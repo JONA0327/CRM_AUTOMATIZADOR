@@ -159,7 +159,7 @@ class BotController extends Controller
         $event = $request->input('event');
         $data  = $request->input('data', []);
 
-        Log::info("[Bot] Webhook recibido — instancia={$instancia} evento={$event}", [
+        Log::channel('bot')->info("[Bot] Webhook recibido — instancia={$instancia} evento={$event}", [
             'fromMe'    => data_get($data, 'key.fromMe'),
             'remoteJid' => data_get($data, 'key.remoteJid'),
             'tipo'      => array_keys(data_get($data, 'message', []) ?: []),
@@ -280,7 +280,7 @@ class BotController extends Controller
                         if (!empty(trim($captionMedia))) {
                             $texto = $mensajeParaGuardar = $captionMedia;
                         } else {
-                            Log::warning("[Bot] Pipeline para {$mediaTipo} falló — instancia={$instancia}");
+                            Log::channel('bot')->warning("[Bot] Pipeline para {$mediaTipo} falló — instancia={$instancia}");
                             return response()->json(['status' => 'pipeline_failed']);
                         }
                     }
@@ -288,7 +288,7 @@ class BotController extends Controller
                     if (!empty(trim($captionMedia))) {
                         $texto = $mensajeParaGuardar = $captionMedia;
                     } else {
-                        Log::warning("[Bot] No se pudo descargar {$mediaTipo} — instancia={$instancia}");
+                        Log::channel('bot')->warning("[Bot] No se pudo descargar {$mediaTipo} — instancia={$instancia}");
                         return response()->json(['status' => 'media_download_failed']);
                     }
                 }
@@ -301,11 +301,11 @@ class BotController extends Controller
                         if ($descripcion !== null) {
                             $texto              = $descripcion;
                             $mensajeParaGuardar = '🖼 ' . $descripcion;
-                            Log::info("[Bot] Imagen analizada — instancia={$instancia}", ['preview' => substr($descripcion, 0, 80)]);
+                            Log::channel('bot')->info("[Bot] Imagen analizada — instancia={$instancia}", ['preview' => substr($descripcion, 0, 80)]);
                         } elseif (!empty(trim($captionMedia))) {
                             $texto = $mensajeParaGuardar = $captionMedia;
                         } else {
-                            Log::info("[Bot] Imagen recibida sin descripción disponible — instancia={$instancia}");
+                            Log::channel('bot')->info("[Bot] Imagen recibida sin descripción disponible — instancia={$instancia}");
                             return response()->json(['status' => 'imagen_sin_vision']);
                         }
                     } elseif (!empty(trim($captionMedia))) {
@@ -313,19 +313,19 @@ class BotController extends Controller
                     }
                 } elseif ($mediaTipo === 'audio') {
                     if (Configuracion::get('bot_audio_activo', '0') !== '1') {
-                        Log::info("[Bot] Audio recibido pero transcripción desactivada — instancia={$instancia}");
+                        Log::channel('bot')->info("[Bot] Audio recibido pero transcripción desactivada — instancia={$instancia}");
                         return response()->json(['status' => 'audio_desactivado']);
                     }
                     $transcripcion = $this->transcribirAudio($instancia, $data);
                     if ($transcripcion !== null) {
                         $texto              = $transcripcion;
                         $mensajeParaGuardar = '🎙 ' . $transcripcion;
-                        Log::info("[Bot] Audio transcrito — instancia={$instancia}", [
+                        Log::channel('bot')->info("[Bot] Audio transcrito — instancia={$instancia}", [
                             'chars'   => strlen($transcripcion),
                             'preview' => substr($transcripcion, 0, 80),
                         ]);
                     } else {
-                        Log::info("[Bot] Audio recibido sin servicio de transcripción activo — instancia={$instancia}");
+                        Log::channel('bot')->info("[Bot] Audio recibido sin servicio de transcripción activo — instancia={$instancia}");
                         return response()->json(['status' => 'audio_no_transcripcion']);
                     }
                 }
@@ -354,7 +354,7 @@ class BotController extends Controller
         $respuestaTexto = $this->llamarIA($proveedor, $prompt, $contexto, $texto);
 
         if ($respuestaTexto === null) {
-            Log::error("[Bot] La IA no respondió — instancia={$instancia} proveedor={$proveedor}");
+            Log::channel('bot')->error("[Bot] La IA no respondió — instancia={$instancia} proveedor={$proveedor}");
             return response()->json(['status' => 'ai_error']);
         }
 
@@ -536,9 +536,9 @@ class BotController extends Controller
                         ],
                     ]);
 
-                Log::info("[Bot] Webhook configurado para {$nombre}: {$webhookUrl}");
+                Log::channel('bot')->info("[Bot] Webhook configurado para {$nombre}: {$webhookUrl}");
             } catch (\Exception $e) {
-                Log::warning("[Bot] No se pudo configurar el webhook para {$nombre}: " . $e->getMessage());
+                Log::channel('bot')->warning("[Bot] No se pudo configurar el webhook para {$nombre}: " . $e->getMessage());
             }
 
             // Registrar la instancia en BD ligada al tenant actual
@@ -937,7 +937,7 @@ class BotController extends Controller
                 ]);
 
             if (!$res->successful()) {
-                Log::warning("[Bot] descargarMedia HTTP {$res->status()} — instancia={$instancia}");
+                Log::channel('bot')->warning("[Bot] descargarMedia HTTP {$res->status()} — instancia={$instancia}");
                 return null;
             }
 
@@ -946,7 +946,7 @@ class BotController extends Controller
 
             return $base64 ? compact('base64', 'mimeType') : null;
         } catch (\Exception $e) {
-            Log::warning("[Bot] descargarMedia error — instancia={$instancia}: " . $e->getMessage());
+            Log::channel('bot')->warning("[Bot] descargarMedia error — instancia={$instancia}: " . $e->getMessage());
             return null;
         }
     }
@@ -979,7 +979,7 @@ class BotController extends Controller
                 ]);
 
             if (!$res->successful()) {
-                Log::warning("[Bot] No se pudo descargar imagen — instancia={$instancia}: HTTP {$res->status()}");
+                Log::channel('bot')->warning("[Bot] No se pudo descargar imagen — instancia={$instancia}: HTTP {$res->status()}");
                 return null;
             }
 
@@ -989,11 +989,11 @@ class BotController extends Controller
                 ?? 'image/jpeg';
 
             if (!$base64) {
-                Log::warning("[Bot] Respuesta de descarga de imagen sin base64 — instancia={$instancia}");
+                Log::channel('bot')->warning("[Bot] Respuesta de descarga de imagen sin base64 — instancia={$instancia}");
                 return null;
             }
         } catch (\Exception $e) {
-            Log::warning("[Bot] Error al descargar imagen — instancia={$instancia}: " . $e->getMessage());
+            Log::channel('bot')->warning("[Bot] Error al descargar imagen — instancia={$instancia}: " . $e->getMessage());
             return null;
         }
 
@@ -1042,7 +1042,7 @@ class BotController extends Controller
 
             return data_get($res->json(), 'choices.0.message.content');
         } catch (\Exception $e) {
-            Log::warning("[Bot] Error vision OpenAI: " . $e->getMessage());
+            Log::channel('bot')->warning("[Bot] Error vision OpenAI: " . $e->getMessage());
             return null;
         }
     }
@@ -1070,7 +1070,7 @@ class BotController extends Controller
 
             return data_get($res->json(), 'candidates.0.content.parts.0.text');
         } catch (\Exception $e) {
-            Log::warning("[Bot] Error vision Gemini: " . $e->getMessage());
+            Log::channel('bot')->warning("[Bot] Error vision Gemini: " . $e->getMessage());
             return null;
         }
     }
@@ -1110,7 +1110,7 @@ class BotController extends Controller
                 ]);
 
             if (!$res->successful()) {
-                Log::warning("[Bot] No se pudo descargar audio — instancia={$instancia}: HTTP {$res->status()}");
+                Log::channel('bot')->warning("[Bot] No se pudo descargar audio — instancia={$instancia}: HTTP {$res->status()}");
                 return null;
             }
 
@@ -1121,11 +1121,11 @@ class BotController extends Controller
                 ?? 'audio/ogg';
 
             if (!$base64) {
-                Log::warning("[Bot] Respuesta de descarga sin base64 — instancia={$instancia}");
+                Log::channel('bot')->warning("[Bot] Respuesta de descarga sin base64 — instancia={$instancia}");
                 return null;
             }
         } catch (\Exception $e) {
-            Log::warning("[Bot] Error al descargar audio — instancia={$instancia}: " . $e->getMessage());
+            Log::channel('bot')->warning("[Bot] Error al descargar audio — instancia={$instancia}: " . $e->getMessage());
             return null;
         }
 
@@ -1176,17 +1176,17 @@ class BotController extends Controller
                 ]);
 
             if (!$response->successful()) {
-                Log::error('[Bot] Whisper error HTTP ' . $response->status(), [
+                Log::channel('bot')->error('[Bot] Whisper error HTTP ' . $response->status(), [
                     'body' => $response->json() ?? $response->body(),
                 ]);
                 return null;
             }
 
             $transcripcion = trim($response->body());
-            Log::info('[Bot] Whisper OK: ' . substr($transcripcion, 0, 100));
+            Log::channel('bot')->info('[Bot] Whisper OK: ' . substr($transcripcion, 0, 100));
             return $transcripcion ?: null;
         } catch (\Exception $e) {
-            Log::error('[Bot] Whisper excepción: ' . $e->getMessage());
+            Log::channel('bot')->error('[Bot] Whisper excepción: ' . $e->getMessage());
             return null;
         }
     }
@@ -1224,17 +1224,17 @@ class BotController extends Controller
                 );
 
             if (!$response->successful()) {
-                Log::error('[Bot] Gemini audio error HTTP ' . $response->status(), [
+                Log::channel('bot')->error('[Bot] Gemini audio error HTTP ' . $response->status(), [
                     'body' => $response->json() ?? $response->body(),
                 ]);
                 return null;
             }
 
             $transcripcion = trim(data_get($response->json(), 'candidates.0.content.parts.0.text') ?? '');
-            Log::info('[Bot] Gemini audio OK: ' . substr($transcripcion, 0, 100));
+            Log::channel('bot')->info('[Bot] Gemini audio OK: ' . substr($transcripcion, 0, 100));
             return $transcripcion ?: null;
         } catch (\Exception $e) {
-            Log::error('[Bot] Gemini audio excepción: ' . $e->getMessage());
+            Log::channel('bot')->error('[Bot] Gemini audio excepción: ' . $e->getMessage());
             return null;
         }
     }
@@ -1247,7 +1247,7 @@ class BotController extends Controller
         try {
             return (new ExternalDbService())->construirContextoMultiple();
         } catch (\Exception $e) {
-            Log::warning('[Bot] Error al construir contexto con BD externa: ' . $e->getMessage());
+            Log::channel('bot')->warning('[Bot] Error al construir contexto con BD externa: ' . $e->getMessage());
             return '';
         }
     }
@@ -1268,7 +1268,7 @@ class BotController extends Controller
             if ($proveedor === 'gemini')   return $this->llamarGemini($systemContent, $mensaje);
             return $this->llamarOpenAI($systemContent, $mensaje);
         } catch (\Exception $e) {
-            Log::error("[Bot] Error en IA ({$proveedor}): " . $e->getMessage());
+            Log::channel('bot')->error("[Bot] Error en IA ({$proveedor}): " . $e->getMessage());
             return null;
         }
     }
@@ -1283,7 +1283,7 @@ class BotController extends Controller
         $model  = Configuracion::get('openai_model', 'gpt-4o-mini');
 
         if (! $apiKey) {
-            Log::warning('[Bot] OpenAI: API Key no configurada.');
+            Log::channel('bot')->warning('[Bot] OpenAI: API Key no configurada.');
             return null;
         }
 
@@ -1298,7 +1298,7 @@ class BotController extends Controller
             ]);
 
         if (! $response->successful()) {
-            Log::error('[Bot] OpenAI error HTTP ' . $response->status(), [
+            Log::channel('bot')->error('[Bot] OpenAI error HTTP ' . $response->status(), [
                 'model' => $model,
                 'body'  => $response->json() ?? $response->body(),
             ]);
@@ -1314,7 +1314,7 @@ class BotController extends Controller
         $model  = Configuracion::get('deepseek_model', 'deepseek-chat');
 
         if (! $apiKey) {
-            Log::warning('[Bot] DeepSeek: API Key no configurada.');
+            Log::channel('bot')->warning('[Bot] DeepSeek: API Key no configurada.');
             return null;
         }
 
@@ -1329,7 +1329,7 @@ class BotController extends Controller
             ]);
 
         if (! $response->successful()) {
-            Log::error('[Bot] DeepSeek error HTTP ' . $response->status(), [
+            Log::channel('bot')->error('[Bot] DeepSeek error HTTP ' . $response->status(), [
                 'model' => $model,
                 'body'  => $response->json() ?? $response->body(),
             ]);
@@ -1345,7 +1345,7 @@ class BotController extends Controller
         $model  = Configuracion::get('gemini_model', 'gemini-1.5-flash');
 
         if (! $apiKey) {
-            Log::warning('[Bot] Gemini: API Key no configurada.');
+            Log::channel('bot')->warning('[Bot] Gemini: API Key no configurada.');
             return null;
         }
 
@@ -1385,7 +1385,7 @@ class BotController extends Controller
                     'text'   => $texto,
                 ]);
         } catch (\Exception $e) {
-            Log::error("[Bot] Error al enviar texto a {$remoteJid}: " . $e->getMessage());
+            Log::channel('bot')->error("[Bot] Error al enviar texto a {$remoteJid}: " . $e->getMessage());
         }
     }
 
@@ -1414,7 +1414,7 @@ class BotController extends Controller
                 ->timeout(20)
                 ->post("{$this->apiUrl}/message/sendMedia/{$enc}", $payload);
         } catch (\Exception $e) {
-            Log::error("[Bot] Error al enviar {$tipo} a {$remoteJid}: " . $e->getMessage());
+            Log::channel('bot')->error("[Bot] Error al enviar {$tipo} a {$remoteJid}: " . $e->getMessage());
         }
     }
 
@@ -1468,11 +1468,11 @@ class BotController extends Controller
 
                     $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName, $viewOnce);
 
-                    Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} campo={$campoConfig['campo_slug']} tipo={$tipo} viewOnce=" . ($viewOnce ? 'true' : 'false'));
+                    Log::channel('bot')->info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} campo={$campoConfig['campo_slug']} tipo={$tipo} viewOnce=" . ($viewOnce ? 'true' : 'false'));
                 }
 
             } catch (\Exception $e) {
-                Log::warning("[Bot] Error al enviar media de catálogo — {$slug}:{$recordId}: " . $e->getMessage());
+                Log::channel('bot')->warning("[Bot] Error al enviar media de catálogo — {$slug}:{$recordId}: " . $e->getMessage());
             }
         }
     }
@@ -1615,13 +1615,62 @@ class BotController extends Controller
      * Trunca el archivo de log de Laravel. Solo accesible por super_admin.
      * DELETE /admin/logs
      */
-    public function clearLogs(): JsonResponse
-    {
-        $logFile = storage_path('logs/laravel.log');
+    /** Archivos de log permitidos por canal. */
+    private static array $logCanales = [
+        'bot'          => 'bot.log',
+        'configuracion'=> 'configuracion.log',
+        'sistema'      => 'laravel.log',
+    ];
 
-        if (file_exists($logFile)) {
-            file_put_contents($logFile, '');
+    /** GET /admin/logs/{canal} — retorna últimas líneas del log. */
+    public function verLog(string $canal): JsonResponse
+    {
+        $archivo = self::$logCanales[$canal] ?? null;
+        if (!$archivo) {
+            return response()->json(['error' => 'Canal no válido'], 404);
         }
+
+        $path    = storage_path("logs/{$archivo}");
+        $entries = [];
+
+        if (file_exists($path)) {
+            $lines   = $this->tailLines($path, 2000);
+            $current = null;
+
+            foreach ($lines as $line) {
+                if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \w+\.(\w+): (.*)$/', $line, $m)) {
+                    if ($current !== null) $entries[] = $current;
+                    $current = ['timestamp' => $m[1], 'level' => strtolower($m[2]), 'message' => $m[3]];
+                } elseif ($current !== null && trim($line) !== '') {
+                    $current['message'] .= "\n" . $line;
+                }
+            }
+            if ($current !== null) $entries[] = $current;
+            $entries = array_reverse(array_slice($entries, -200));
+        }
+
+        return response()->json([
+            'canal'     => $canal,
+            'entries'   => $entries,
+            'size'      => file_exists($path) ? round(filesize($path) / 1024, 1) : 0,
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /** DELETE /admin/logs/{canal} — vacía el archivo de log del canal. */
+    public function clearLogs(string $canal = 'sistema'): JsonResponse
+    {
+        $archivo = self::$logCanales[$canal] ?? null;
+        if (!$archivo) {
+            return response()->json(['error' => 'Canal no válido'], 404);
+        }
+
+        $path = storage_path("logs/{$archivo}");
+        if (file_exists($path)) {
+            file_put_contents($path, '');
+        }
+
+        Log::channel('configuracion')->info("[Admin] Log '{$canal}' limpiado por " . (auth()->user()?->email ?? 'sistema'));
 
         return response()->json(['success' => true]);
     }

@@ -191,6 +191,30 @@ TXT,
             // El tenant puede no tener todavía las tablas de catálogos
         }
 
+        // ── Pipeline de medios entrantes ──────────────────────────────────────
+        try {
+            $pipelineRaw = Configuracion::get('bot_media_pipeline', '');
+            $pipeline    = !empty($pipelineRaw) ? (json_decode($pipelineRaw, true) ?: []) : [];
+            $mediaItems  = [
+                'image'    => ['emoji' => '🖼️',  'label' => 'Pipeline imagen'],
+                'audio'    => ['emoji' => '🎙️',  'label' => 'Pipeline audio'],
+                'video'    => ['emoji' => '🎬',  'label' => 'Pipeline video'],
+                'documento'=> ['emoji' => '📄',  'label' => 'Pipeline documento'],
+            ];
+            foreach ($mediaItems as $key => $meta) {
+                $cfg    = $pipeline[$key] ?? [];
+                $activo = !empty($cfg['activo']) && !empty($cfg['pasos']);
+                $pasos  = collect($cfg['pasos'] ?? [])->pluck('tipo')->join(' → ');
+                $tags[] = [
+                    'tag'     => '',   // sin tag insertable — solo visual
+                    'tipo'    => 'pipeline',
+                    'label'   => $meta['emoji'] . ' ' . $meta['label'],
+                    'activo'  => $activo,
+                    'preview' => $activo ? "Pasos: {$pasos} → " . ($cfg['destino'] ?? 'bot') : 'Sin pipeline configurado',
+                ];
+            }
+        } catch (\Exception) {}
+
         // ── Hora actual / Zona horaria ───────────────────────────────────────
         try {
             $tz = Configuracion::get('bot_timezone', '');

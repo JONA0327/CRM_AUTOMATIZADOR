@@ -132,7 +132,9 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('admin')->na
     Route::delete('/tenants/{id}',  [TenantController::class, 'destroy'])->name('tenants.destroy');
 
     // Logs del sistema — solo super_admin
-    Route::delete('/logs',          [BotController::class, 'clearLogs'])->name('logs.clear');
+    Route::get('/logs',             fn() => view('admin.logs.index'))->name('logs.index');
+    Route::get('/logs/{canal}',     [BotController::class, 'verLog'])->name('logs.ver');
+    Route::delete('/logs/{canal}',  [BotController::class, 'clearLogs'])->name('logs.clear');
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

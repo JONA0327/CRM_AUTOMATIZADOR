@@ -109,7 +109,7 @@
 
                     {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
                     @php
-                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo'])->values();
+                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo', 'pipeline'])->values();
                         $datos  = collect($availableTags)->whereIn('tipo', ['catalogo', 'db_ext'])->values();
                         $nApis  = $apis->count();
                         $nDatos = $datos->count();
@@ -202,26 +202,30 @@
                                 </span>
                             </div>
 
-                            {{-- Nodos API + Tiempo (izquierda) --}}
+                            {{-- Nodos API + Tiempo + Pipeline (izquierda) --}}
                             @foreach($apis as $i => $node)
                                 @php
-                                    $esTiempo = $node['tipo'] === 'tiempo';
-                                    $tooltipInactivo = $esTiempo
-                                        ? 'Configura la zona horaria del bot'
-                                        : 'Configura esta API en Modelos de IA o Servicios';
-                                    $activeClass = $esTiempo
-                                        ? 'border-cyan-400 bg-gray-800 text-cyan-300 hover:border-cyan-300 hover:shadow-md cursor-pointer'
-                                        : 'border-indigo-300 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer';
+                                    $esTiempo   = $node['tipo'] === 'tiempo';
+                                    $esPipeline = $node['tipo'] === 'pipeline';
+                                    $tooltipInactivo = $esTiempo   ? 'Configura la zona horaria del bot'
+                                                     : ($esPipeline ? 'Configura el pipeline en la sección Bot'
+                                                                    : 'Configura esta API en Modelos de IA o Servicios');
+                                    $activeClass = $esTiempo   ? 'border-cyan-400 bg-gray-800 text-cyan-300 hover:border-cyan-300 hover:shadow-md cursor-pointer'
+                                                 : ($esPipeline ? 'border-orange-400 bg-gray-800 text-orange-300 hover:border-orange-300 hover:shadow-md cursor-default'
+                                                                : 'border-indigo-300 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer');
+                                    $dotColor = $esTiempo   ? 'bg-cyan-400'
+                                              : ($esPipeline ? 'bg-orange-400'
+                                                             : 'bg-emerald-400');
                                 @endphp
                                 <div class="absolute z-10"
                                      style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
                                     <button type="button"
-                                            {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
-                                            {{ $node['activo'] ? '' : 'disabled' }}
+                                            {{ ($node['activo'] && !$esPipeline && !empty($node['tag'])) ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
+                                            {{ ($node['activo'] && !$esPipeline) ? '' : 'disabled' }}
                                             title="{{ $node['activo'] ? $node['preview'] : $tooltipInactivo }}"
                                             class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
                                                    {{ $node['activo'] ? $activeClass : 'border-white/10 bg-gray-800/80 text-gray-400 cursor-not-allowed opacity-60' }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? ($esTiempo ? 'bg-cyan-400' : 'bg-emerald-400') : 'bg-gray-300' }}"></span>
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? $dotColor : 'bg-gray-300' }}"></span>
                                         <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
                                     </button>
                                 </div>
@@ -344,6 +348,9 @@
                         </span>
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>Tiempo
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>Pipeline media
                         </span>
                         <span class="text-indigo-400 dark:text-indigo-500 font-medium">← clic en un nodo activo para insertar su etiqueta →</span>
                     </div>

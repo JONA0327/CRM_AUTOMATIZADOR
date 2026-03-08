@@ -127,6 +127,20 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'bot' => [
+            'driver'               => 'single',
+            'path'                 => storage_path('logs/bot.log'),
+            'level'                => 'debug',
+            'replace_placeholders' => true,
+        ],
+
+        'configuracion' => [
+            'driver'               => 'single',
+            'path'                 => storage_path('logs/configuracion.log'),
+            'level'                => 'debug',
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];
