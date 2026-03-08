@@ -159,6 +159,8 @@ class ConfiguracionController extends Controller
             $availableTags = app(PromptTagResolverService::class)->availableTags();
         } catch (\Exception) {}
 
+        $botTimezone    = Configuracion::get('bot_timezone', '');
+
         $savedPrompts   = collect();
         $promptActivoId = null;
         try {
@@ -189,6 +191,7 @@ class ConfiguracionController extends Controller
             'catalogMediaConfig'    => $catalogMediaConfig,
             'savedPrompts'          => $savedPrompts,
             'promptActivoId'        => $promptActivoId,
+            'botTimezone'           => $botTimezone,
             'googleConectado'    => $googleConectado,
             'googleEmail'        => $googleEmail,
         ]);
@@ -202,6 +205,17 @@ class ConfiguracionController extends Controller
     public function update(Request $request)
     {
         $guardados = 0;
+
+        // Guardar zona horaria del bot
+        if ($request->has('bot_timezone')) {
+            $tz = $request->input('bot_timezone', '');
+            if (!empty($tz) && in_array($tz, \DateTimeZone::listIdentifiers())) {
+                Configuracion::set('bot_timezone', $tz, 'bot', 'Zona horaria del bot para [HORA_ACTUAL]');
+            } else {
+                Configuracion::clear('bot_timezone');
+            }
+            $guardados++;
+        }
 
         // Guardar prompt de verificación WhatsApp
         if ($request->has('bot_prompt_verificacion')) {

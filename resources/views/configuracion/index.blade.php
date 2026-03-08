@@ -109,7 +109,7 @@
 
                     {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
                     @php
-                        $apis   = collect($availableTags)->where('tipo', 'api')->values();
+                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo'])->values();
                         $datos  = collect($availableTags)->whereIn('tipo', ['catalogo', 'db_ext'])->values();
                         $nApis  = $apis->count();
                         $nDatos = $datos->count();
@@ -202,19 +202,26 @@
                                 </span>
                             </div>
 
-                            {{-- Nodos API (izquierda) --}}
+                            {{-- Nodos API + Tiempo (izquierda) --}}
                             @foreach($apis as $i => $node)
+                                @php
+                                    $esTiempo = $node['tipo'] === 'tiempo';
+                                    $tooltipInactivo = $esTiempo
+                                        ? 'Configura la zona horaria del bot'
+                                        : 'Configura esta API en Modelos de IA o Servicios';
+                                    $activeClass = $esTiempo
+                                        ? 'border-cyan-400 bg-gray-800 text-cyan-300 hover:border-cyan-300 hover:shadow-md cursor-pointer'
+                                        : 'border-indigo-300 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer';
+                                @endphp
                                 <div class="absolute z-10"
                                      style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
                                     <button type="button"
                                             {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
                                             {{ $node['activo'] ? '' : 'disabled' }}
-                                            title="{{ $node['activo'] ? $node['preview'] : 'Configura esta API en Modelos de IA o Servicios' }}"
+                                            title="{{ $node['activo'] ? $node['preview'] : $tooltipInactivo }}"
                                             class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
-                                                   {{ $node['activo']
-                                                       ? 'border-indigo-300 bg-gray-800 text-indigo-700 hover:border-indigo-500 hover:shadow-md cursor-pointer'
-                                                       : 'border-white/10 bg-gray-800/80 text-gray-400 cursor-not-allowed opacity-60' }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? 'bg-emerald-400' : 'bg-gray-300' }}"></span>
+                                                   {{ $node['activo'] ? $activeClass : 'border-white/10 bg-gray-800/80 text-gray-400 cursor-not-allowed opacity-60' }}">
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? ($esTiempo ? 'bg-cyan-400' : 'bg-emerald-400') : 'bg-gray-300' }}"></span>
                                         <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
                                     </button>
                                 </div>
@@ -291,12 +298,12 @@
                                     <button type="button"
                                             {{ $node['activo'] ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
                                             {{ $node['activo'] ? '' : 'disabled' }}
-                                            title="{{ $node['activo'] ? $node['preview'] : 'Configura esta API en Modelos de IA o Servicios' }}"
+                                            title="{{ $node['activo'] ? $node['preview'] : ($node['tipo'] === 'tiempo' ? 'Configura la zona horaria del bot' : 'Configura esta API en Modelos de IA o Servicios') }}"
                                             class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
                                                    {{ $node['activo']
-                                                       ? 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer'
+                                                       ? ($node['tipo'] === 'tiempo' ? 'border-cyan-600 bg-gray-800 text-cyan-300 hover:border-cyan-400 hover:shadow-md cursor-pointer' : 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer')
                                                        : 'border-gray-700 bg-gray-800/60 text-gray-500 cursor-not-allowed opacity-50' }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? 'bg-emerald-400' : 'bg-gray-600' }}"></span>
+                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? ($node['tipo'] === 'tiempo' ? 'bg-cyan-400' : 'bg-emerald-400') : 'bg-gray-600' }}"></span>
                                         <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
                                     </button>
                                 </div>
@@ -335,7 +342,76 @@
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>BD externa
                         </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>Tiempo
+                        </span>
                         <span class="text-indigo-400 dark:text-indigo-500 font-medium">← clic en un nodo activo para insertar su etiqueta →</span>
+                    </div>
+
+                    {{-- ─── Zona horaria ─── --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mb-4">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-100">Zona horaria del bot</p>
+                                <p class="text-xs text-gray-400">Usa el tag <code class="bg-gray-700/50 px-1 rounded text-cyan-400">[HORA_ACTUAL]</code> en el prompt para inyectar la fecha y hora actual</p>
+                            </div>
+                            @if($botTimezone)
+                                <span class="ml-auto text-xs text-cyan-400 font-medium">{{ $botTimezone }}</span>
+                            @endif
+                        </div>
+                        <div class="px-5 py-4">
+                            <select name="bot_timezone"
+                                    class="w-full bg-gray-900 border border-white/10 text-gray-100 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500">
+                                <option value="">— Sin zona horaria —</option>
+                                <optgroup label="México">
+                                    <option value="America/Mexico_City"   {{ $botTimezone === 'America/Mexico_City'   ? 'selected' : '' }}>Ciudad de México (CST/CDT)</option>
+                                    <option value="America/Monterrey"     {{ $botTimezone === 'America/Monterrey'     ? 'selected' : '' }}>Monterrey (CST/CDT)</option>
+                                    <option value="America/Tijuana"       {{ $botTimezone === 'America/Tijuana'       ? 'selected' : '' }}>Tijuana (PST/PDT)</option>
+                                    <option value="America/Chihuahua"     {{ $botTimezone === 'America/Chihuahua'     ? 'selected' : '' }}>Chihuahua (MST/MDT)</option>
+                                    <option value="America/Hermosillo"    {{ $botTimezone === 'America/Hermosillo'    ? 'selected' : '' }}>Hermosillo (MST)</option>
+                                </optgroup>
+                                <optgroup label="Latinoamérica">
+                                    <option value="America/Bogota"                  {{ $botTimezone === 'America/Bogota'                  ? 'selected' : '' }}>Colombia (COT)</option>
+                                    <option value="America/Lima"                    {{ $botTimezone === 'America/Lima'                    ? 'selected' : '' }}>Perú (PET)</option>
+                                    <option value="America/Santiago"                {{ $botTimezone === 'America/Santiago'                ? 'selected' : '' }}>Chile (CLT/CLST)</option>
+                                    <option value="America/Argentina/Buenos_Aires"  {{ $botTimezone === 'America/Argentina/Buenos_Aires'  ? 'selected' : '' }}>Argentina (ART)</option>
+                                    <option value="America/Sao_Paulo"               {{ $botTimezone === 'America/Sao_Paulo'               ? 'selected' : '' }}>Brasil / São Paulo (BRT)</option>
+                                    <option value="America/Caracas"                 {{ $botTimezone === 'America/Caracas'                 ? 'selected' : '' }}>Venezuela (VET)</option>
+                                    <option value="America/Guayaquil"               {{ $botTimezone === 'America/Guayaquil'               ? 'selected' : '' }}>Ecuador (ECT)</option>
+                                    <option value="America/La_Paz"                  {{ $botTimezone === 'America/La_Paz'                  ? 'selected' : '' }}>Bolivia (BOT)</option>
+                                    <option value="America/Asuncion"                {{ $botTimezone === 'America/Asuncion'                ? 'selected' : '' }}>Paraguay (PYT)</option>
+                                    <option value="America/Montevideo"              {{ $botTimezone === 'America/Montevideo'              ? 'selected' : '' }}>Uruguay (UYT)</option>
+                                    <option value="America/Havana"                  {{ $botTimezone === 'America/Havana'                  ? 'selected' : '' }}>Cuba (CST/CDT)</option>
+                                    <option value="America/Santo_Domingo"           {{ $botTimezone === 'America/Santo_Domingo'           ? 'selected' : '' }}>República Dominicana (AST)</option>
+                                    <option value="America/Guatemala"               {{ $botTimezone === 'America/Guatemala'               ? 'selected' : '' }}>Guatemala (CST)</option>
+                                    <option value="America/Panama"                  {{ $botTimezone === 'America/Panama'                  ? 'selected' : '' }}>Panamá (EST)</option>
+                                </optgroup>
+                                <optgroup label="Estados Unidos &amp; Canadá">
+                                    <option value="America/New_York"   {{ $botTimezone === 'America/New_York'   ? 'selected' : '' }}>Nueva York (EST/EDT)</option>
+                                    <option value="America/Chicago"    {{ $botTimezone === 'America/Chicago'    ? 'selected' : '' }}>Chicago (CST/CDT)</option>
+                                    <option value="America/Denver"     {{ $botTimezone === 'America/Denver'     ? 'selected' : '' }}>Denver (MST/MDT)</option>
+                                    <option value="America/Los_Angeles"{{ $botTimezone === 'America/Los_Angeles'? 'selected' : '' }}>Los Ángeles (PST/PDT)</option>
+                                    <option value="America/Phoenix"    {{ $botTimezone === 'America/Phoenix'    ? 'selected' : '' }}>Phoenix (MST)</option>
+                                    <option value="America/Toronto"    {{ $botTimezone === 'America/Toronto'    ? 'selected' : '' }}>Toronto (EST/EDT)</option>
+                                </optgroup>
+                                <optgroup label="Europa">
+                                    <option value="Europe/Madrid"  {{ $botTimezone === 'Europe/Madrid'  ? 'selected' : '' }}>España (CET/CEST)</option>
+                                    <option value="Europe/London"  {{ $botTimezone === 'Europe/London'  ? 'selected' : '' }}>Reino Unido (GMT/BST)</option>
+                                    <option value="Europe/Paris"   {{ $botTimezone === 'Europe/Paris'   ? 'selected' : '' }}>Francia (CET/CEST)</option>
+                                </optgroup>
+                                <optgroup label="Universal">
+                                    <option value="UTC" {{ $botTimezone === 'UTC' ? 'selected' : '' }}>UTC</option>
+                                </optgroup>
+                            </select>
+                            <p class="mt-2 text-xs text-gray-500">
+                                Ejemplo de salida: <em class="text-gray-400">lunes 7 de marzo de 2026, 14:30 hrs (America/Mexico_City)</em>
+                            </p>
+                        </div>
                     </div>
 
                     {{-- Selector de proveedor --}}

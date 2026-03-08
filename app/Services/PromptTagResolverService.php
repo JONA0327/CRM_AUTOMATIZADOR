@@ -191,6 +191,18 @@ TXT,
             // El tenant puede no tener todavía las tablas de catálogos
         }
 
+        // ── Hora actual / Zona horaria ───────────────────────────────────────
+        try {
+            $tz = Configuracion::get('bot_timezone', '');
+            $tags[] = [
+                'tag'     => 'HORA_ACTUAL',
+                'tipo'    => 'tiempo',
+                'label'   => '🕐 Hora actual',
+                'activo'  => !empty($tz),
+                'preview' => $tz ? "Zona: {$tz}" : 'Configura la zona horaria',
+            ];
+        } catch (\Exception) {}
+
         // ── BDs externas ──────────────────────────────────────────────────────
         try {
             $extDbs = json_decode(Configuracion::get('ext_dbs', '[]'), true) ?? [];
@@ -245,7 +257,29 @@ TXT,
             return $this->resolveExtDbTag($tag);
         }
 
+        // Hora actual
+        if ($tag === 'HORA_ACTUAL') {
+            return $this->resolveHoraActual();
+        }
+
         return null;
+    }
+
+    private function resolveHoraActual(): string
+    {
+        try {
+            $tz  = Configuracion::get('bot_timezone', 'UTC');
+            $now = new \DateTime('now', new \DateTimeZone($tz));
+            $dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+            $meses = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                      'agosto','septiembre','octubre','noviembre','diciembre'];
+            $dia = $dias[(int) $now->format('w')];
+            $mes = $meses[(int) $now->format('n') - 1];
+            return "\n[Fecha y hora actual: {$dia} {$now->format('j')} de {$mes} "
+                 . "de {$now->format('Y')}, {$now->format('H:i')} hrs ({$tz})]\n";
+        } catch (\Exception) {
+            return '';
+        }
     }
 
     private function resolveCatalogTag(string $suffix): ?string
