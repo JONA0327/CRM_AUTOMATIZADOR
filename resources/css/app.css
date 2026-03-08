@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ocultar elementos Alpine x-cloak hasta que Alpine inicialice */
+[x-cloak] { display: none !important; }
+
 /* Invisible scrollbars globally */
 * {
     scrollbar-width: none;
