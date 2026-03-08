@@ -414,6 +414,7 @@ class ConfiguracionController extends Controller
                     'mediatype'  => in_array($c['mediatype'] ?? '', ['image', 'video', 'document', 'audio'])
                         ? $c['mediatype']
                         : 'image',
+                    'view_once'  => !empty($c['view_once']),
                 ];
             }
             $clean[(string) $slug] = [

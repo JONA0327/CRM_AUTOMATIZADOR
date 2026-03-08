@@ -1394,7 +1394,7 @@ class BotController extends Controller
      * Evolution API v2: POST /message/sendMedia/{instance}
      * mediatype: 'image' | 'video' | 'document' | 'audio'
      */
-    private function enviarMedia(string $instancia, string $remoteJid, string $tipo, string $url, string $caption = '', string $fileName = ''): void
+    private function enviarMedia(string $instancia, string $remoteJid, string $tipo, string $url, string $caption = '', string $fileName = '', bool $viewOnce = false): void
     {
         $enc     = rawurlencode($instancia);
         $payload = [
@@ -1403,9 +1403,11 @@ class BotController extends Controller
             'media'     => $url,
             'caption'   => $caption,
         ];
-        // Los documentos requieren un nombre de archivo
         if ($tipo === 'document' && !empty($fileName)) {
             $payload['fileName'] = $fileName;
+        }
+        if ($viewOnce) {
+            $payload['viewOnce'] = true;
         }
         try {
             Http::withHeaders(['apikey' => $this->apiKey])
@@ -1462,10 +1464,11 @@ class BotController extends Controller
                     $url      = str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
                     $tipo     = $campoConfig['mediatype'] ?? 'image';
                     $fileName = basename(parse_url($url, PHP_URL_PATH));
+                    $viewOnce = !empty($campoConfig['view_once']);
 
-                    $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName);
+                    $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName, $viewOnce);
 
-                    Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} campo={$campoConfig['campo_slug']} tipo={$tipo}");
+                    Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} campo={$campoConfig['campo_slug']} tipo={$tipo} viewOnce=" . ($viewOnce ? 'true' : 'false'));
                 }
 
             } catch (\Exception $e) {

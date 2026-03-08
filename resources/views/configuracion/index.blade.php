@@ -924,6 +924,14 @@
                                                     <option value="document" :selected="campo.mediatype === 'document'">Documento</option>
                                                     <option value="audio"    :selected="campo.mediatype === 'audio'">Audio</option>
                                                 </select>
+                                                {{-- Toggle Ver una vez --}}
+                                                <button type="button"
+                                                        @click="setCampoField('{{ $modulo->slug }}', idx, 'view_once', !campo.view_once)"
+                                                        :class="campo.view_once ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'"
+                                                        :title="campo.view_once ? 'Ver una vez: ON' : 'Ver una vez: OFF'"
+                                                        class="flex-shrink-0 px-2 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap">
+                                                    1×
+                                                </button>
                                                 <button type="button" @click="removeCampo('{{ $modulo->slug }}', idx)"
                                                         class="text-red-400 hover:text-red-300 text-base leading-none flex-shrink-0 px-1">✕</button>
                                             </div>
