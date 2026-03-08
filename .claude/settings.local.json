@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(php artisan tinker --execute=\"\\\\Log::info\\(''test log''\\); echo ''OK'';\")",
-      "Bash(php artisan route:list --path=configuracion)"
+      "Bash(php artisan route:list --path=configuracion)",
+      "Read(//c/Proyectos/Automatizador4_0/**)"
     ]
   }
 }
