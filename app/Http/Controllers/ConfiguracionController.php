@@ -400,11 +400,11 @@ class ConfiguracionController extends Controller
     public function saveCatalogMedia(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'config' => ['required', 'array'],
+            'config' => ['present'],
         ]);
 
         $clean = [];
-        foreach ($data['config'] as $slug => $mc) {
+        foreach ((array) ($data['config'] ?? []) as $slug => $mc) {
             // Normalizar campos de archivo (nuevo formato: array de {campo_slug, mediatype})
             $campos = [];
             foreach ($mc['campos'] ?? [] as $c) {

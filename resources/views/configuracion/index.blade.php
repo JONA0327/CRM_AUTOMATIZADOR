@@ -982,7 +982,7 @@
                     return {
                         saving: false,
                         saved: false,
-                        config: @json($catalogMediaConfig),
+                        config: @json((object) $catalogMediaConfig),
 
                         init() {
                             @foreach($modulosConArchivos as $modulo)
