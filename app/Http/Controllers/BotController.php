@@ -1428,9 +1428,17 @@ class BotController extends Controller
             $recordId = (int) $m[2];
             $config   = $mediaConfig[$slug] ?? null;
 
-            if (!$config || empty($config['activo']) || empty($config['campo_slug'])) {
+            if (!$config || empty($config['activo'])) {
                 continue;
             }
+
+            // Normalizar al nuevo formato de array de campos (backward compat)
+            $camposMedia = $config['campos'] ?? [];
+            if (empty($camposMedia) && !empty($config['campo_slug'])) {
+                $camposMedia = [['campo_slug' => $config['campo_slug'], 'mediatype' => $config['mediatype'] ?? 'image']];
+            }
+            $camposMedia = array_values(array_filter($camposMedia, fn($c) => !empty($c['campo_slug'])));
+            if (empty($camposMedia)) continue;
 
             try {
                 $modulo = \App\Models\CatalogModule::where('slug', $slug)->first();
@@ -1441,24 +1449,24 @@ class BotController extends Controller
                     ->first();
                 if (!$record) continue;
 
-                $path = $record->datos[$config['campo_slug']] ?? null;
-                if (empty($path)) continue;
-
-                // El path puede ser ya una URL completa o un path relativo de storage
-                $url = str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
-
-                $tipo    = $config['mediatype'] ?? 'image';
                 $caption = '';
                 if (!empty($config['caption_campo']) && !empty($record->datos[$config['caption_campo']])) {
                     $caption = (string) $record->datos[$config['caption_campo']];
                 }
 
-                // Para documentos, extraer nombre del archivo
-                $fileName = basename(parse_url($url, PHP_URL_PATH));
+                // Enviar cada campo de archivo configurado para este módulo
+                foreach ($camposMedia as $campoConfig) {
+                    $path = $record->datos[$campoConfig['campo_slug']] ?? null;
+                    if (empty($path)) continue;
 
-                $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName);
+                    $url      = str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+                    $tipo     = $campoConfig['mediatype'] ?? 'image';
+                    $fileName = basename(parse_url($url, PHP_URL_PATH));
 
-                Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} tipo={$tipo}");
+                    $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName);
+
+                    Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} campo={$campoConfig['campo_slug']} tipo={$tipo}");
+                }
 
             } catch (\Exception $e) {
                 Log::warning("[Bot] Error al enviar media de catálogo — {$slug}:{$recordId}: " . $e->getMessage());

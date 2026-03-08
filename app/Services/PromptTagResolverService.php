@@ -281,9 +281,12 @@ TXT,
                 // ── Media adjunta: incluir registros con IDs si está configurado ───
                 $mediaConfig = $this->mediaConfigParaModulo($mod->slug);
                 if ($mediaConfig) {
-                    $campoMedia   = $campos->firstWhere('slug', $mediaConfig['campo_slug']);
+                    $camposMedia  = $mediaConfig['campos'];   // array de {campo_slug, mediatype}
                     $campoCaption = $mediaConfig['caption_campo'] ?? null;
                     $maxReg       = (int) ($mediaConfig['max_resultados'] ?? 3);
+
+                    // Slugs de todos los campos de archivo configurados
+                    $slugsMedia = array_column($camposMedia, 'campo_slug');
 
                     $registros = CatalogRecord::where('module_id', $mod->id)
                         ->latest()
@@ -293,34 +296,39 @@ TXT,
                     if ($registros->isNotEmpty()) {
                         $lines[] = "\nRegistros con media disponible para enviar al usuario:";
                         foreach ($registros as $rec) {
-                            $hasMedia = !empty($rec->datos[$mediaConfig['campo_slug']]);
+                            // El registro es válido si tiene al menos un campo de archivo con valor
+                            $hasMedia = collect($slugsMedia)->some(fn($s) => !empty($rec->datos[$s]));
                             if (!$hasMedia) continue;
 
-                            // Nombre del registro para mostrar al usuario
+                            // Nombre del registro
                             $nombre = "Registro #{$rec->id}";
                             if ($campoCaption && !empty($rec->datos[$campoCaption])) {
                                 $nombre = $rec->datos[$campoCaption];
                             }
 
-                            // Texto de otros campos (excepto el campo de archivo)
+                            // Texto de campos no-archivo
                             $extras = collect($rec->datos)
-                                ->filter(fn($v, $k) => $k !== $mediaConfig['campo_slug'] && is_scalar($v) && $v !== '')
+                                ->filter(fn($v, $k) => !in_array($k, $slugsMedia, true) && is_scalar($v) && $v !== '')
                                 ->map(fn($v, $k) => $k . ': ' . $v)
                                 ->implode(' | ');
 
                             $lines[] = "  • [{$nombre}] ID:{$rec->id}" . ($extras ? " — {$extras}" : '');
                         }
 
-                        $tipo = $mediaConfig['mediatype'] ?? 'image';
-                        $tipoLabel = match($tipo) {
-                            'image'    => 'imagen',
-                            'video'    => 'video',
-                            'document' => 'documento',
-                            default    => 'archivo',
-                        };
+                        // Etiquetas de tipos configurados (pueden ser varios)
+                        $tiposLabel = collect($camposMedia)
+                            ->map(fn($c) => match($c['mediatype'] ?? 'image') {
+                                'image'    => 'imagen',
+                                'video'    => 'video',
+                                'document' => 'documento',
+                                'audio'    => 'audio',
+                                default    => 'archivo',
+                            })
+                            ->unique()->implode(', ');
+
                         $lines[] = "INSTRUCCIÓN: Si el usuario pide ver, mostrar o enviar alguno de estos registros, "
                             . "incluye el marcador [[MEDIA:{$mod->slug}:{ID}]] en tu respuesta (reemplaza {ID} con el número de ID del registro). "
-                            . "El sistema enviará automáticamente el {$tipoLabel} asociado.";
+                            . "El sistema enviará automáticamente el/los archivos ({$tiposLabel}) asociados.";
                     }
                 }
 
@@ -333,13 +341,25 @@ TXT,
 
     /**
      * Devuelve la configuración de media para un módulo, o null si no está configurado/activo.
+     * Normaliza el formato antiguo (campo_slug + mediatype) al nuevo (campos array).
      */
     private function mediaConfigParaModulo(string $slug): ?array
     {
         try {
             $config = json_decode(Configuracion::get('bot_catalog_media', '{}'), true) ?? [];
             $mc     = $config[$slug] ?? null;
-            if (!$mc || empty($mc['activo']) || empty($mc['campo_slug'])) return null;
+            if (!$mc || empty($mc['activo'])) return null;
+
+            // Normalizar formato antiguo a array de campos
+            if (empty($mc['campos']) || !is_array($mc['campos'])) {
+                if (empty($mc['campo_slug'])) return null;
+                $mc['campos'] = [['campo_slug' => $mc['campo_slug'], 'mediatype' => $mc['mediatype'] ?? 'image']];
+            }
+
+            // Filtrar entradas sin campo_slug
+            $mc['campos'] = array_values(array_filter($mc['campos'], fn($c) => !empty($c['campo_slug'])));
+            if (empty($mc['campos'])) return null;
+
             return $mc;
         } catch (\Exception) {
             return null;

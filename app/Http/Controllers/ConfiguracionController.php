@@ -405,12 +405,20 @@ class ConfiguracionController extends Controller
 
         $clean = [];
         foreach ($data['config'] as $slug => $mc) {
+            // Normalizar campos de archivo (nuevo formato: array de {campo_slug, mediatype})
+            $campos = [];
+            foreach ($mc['campos'] ?? [] as $c) {
+                if (empty($c['campo_slug'])) continue;
+                $campos[] = [
+                    'campo_slug' => (string) $c['campo_slug'],
+                    'mediatype'  => in_array($c['mediatype'] ?? '', ['image', 'video', 'document', 'audio'])
+                        ? $c['mediatype']
+                        : 'image',
+                ];
+            }
             $clean[(string) $slug] = [
                 'activo'        => (bool) ($mc['activo'] ?? false),
-                'campo_slug'    => (string) ($mc['campo_slug'] ?? ''),
-                'mediatype'     => in_array($mc['mediatype'] ?? '', ['image', 'video', 'document', 'audio'])
-                    ? $mc['mediatype']
-                    : 'image',
+                'campos'        => $campos,
                 'caption_campo' => (string) ($mc['caption_campo'] ?? ''),
                 'max_resultados'=> min(10, max(1, (int) ($mc['max_resultados'] ?? 3))),
             ];

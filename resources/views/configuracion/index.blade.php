@@ -903,53 +903,59 @@
                                 </button>
                             </div>
 
-                            <div x-show="config['{{ $modulo->slug }}']?.activo" x-transition class="grid grid-cols-2 gap-3">
-                                {{-- Campo de media --}}
+                            <div x-show="config['{{ $modulo->slug }}']?.activo" x-transition class="space-y-3">
+
+                                {{-- Lista de campos de archivo (múltiple) --}}
                                 <div>
-                                    <label class="block text-xs text-gray-400 mb-1">Campo de archivo a enviar</label>
-                                    <select @change="setField('{{ $modulo->slug }}', 'campo_slug', $event.target.value)"
-                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                        @foreach($camposFile as $cf)
-                                        <option value="{{ $cf->slug }}" {{ ($mc['campo_slug'] ?? '') === $cf->slug ? 'selected' : '' }}>
-                                            {{ $cf->nombre }} ({{ $cf->meta['accept'] ?? 'all' }})
-                                        </option>
-                                        @endforeach
-                                    </select>
+                                    <label class="block text-xs text-gray-400 mb-1.5">Campos de archivo a enviar</label>
+                                    <div class="space-y-1.5">
+                                        <template x-for="(campo, idx) in (config['{{ $modulo->slug }}']?.campos ?? [])" :key="idx">
+                                            <div class="flex gap-2 items-center">
+                                                <select @change="setCampoField('{{ $modulo->slug }}', idx, 'campo_slug', $event.target.value)"
+                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                                    @foreach($camposFile as $cf)
+                                                    <option value="{{ $cf->slug }}" :selected="campo.campo_slug === '{{ $cf->slug }}'">{{ $cf->nombre }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <select @change="setCampoField('{{ $modulo->slug }}', idx, 'mediatype', $event.target.value)"
+                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                                    <option value="image"    :selected="(campo.mediatype ?? 'image') === 'image'">Imagen</option>
+                                                    <option value="video"    :selected="campo.mediatype === 'video'">Video</option>
+                                                    <option value="document" :selected="campo.mediatype === 'document'">Documento</option>
+                                                    <option value="audio"    :selected="campo.mediatype === 'audio'">Audio</option>
+                                                </select>
+                                                <button type="button" @click="removeCampo('{{ $modulo->slug }}', idx)"
+                                                        class="text-red-400 hover:text-red-300 text-base leading-none flex-shrink-0 px-1">✕</button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <button type="button" @click="addCampo('{{ $modulo->slug }}')"
+                                            class="mt-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors">
+                                        + Agregar campo
+                                    </button>
                                 </div>
 
-                                {{-- Tipo de media --}}
-                                <div>
-                                    <label class="block text-xs text-gray-400 mb-1">Tipo para Evolution API</label>
-                                    <select @change="setField('{{ $modulo->slug }}', 'mediatype', $event.target.value)"
-                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                        <option value="image"    {{ ($mc['mediatype'] ?? 'image') === 'image'    ? 'selected' : '' }}>Imagen (jpg, png, webp…)</option>
-                                        <option value="video"    {{ ($mc['mediatype'] ?? '') === 'video'    ? 'selected' : '' }}>Video (mp4, mov…)</option>
-                                        <option value="document" {{ ($mc['mediatype'] ?? '') === 'document' ? 'selected' : '' }}>Documento (PDF, Word…)</option>
-                                        <option value="audio"    {{ ($mc['mediatype'] ?? '') === 'audio'    ? 'selected' : '' }}>Audio (mp3, ogg…)</option>
-                                    </select>
-                                </div>
-
-                                {{-- Campo caption --}}
-                                <div>
-                                    <label class="block text-xs text-gray-400 mb-1">Campo para el caption (nombre del archivo)</label>
-                                    <select @change="setField('{{ $modulo->slug }}', 'caption_campo', $event.target.value)"
-                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                        <option value="">— Sin caption —</option>
-                                        @foreach($camposTexto as $ct)
-                                        <option value="{{ $ct->slug }}" {{ ($mc['caption_campo'] ?? '') === $ct->slug ? 'selected' : '' }}>
-                                            {{ $ct->nombre }}
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                {{-- Máx. registros --}}
-                                <div>
-                                    <label class="block text-xs text-gray-400 mb-1">Máx. registros en contexto del bot</label>
-                                    <input type="number" min="1" max="10"
-                                           :value="config['{{ $modulo->slug }}']?.max_resultados ?? 3"
-                                           @change="setField('{{ $modulo->slug }}', 'max_resultados', parseInt($event.target.value) || 3)"
-                                           class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                {{-- Caption y máx. registros --}}
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Caption del archivo</label>
+                                        <select @change="setField('{{ $modulo->slug }}', 'caption_campo', $event.target.value)"
+                                                class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                            <option value="">— Sin caption —</option>
+                                            @foreach($camposTexto as $ct)
+                                            <option value="{{ $ct->slug }}" {{ ($mc['caption_campo'] ?? '') === $ct->slug ? 'selected' : '' }}>
+                                                {{ $ct->nombre }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Máx. registros en contexto</label>
+                                        <input type="number" min="1" max="10"
+                                               :value="config['{{ $modulo->slug }}']?.max_resultados ?? 3"
+                                               @change="setField('{{ $modulo->slug }}', 'max_resultados', parseInt($event.target.value) || 3)"
+                                               class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -972,26 +978,49 @@
 
                         init() {
                             @foreach($modulosConArchivos as $modulo)
+                            @php $firstFileSlug = $modulo->fields->where('tipo','file')->first()?->slug ?? ''; @endphp
                             if (!this.config['{{ $modulo->slug }}']) {
                                 this.config['{{ $modulo->slug }}'] = {
                                     activo: false,
-                                    campo_slug: '{{ $modulo->fields->where("tipo","file")->first()?->slug ?? "" }}',
-                                    mediatype: 'image',
+                                    campos: [{ campo_slug: '{{ $firstFileSlug }}', mediatype: 'image' }],
                                     caption_campo: '',
                                     max_resultados: 3,
                                 };
+                            } else {
+                                // Normalizar formato antiguo (campo_slug + mediatype → campos array)
+                                const mc = this.config['{{ $modulo->slug }}'];
+                                if (!mc.campos || !Array.isArray(mc.campos) || mc.campos.length === 0) {
+                                    mc.campos = mc.campo_slug
+                                        ? [{ campo_slug: mc.campo_slug, mediatype: mc.mediatype || 'image' }]
+                                        : [{ campo_slug: '{{ $firstFileSlug }}', mediatype: 'image' }];
+                                }
                             }
                             @endforeach
                         },
 
                         toggle(slug) {
-                            if (!this.config[slug]) this.config[slug] = { activo: false, campo_slug: '', mediatype: 'image', caption_campo: '', max_resultados: 3 };
+                            if (!this.config[slug]) this.config[slug] = { activo: false, campos: [], caption_campo: '', max_resultados: 3 };
                             this.config[slug].activo = !this.config[slug].activo;
                         },
 
                         setField(slug, field, value) {
-                            if (!this.config[slug]) this.config[slug] = { activo: true, campo_slug: '', mediatype: 'image', caption_campo: '', max_resultados: 3 };
+                            if (!this.config[slug]) this.config[slug] = { activo: true, campos: [], caption_campo: '', max_resultados: 3 };
                             this.config[slug][field] = value;
+                        },
+
+                        setCampoField(slug, idx, field, value) {
+                            if (!this.config[slug]?.campos?.[idx]) return;
+                            this.config[slug].campos[idx][field] = value;
+                        },
+
+                        addCampo(slug) {
+                            if (!this.config[slug]) return;
+                            this.config[slug].campos.push({ campo_slug: '', mediatype: 'image' });
+                        },
+
+                        removeCampo(slug, idx) {
+                            if (!this.config[slug]?.campos) return;
+                            this.config[slug].campos.splice(idx, 1);
                         },
 
                         async guardar() {
