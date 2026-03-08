@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark h-full overflow-hidden">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,7 +15,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="font-sans antialiased bg-gray-950 text-gray-100" x-data="{ sidebarOpen: false }">
+<body class="font-sans antialiased bg-gray-950 text-gray-100 h-full overflow-hidden" x-data="{ sidebarOpen: false }">
 
 {{-- Skip link — accesibilidad teclado --}}
 <a href="#main-content"
