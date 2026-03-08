@@ -344,7 +344,8 @@ class BotController extends Controller
         $prompt    = Configuracion::get('system_prompt', 'Eres un asistente útil. Responde siempre en español.');
 
         // Resolver etiquetas [TAG] en el system_prompt (e.g. [CATALOGO_AGENDA], [API_ZOOM])
-        $prompt = app(PromptTagResolverService::class)->resolve($prompt);
+        // Se pasa el mensaje del usuario para que el resolver pueda contextualizar los registros de catálogo
+        $prompt = app(PromptTagResolverService::class)->resolve($prompt, $texto);
 
         // Construir contexto desde la BD externa configurada
         $contexto = $this->construirContexto($telefono, []);
@@ -357,6 +358,10 @@ class BotController extends Controller
             return response()->json(['status' => 'ai_error']);
         }
 
+        // ── Extraer marcadores [[MEDIA:module:id]] de la respuesta ───────────
+        $marcadoresMedia = PromptTagResolverService::extraerMarcadoresMedia($respuestaTexto);
+        $textoLimpio     = PromptTagResolverService::limpiarMarcadoresMedia($respuestaTexto);
+
         // Guardar conversación en BD y emitir evento en tiempo real
         $clienteNombre = null;  // El lookup de nombre se hace desde catálogos dinámicos
         $conv = Conversation::create([
@@ -364,13 +369,18 @@ class BotController extends Controller
             'instancia'    => $instancia,
             'contact_name' => $clienteNombre,
             'user_message' => $mensajeParaGuardar,   // incluye 🎙 si fue audio
-            'bot_response' => $respuestaTexto,
+            'bot_response' => $textoLimpio,
             'status'       => 'ok',
         ]);
         broadcast(new MensajeBot($conv));
 
-        // Enviar respuesta de texto
-        $this->enviarTexto($instancia, $remoteJid, $respuestaTexto);
+        // Enviar respuesta de texto (sin los marcadores de media)
+        $this->enviarTexto($instancia, $remoteJid, $textoLimpio);
+
+        // Enviar archivos adjuntos de catálogo (si el bot incluyó marcadores [[MEDIA]])
+        if (!empty($marcadoresMedia)) {
+            $this->enviarMediaDeCatalogo($instancia, $remoteJid, $marcadoresMedia);
+        }
 
         return response()->json(['status' => 'ok']);
     }
@@ -1380,22 +1390,79 @@ class BotController extends Controller
     }
 
     /**
-     * Envía una imagen o video por WhatsApp.
+     * Envía una imagen, video, documento o audio por WhatsApp.
+     * Evolution API v2: POST /message/sendMedia/{instance}
+     * mediatype: 'image' | 'video' | 'document' | 'audio'
      */
-    private function enviarMedia(string $instancia, string $remoteJid, string $tipo, string $url, string $caption = ''): void
+    private function enviarMedia(string $instancia, string $remoteJid, string $tipo, string $url, string $caption = '', string $fileName = ''): void
     {
-        $enc = rawurlencode($instancia);
+        $enc     = rawurlencode($instancia);
+        $payload = [
+            'number'    => $remoteJid,
+            'mediatype' => $tipo,
+            'media'     => $url,
+            'caption'   => $caption,
+        ];
+        // Los documentos requieren un nombre de archivo
+        if ($tipo === 'document' && !empty($fileName)) {
+            $payload['fileName'] = $fileName;
+        }
         try {
             Http::withHeaders(['apikey' => $this->apiKey])
                 ->timeout(20)
-                ->post("{$this->apiUrl}/message/sendMedia/{$enc}", [
-                    'number'    => $remoteJid,
-                    'mediatype' => $tipo,   // 'image' | 'video'
-                    'media'     => $url,
-                    'caption'   => $caption,
-                ]);
+                ->post("{$this->apiUrl}/message/sendMedia/{$enc}", $payload);
         } catch (\Exception $e) {
             Log::error("[Bot] Error al enviar {$tipo} a {$remoteJid}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Resuelve marcadores [[MEDIA:module:id]] y envía los archivos de catálogo al usuario.
+     */
+    private function enviarMediaDeCatalogo(string $instancia, string $remoteJid, array $marcadores): void
+    {
+        $mediaConfig = json_decode(Configuracion::get('bot_catalog_media', '{}'), true) ?? [];
+
+        foreach ($marcadores as $m) {
+            $slug     = $m[1];
+            $recordId = (int) $m[2];
+            $config   = $mediaConfig[$slug] ?? null;
+
+            if (!$config || empty($config['activo']) || empty($config['campo_slug'])) {
+                continue;
+            }
+
+            try {
+                $modulo = \App\Models\CatalogModule::where('slug', $slug)->first();
+                if (!$modulo) continue;
+
+                $record = \App\Models\CatalogRecord::where('module_id', $modulo->id)
+                    ->where('id', $recordId)
+                    ->first();
+                if (!$record) continue;
+
+                $path = $record->datos[$config['campo_slug']] ?? null;
+                if (empty($path)) continue;
+
+                // El path puede ser ya una URL completa o un path relativo de storage
+                $url = str_starts_with($path, 'http') ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+
+                $tipo    = $config['mediatype'] ?? 'image';
+                $caption = '';
+                if (!empty($config['caption_campo']) && !empty($record->datos[$config['caption_campo']])) {
+                    $caption = (string) $record->datos[$config['caption_campo']];
+                }
+
+                // Para documentos, extraer nombre del archivo
+                $fileName = basename(parse_url($url, PHP_URL_PATH));
+
+                $this->enviarMedia($instancia, $remoteJid, $tipo, $url, $caption, $fileName);
+
+                Log::info("[Bot] Media de catálogo enviada — módulo={$slug} record={$recordId} tipo={$tipo}");
+
+            } catch (\Exception $e) {
+                Log::warning("[Bot] Error al enviar media de catálogo — {$slug}:{$recordId}: " . $e->getMessage());
+            }
         }
     }
 

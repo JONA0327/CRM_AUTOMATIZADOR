@@ -851,6 +851,169 @@
                 }
                 </script>
 
+                {{-- ═══ MEDIA ADJUNTA DE CATÁLOGOS ═══ --}}
+                @if($modulosConArchivos->isNotEmpty())
+                <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-4"
+                     x-data="catalogMediaManager()"
+                     x-init="init()"
+                     x-show="activeTab === 'bot'" x-cloak>
+
+                    <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-purple-900/50 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-100">Media adjunta de catálogos</p>
+                                <p class="text-xs text-gray-400">El bot enviará imágenes, videos o documentos de tus catálogos cuando el usuario lo solicite</p>
+                            </div>
+                        </div>
+                        <button type="button" @click="guardar()" :disabled="saving"
+                                class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                :class="saved ? 'bg-green-600 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-60'">
+                            <span x-text="saved ? 'Guardado' : (saving ? 'Guardando...' : 'Guardar')"></span>
+                        </button>
+                    </div>
+
+                    <div class="px-5 py-4 space-y-3">
+                        <p class="text-xs text-gray-500">
+                            Activa los módulos que tienen imágenes, videos o documentos. El bot incluirá los registros en su contexto
+                            y enviará el archivo adjunto automáticamente cuando el usuario pida ver o recibir ese contenido.
+                        </p>
+
+                        @foreach($modulosConArchivos as $modulo)
+                        @php
+                            $mc          = $catalogMediaConfig[$modulo->slug] ?? [];
+                            $camposFile  = $modulo->fields->where('tipo', 'file');
+                            $camposTexto = $modulo->fields->whereNotIn('tipo', ['file', 'id']);
+                        @endphp
+                        <div class="bg-gray-900/50 border border-white/5 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">{{ $modulo->icono }}</span>
+                                    <p class="text-sm font-semibold text-gray-200">{{ $modulo->nombre }}</p>
+                                </div>
+                                <button type="button" @click="toggle('{{ $modulo->slug }}')"
+                                        :class="config['{{ $modulo->slug }}']?.activo ? 'bg-purple-500' : 'bg-gray-600'"
+                                        class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                    <span :class="config['{{ $modulo->slug }}']?.activo ? 'translate-x-4' : 'translate-x-0'"
+                                          class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform duration-200"></span>
+                                </button>
+                            </div>
+
+                            <div x-show="config['{{ $modulo->slug }}']?.activo" x-transition class="grid grid-cols-2 gap-3">
+                                {{-- Campo de media --}}
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Campo de archivo a enviar</label>
+                                    <select @change="setField('{{ $modulo->slug }}', 'campo_slug', $event.target.value)"
+                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                        @foreach($camposFile as $cf)
+                                        <option value="{{ $cf->slug }}" {{ ($mc['campo_slug'] ?? '') === $cf->slug ? 'selected' : '' }}>
+                                            {{ $cf->nombre }} ({{ $cf->meta['accept'] ?? 'all' }})
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                {{-- Tipo de media --}}
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Tipo para Evolution API</label>
+                                    <select @change="setField('{{ $modulo->slug }}', 'mediatype', $event.target.value)"
+                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                        <option value="image"    {{ ($mc['mediatype'] ?? 'image') === 'image'    ? 'selected' : '' }}>Imagen (jpg, png, webp…)</option>
+                                        <option value="video"    {{ ($mc['mediatype'] ?? '') === 'video'    ? 'selected' : '' }}>Video (mp4, mov…)</option>
+                                        <option value="document" {{ ($mc['mediatype'] ?? '') === 'document' ? 'selected' : '' }}>Documento (PDF, Word…)</option>
+                                        <option value="audio"    {{ ($mc['mediatype'] ?? '') === 'audio'    ? 'selected' : '' }}>Audio (mp3, ogg…)</option>
+                                    </select>
+                                </div>
+
+                                {{-- Campo caption --}}
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Campo para el caption (nombre del archivo)</label>
+                                    <select @change="setField('{{ $modulo->slug }}', 'caption_campo', $event.target.value)"
+                                            class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                        <option value="">— Sin caption —</option>
+                                        @foreach($camposTexto as $ct)
+                                        <option value="{{ $ct->slug }}" {{ ($mc['caption_campo'] ?? '') === $ct->slug ? 'selected' : '' }}>
+                                            {{ $ct->nombre }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                {{-- Máx. registros --}}
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Máx. registros en contexto del bot</label>
+                                    <input type="number" min="1" max="10"
+                                           :value="config['{{ $modulo->slug }}']?.max_resultados ?? 3"
+                                           @change="setField('{{ $modulo->slug }}', 'max_resultados', parseInt($event.target.value) || 3)"
+                                           class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+
+                        <p class="text-[10px] text-gray-600 mt-2">
+                            El bot usa marcadores internos <code class="bg-gray-700/50 px-1 rounded text-gray-400">[[MEDIA:modulo:id]]</code>
+                            que el sistema intercepta para enviar el archivo al usuario.
+                            Agrega <code class="bg-gray-700/50 px-1 rounded text-gray-400">[CATALOGO_NOMBRE]</code> al prompt del bot para activar el módulo.
+                        </p>
+                    </div>
+                </div>
+
+                <script>
+                function catalogMediaManager() {
+                    return {
+                        saving: false,
+                        saved: false,
+                        config: @json($catalogMediaConfig),
+
+                        init() {
+                            @foreach($modulosConArchivos as $modulo)
+                            if (!this.config['{{ $modulo->slug }}']) {
+                                this.config['{{ $modulo->slug }}'] = {
+                                    activo: false,
+                                    campo_slug: '{{ $modulo->fields->where("tipo","file")->first()?->slug ?? "" }}',
+                                    mediatype: 'image',
+                                    caption_campo: '',
+                                    max_resultados: 3,
+                                };
+                            }
+                            @endforeach
+                        },
+
+                        toggle(slug) {
+                            if (!this.config[slug]) this.config[slug] = { activo: false, campo_slug: '', mediatype: 'image', caption_campo: '', max_resultados: 3 };
+                            this.config[slug].activo = !this.config[slug].activo;
+                        },
+
+                        setField(slug, field, value) {
+                            if (!this.config[slug]) this.config[slug] = { activo: true, campo_slug: '', mediatype: 'image', caption_campo: '', max_resultados: 3 };
+                            this.config[slug][field] = value;
+                        },
+
+                        async guardar() {
+                            this.saving = true;
+                            try {
+                                const res = await fetch('{{ route("configuracion.catalog-media.save") }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                        'Accept': 'application/json',
+                                    },
+                                    body: JSON.stringify({ config: this.config }),
+                                });
+                                if (res.ok) { this.saved = true; setTimeout(() => this.saved = false, 2500); }
+                            } finally { this.saving = false; }
+                        },
+                    };
+                }
+                </script>
+                @endif
+
                 {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
                 <div x-show="activeTab === 'whatsapp'" x-cloak
                      id="panel-whatsapp" role="tabpanel" aria-labelledby="tab-whatsapp">

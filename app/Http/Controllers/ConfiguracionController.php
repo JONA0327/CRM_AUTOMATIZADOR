@@ -134,13 +134,25 @@ class ConfiguracionController extends Controller
         // WhatsApp verification prompt — only show section if any active catalog has a phone field
         $promptVerificacion = Configuracion::get('bot_prompt_verificacion', '');
         $hasPhoneField = false;
+
+        // Módulos con campos de archivo (para config de media adjunta del bot)
+        $modulosConArchivos = collect();
         try {
             $hasPhoneField = CatalogModule::where('activo', true)
                 ->whereHas('fields', fn($q) => $q->where('tipo', 'phone'))
                 ->exists();
+
+            $modulosConArchivos = CatalogModule::where('activo', true)
+                ->whereHas('fields', fn($q) => $q->where('tipo', 'file'))
+                ->with(['fields' => fn($q) => $q->orderBy('orden')])
+                ->orderBy('orden')
+                ->get();
         } catch (\Exception) {
             // tenant DB might not have catalog_modules yet
         }
+
+        // Configuración de media adjunta de catálogos (bot_catalog_media)
+        $catalogMediaConfig = json_decode(Configuracion::get('bot_catalog_media', '{}'), true) ?? [];
 
         $availableTags = [];
         try {
@@ -171,6 +183,8 @@ class ConfiguracionController extends Controller
             'pipeline'              => $pipeline,
             'pasosDisponibles'      => $pasosDisponibles,
             'destinosDisponibles'   => $destinosDisponibles,
+            'modulosConArchivos'    => $modulosConArchivos,
+            'catalogMediaConfig'    => $catalogMediaConfig,
             'savedPrompts'          => $savedPrompts,
             'googleConectado'    => $googleConectado,
             'googleEmail'        => $googleEmail,
@@ -375,6 +389,34 @@ class ConfiguracionController extends Controller
     public function destroyPrompt(int $id): JsonResponse
     {
         SavedPrompt::findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Guarda la config de media adjunta de catálogos (bot_catalog_media).
+     * POST /configuracion/catalog-media → JSON
+     */
+    public function saveCatalogMedia(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'config' => ['required', 'array'],
+        ]);
+
+        $clean = [];
+        foreach ($data['config'] as $slug => $mc) {
+            $clean[(string) $slug] = [
+                'activo'        => (bool) ($mc['activo'] ?? false),
+                'campo_slug'    => (string) ($mc['campo_slug'] ?? ''),
+                'mediatype'     => in_array($mc['mediatype'] ?? '', ['image', 'video', 'document', 'audio'])
+                    ? $mc['mediatype']
+                    : 'image',
+                'caption_campo' => (string) ($mc['caption_campo'] ?? ''),
+                'max_resultados'=> min(10, max(1, (int) ($mc['max_resultados'] ?? 3))),
+            ];
+        }
+
+        Configuracion::set('bot_catalog_media', json_encode($clean), 'bot', 'Configuración de media adjunta de catálogos para el bot');
 
         return response()->json(['success' => true]);
     }

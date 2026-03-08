@@ -115,14 +115,38 @@ TXT,
 
     /**
      * Reemplaza todas las etiquetas [TAG] del prompt con su contenido real.
+     *
+     * @param string $userMessage  Mensaje del usuario (para filtrar registros relevantes)
      */
-    public function resolve(string $prompt): string
+    public function resolve(string $prompt, string $userMessage = ''): string
     {
+        $this->userMessage = $userMessage;
         return preg_replace_callback(
             '/\[([A-Z][A-Z0-9_]{2,})\]/',
             fn(array $m) => $this->resolveTag($m[1]) ?? $m[0],
             $prompt
         );
+    }
+
+    /** Mensaje del usuario actual (para contexto al resolver catálogos con media). */
+    private string $userMessage = '';
+
+    /**
+     * Devuelve los marcadores [[MEDIA:slug:id]] presentes en un texto de respuesta del bot.
+     * Usados por BotController para enviar archivos adjuntos.
+     */
+    public static function extraerMarcadoresMedia(string $texto): array
+    {
+        preg_match_all('/\[\[MEDIA:([a-z0-9_-]+):(\d+)\]\]/i', $texto, $m, PREG_SET_ORDER);
+        return $m; // cada elemento: [0 => marcador_completo, 1 => slug, 2 => id]
+    }
+
+    /**
+     * Elimina los marcadores [[MEDIA:...]] del texto para enviarlo limpio al usuario.
+     */
+    public static function limpiarMarcadoresMedia(string $texto): string
+    {
+        return trim(preg_replace('/\s*\[\[MEDIA:[a-z0-9_:-]+\]\]/i', '', $texto));
     }
 
     /**
@@ -254,11 +278,72 @@ TXT,
                 $count   = CatalogRecord::where('module_id', $mod->id)->count();
                 $lines[] = "Total de registros actuales: {$count}";
 
+                // ── Media adjunta: incluir registros con IDs si está configurado ───
+                $mediaConfig = $this->mediaConfigParaModulo($mod->slug);
+                if ($mediaConfig) {
+                    $campoMedia   = $campos->firstWhere('slug', $mediaConfig['campo_slug']);
+                    $campoCaption = $mediaConfig['caption_campo'] ?? null;
+                    $maxReg       = (int) ($mediaConfig['max_resultados'] ?? 3);
+
+                    $registros = CatalogRecord::where('module_id', $mod->id)
+                        ->latest()
+                        ->limit(max(1, $maxReg))
+                        ->get();
+
+                    if ($registros->isNotEmpty()) {
+                        $lines[] = "\nRegistros con media disponible para enviar al usuario:";
+                        foreach ($registros as $rec) {
+                            $hasMedia = !empty($rec->datos[$mediaConfig['campo_slug']]);
+                            if (!$hasMedia) continue;
+
+                            // Nombre del registro para mostrar al usuario
+                            $nombre = "Registro #{$rec->id}";
+                            if ($campoCaption && !empty($rec->datos[$campoCaption])) {
+                                $nombre = $rec->datos[$campoCaption];
+                            }
+
+                            // Texto de otros campos (excepto el campo de archivo)
+                            $extras = collect($rec->datos)
+                                ->filter(fn($v, $k) => $k !== $mediaConfig['campo_slug'] && is_scalar($v) && $v !== '')
+                                ->map(fn($v, $k) => $k . ': ' . $v)
+                                ->implode(' | ');
+
+                            $lines[] = "  • [{$nombre}] ID:{$rec->id}" . ($extras ? " — {$extras}" : '');
+                        }
+
+                        $tipo = $mediaConfig['mediatype'] ?? 'image';
+                        $tipoLabel = match($tipo) {
+                            'image'    => 'imagen',
+                            'video'    => 'video',
+                            'document' => 'documento',
+                            default    => 'archivo',
+                        };
+                        $lines[] = "INSTRUCCIÓN: Si el usuario pide ver, mostrar o enviar alguno de estos registros, "
+                            . "incluye el marcador [[MEDIA:{$mod->slug}:{ID}]] en tu respuesta (reemplaza {ID} con el número de ID del registro). "
+                            . "El sistema enviará automáticamente el {$tipoLabel} asociado.";
+                    }
+                }
+
                 return implode("\n", $lines) . "\n";
             }
         } catch (\Exception) {}
 
         return null;
+    }
+
+    /**
+     * Devuelve la configuración de media para un módulo, o null si no está configurado/activo.
+     */
+    private function mediaConfigParaModulo(string $slug): ?array
+    {
+        try {
+            $config = json_decode(Configuracion::get('bot_catalog_media', '{}'), true) ?? [];
+            $mc     = $config[$slug] ?? null;
+            if (!$mc || empty($mc['activo']) || empty($mc['campo_slug'])) return null;
+            return $mc;
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     private function resolveExtDbTag(string $tag): ?string
