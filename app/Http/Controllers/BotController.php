@@ -12,6 +12,7 @@ use App\Services\MediaPipelineService;
 use App\Services\PromptTagResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -339,6 +340,46 @@ class BotController extends Controller
         // Número limpio (sin @s.whatsapp.net)
         $telefono = preg_replace('/@.*/', '', $remoteJid);
 
+        $modoRespuesta = Configuracion::get('bot_modo_respuesta', 'ia');
+        if (in_array($modoRespuesta, ['pasos', 'hibrido'], true)) {
+            $pasos = $this->resolverBotPorPasos($instancia, $telefono, $texto);
+            if ($pasos['handled']) {
+                $textoPasos = $pasos['response'];
+
+                $conv = Conversation::create([
+                    'phone'        => $telefono,
+                    'instancia'    => $instancia,
+                    'contact_name' => null,
+                    'user_message' => $mensajeParaGuardar,
+                    'bot_response' => $textoPasos,
+                    'status'       => 'ok',
+                ]);
+                broadcast(new MensajeBot($conv));
+
+                $this->enviarTexto($instancia, $remoteJid, $textoPasos);
+
+                return response()->json(['status' => 'ok_steps']);
+            }
+
+            if ($modoRespuesta === 'pasos') {
+                $textoSinCoincidencia = 'No encontre una opcion para tu mensaje. Escribe menu para ver opciones.';
+
+                $conv = Conversation::create([
+                    'phone'        => $telefono,
+                    'instancia'    => $instancia,
+                    'contact_name' => null,
+                    'user_message' => $mensajeParaGuardar,
+                    'bot_response' => $textoSinCoincidencia,
+                    'status'       => 'ok',
+                ]);
+                broadcast(new MensajeBot($conv));
+
+                $this->enviarTexto($instancia, $remoteJid, $textoSinCoincidencia);
+
+                return response()->json(['status' => 'ok_steps_no_match']);
+            }
+        }
+
         // Leer configuración del bot
         $proveedor = Configuracion::get('bot_ia_proveedor', 'openai');
         $prompt    = Configuracion::get('system_prompt', 'Eres un asistente útil. Responde siempre en español.');
@@ -347,11 +388,33 @@ class BotController extends Controller
         // Se pasa el mensaje del usuario para que el resolver pueda contextualizar los registros de catálogo
         $prompt = app(PromptTagResolverService::class)->resolve($prompt, $texto);
 
+        // ── Historial de conversación ───────────────────────────────────────────
+        // Se cargan los últimos intercambios de esta conversación para que la IA
+        // tenga contexto real y no repita preguntas ya respondidas.
+        $historialIA = $this->obtenerHistorialConversacion($telefono, $instancia);
+
+        // ── Paso IA ─────────────────────────────────────────────────────────────
+        // Si hay pasos configurados, inyectamos la instrucción del paso actual
+        // directamente en el system prompt para guiar a la IA sin ciclos.
+        $instruccionPaso = $this->determinarPasoIA($telefono, $instancia);
+        if ($instruccionPaso !== '') {
+            $prompt .= "\n\n--- GUÍA DE ETAPA ACTUAL ---\n"
+                . $instruccionPaso . "\n\n"
+                . 'REGLAS CRÍTICAS: (1) Nunca repitas información o preguntas que ya aparezcan en el historial de conversación. '
+                . '(2) Si el usuario ya respondió algo, no lo vuelvas a pedir. '
+                . '(3) Avanza en la conversación siguiendo la guía de etapa. '
+                . '(4) Sé conciso y evita respuestas largas redundantes.';
+        } elseif ($historialIA !== []) {
+            // Sin pasos configurados, inyectamos reglas anti-ciclo mínimas
+            $prompt .= "\n\nREGLA: Revisa el historial de conversación antes de responder. "
+                . 'No repitas preguntas ni información ya mencionada en mensajes anteriores.';
+        }
+
         // Construir contexto desde la BD externa configurada
         $contexto = $this->construirContexto($telefono, []);
 
-        // Llamar a la IA seleccionada
-        $respuestaTexto = $this->llamarIA($proveedor, $prompt, $contexto, $texto);
+        // Llamar a la IA seleccionada (con historial multi-turno)
+        $respuestaTexto = $this->llamarIA($proveedor, $prompt, $contexto, $texto, $historialIA);
 
         if ($respuestaTexto === null) {
             Log::channel('bot')->error("[Bot] La IA no respondió — instancia={$instancia} proveedor={$proveedor}");
@@ -383,6 +446,67 @@ class BotController extends Controller
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Resuelve una respuesta por flujo de pasos y persiste estado por contacto+instancia.
+     */
+    private function resolverBotPorPasos(string $instancia, string $telefono, string $mensaje): array
+    {
+        $flowRaw = Configuracion::get('bot_flujo_pasos', '');
+        if (trim((string) $flowRaw) === '') {
+            return ['handled' => false, 'response' => null];
+        }
+
+        $flow = json_decode($flowRaw, true);
+        if (!is_array($flow) || empty($flow['inicio']) || empty($flow['steps']) || !is_array($flow['steps'])) {
+            return ['handled' => false, 'response' => null];
+        }
+
+        $steps = $flow['steps'];
+        $inicio = (string) $flow['inicio'];
+        if (!isset($steps[$inicio]) || !is_array($steps[$inicio])) {
+            return ['handled' => false, 'response' => null];
+        }
+
+        $fallbackGlobal = (string) ($flow['fallback'] ?? 'No entendi tu opcion. Escribe menu para ver las opciones.');
+        $mensajeNorm = mb_strtolower(trim($mensaje));
+        $stateKey = "bot_flow_state:{$instancia}:{$telefono}";
+
+        if (in_array($mensajeNorm, ['menu', 'inicio', 'reset', 'reiniciar'], true)) {
+            Cache::forever($stateKey, $inicio);
+            $respInicio = (string) ($steps[$inicio]['mensaje'] ?? $fallbackGlobal);
+            return ['handled' => true, 'response' => $respInicio];
+        }
+
+        $stepActualId = Cache::get($stateKey, $inicio);
+        if (!isset($steps[$stepActualId]) || !is_array($steps[$stepActualId])) {
+            $stepActualId = $inicio;
+        }
+
+        $stepActual = $steps[$stepActualId];
+        $opciones = is_array($stepActual['opciones'] ?? null) ? $stepActual['opciones'] : [];
+
+        foreach ($opciones as $matcherRaw => $nextStepId) {
+            $alternativas = array_filter(array_map('trim', explode('|', (string) $matcherRaw)));
+            foreach ($alternativas as $alt) {
+                if (mb_strtolower($alt) === $mensajeNorm) {
+                    $nextStepId = (string) $nextStepId;
+                    if (isset($steps[$nextStepId]) && is_array($steps[$nextStepId])) {
+                        Cache::forever($stateKey, $nextStepId);
+                        $respuesta = (string) ($steps[$nextStepId]['mensaje'] ?? $fallbackGlobal);
+                        return ['handled' => true, 'response' => $respuesta];
+                    }
+                }
+            }
+        }
+
+        $fallbackStep = (string) ($stepActual['fallback'] ?? '');
+        if ($fallbackStep !== '') {
+            return ['handled' => true, 'response' => $fallbackStep];
+        }
+
+        return ['handled' => false, 'response' => null];
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1240,6 +1364,61 @@ class BotController extends Controller
     }
 
     /**
+     * Devuelve los últimos $limit intercambios de una conversación como array
+     * de mensajes en formato multi-turno [role => user|assistant, content => string].
+     * Se usan en los proveedores de IA para dar contexto real y evitar ciclos.
+     */
+    private function obtenerHistorialConversacion(string $telefono, string $instancia, int $limit = 10): array
+    {
+        $convs = Conversation::where('phone', $telefono)
+            ->where('instancia', $instancia)
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->values();
+
+        $messages = [];
+        foreach ($convs as $conv) {
+            $userMsg  = trim((string) $conv->user_message);
+            $botMsg   = trim((string) $conv->bot_response);
+            if ($userMsg !== '') $messages[] = ['role' => 'user',      'content' => $userMsg];
+            if ($botMsg  !== '') $messages[] = ['role' => 'assistant', 'content' => $botMsg];
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Devuelve la instrucción de etapa que corresponde al número de mensaje actual
+     * según la config «bot_pasos_ia» (JSON: array de {desde, hasta, instruccion}).
+     * Retorna cadena vacía si no hay pasos configurados o no hay coincidencia.
+     */
+    private function determinarPasoIA(string $telefono, string $instancia): string
+    {
+        $pasosRaw = Configuracion::get('bot_pasos_ia', '');
+        if (trim((string) $pasosRaw) === '') return '';
+
+        $pasos = json_decode($pasosRaw, true);
+        if (!is_array($pasos) || empty($pasos)) return '';
+
+        // El número del PRÓXIMO mensaje es total_de_mensajes_enviados + 1
+        $turno = Conversation::where('phone', $telefono)
+            ->where('instancia', $instancia)
+            ->count() + 1;
+
+        foreach ($pasos as $paso) {
+            $desde = (int) ($paso['desde'] ?? 1);
+            $hasta = (int) ($paso['hasta'] ?? 9999);
+            if ($turno >= $desde && $turno <= $hasta) {
+                return trim((string) ($paso['instruccion'] ?? ''));
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Construye el contexto para la IA leyendo todas las BDs externas configuradas en ext_dbs.
      */
     private function construirContexto(string $telefono, array $recursos): string
@@ -1254,8 +1433,9 @@ class BotController extends Controller
 
     /**
      * Llama al proveedor de IA seleccionado y devuelve el texto de respuesta.
+     * $historial: array de ['role'=>'user'|'assistant', 'content'=>string] con mensajes previos.
      */
-    private function llamarIA(string $proveedor, string $prompt, string $contexto, string $mensaje): ?string
+    private function llamarIA(string $proveedor, string $prompt, string $contexto, string $mensaje, array $historial = []): ?string
     {
         $systemContent = $prompt;
 
@@ -1264,9 +1444,9 @@ class BotController extends Controller
         }
 
         try {
-            if ($proveedor === 'deepseek') return $this->llamarDeepSeek($systemContent, $mensaje);
-            if ($proveedor === 'gemini')   return $this->llamarGemini($systemContent, $mensaje);
-            return $this->llamarOpenAI($systemContent, $mensaje);
+            if ($proveedor === 'deepseek') return $this->llamarDeepSeek($systemContent, $mensaje, $historial);
+            if ($proveedor === 'gemini')   return $this->llamarGemini($systemContent, $mensaje, $historial);
+            return $this->llamarOpenAI($systemContent, $mensaje, $historial);
         } catch (\Exception $e) {
             Log::channel('bot')->error("[Bot] Error en IA ({$proveedor}): " . $e->getMessage());
             return null;
@@ -1277,7 +1457,7 @@ class BotController extends Controller
     // PROVEEDORES DE IA
     // ──────────────────────────────────────────────────────────────────────────
 
-    private function llamarOpenAI(string $system, string $user): ?string
+    private function llamarOpenAI(string $system, string $user, array $historial = []): ?string
     {
         $apiKey = Configuracion::get('openai_key');
         $model  = Configuracion::get('openai_model', 'gpt-4o-mini');
@@ -1287,14 +1467,17 @@ class BotController extends Controller
             return null;
         }
 
+        $messages = [['role' => 'system', 'content' => $system]];
+        foreach ($historial as $msg) {
+            $messages[] = ['role' => $msg['role'], 'content' => (string) $msg['content']];
+        }
+        $messages[] = ['role' => 'user', 'content' => $user];
+
         $response = Http::withToken($apiKey)
             ->timeout(30)
             ->post('https://api.openai.com/v1/chat/completions', [
                 'model'    => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $system],
-                    ['role' => 'user',   'content' => $user],
-                ],
+                'messages' => $messages,
             ]);
 
         if (! $response->successful()) {
@@ -1308,7 +1491,7 @@ class BotController extends Controller
         return data_get($response->json(), 'choices.0.message.content');
     }
 
-    private function llamarDeepSeek(string $system, string $user): ?string
+    private function llamarDeepSeek(string $system, string $user, array $historial = []): ?string
     {
         $apiKey = Configuracion::get('deepseek_key');
         $model  = Configuracion::get('deepseek_model', 'deepseek-chat');
@@ -1318,14 +1501,17 @@ class BotController extends Controller
             return null;
         }
 
+        $messages = [['role' => 'system', 'content' => $system]];
+        foreach ($historial as $msg) {
+            $messages[] = ['role' => $msg['role'], 'content' => (string) $msg['content']];
+        }
+        $messages[] = ['role' => 'user', 'content' => $user];
+
         $response = Http::withToken($apiKey)
             ->timeout(30)
             ->post('https://api.deepseek.com/v1/chat/completions', [
                 'model'    => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $system],
-                    ['role' => 'user',   'content' => $user],
-                ],
+                'messages' => $messages,
             ]);
 
         if (! $response->successful()) {
@@ -1339,7 +1525,7 @@ class BotController extends Controller
         return data_get($response->json(), 'choices.0.message.content');
     }
 
-    private function llamarGemini(string $system, string $user): ?string
+    private function llamarGemini(string $system, string $user, array $historial = []): ?string
     {
         $apiKey = Configuracion::get('gemini_key');
         $model  = Configuracion::get('gemini_model', 'gemini-1.5-flash');
@@ -1349,6 +1535,16 @@ class BotController extends Controller
             return null;
         }
 
+        // Gemini maneja historial con role: 'user'|'model'
+        $contents = [];
+        foreach ($historial as $msg) {
+            $contents[] = [
+                'role'  => $msg['role'] === 'assistant' ? 'model' : 'user',
+                'parts' => [['text' => (string) $msg['content']]],
+            ];
+        }
+        $contents[] = ['role' => 'user', 'parts' => [['text' => $user]]];
+
         $response = Http::timeout(30)
             ->post(
                 "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
@@ -1356,9 +1552,7 @@ class BotController extends Controller
                     'system_instruction' => [
                         'parts' => [['text' => $system]],
                     ],
-                    'contents' => [
-                        ['parts' => [['text' => $user]]],
-                    ],
+                    'contents' => $contents,
                 ]
             );
 

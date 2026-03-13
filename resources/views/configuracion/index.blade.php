@@ -12,6 +12,18 @@
         </div>
     @endif
 
+    {{-- Flash error --}}
+    @if (session('error'))
+        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 7000)"
+             role="alert" aria-live="assertive"
+             class="mb-5 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl px-5 py-4">
+            <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium">{{ session('error') }}</span>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('configuracion.update') }}"
           x-data="configPage()" @submit="preparar($event)">
         @csrf
@@ -131,7 +143,12 @@
                         $botLX    = $botX - $botR - 4;  // 302
                         $botRX    = $botX + $botR + 4;  // 398
                         $datLineX = $datX - 4;           // 518
-                    @endphp
+        // Nodo memoria de conversación
+        $memoriaActiva = true;            // historial siempre cargado desde BD
+        $etapasActivas = !empty($botPasosIA) && trim($botPasosIA) !== '' && $botPasosIA !== '[]';
+        $memY          = (int)($botY + $botR + 68); // centro vertical del nodo
+        $memColor      = '#22c55e';
+    @endphp
 
                       <div class="mb-2 rounded-xl border border-white/10 overflow-hidden relative"
                            x-data="{ z: 1 }"
@@ -188,6 +205,11 @@
                                       letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
                                 <text x="686" y="20" font-size="9" font-weight="700" fill="#a78bfa"
                                       letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
+                                {{-- Línea Bot → Memoria (light) --}}
+                                <line x1="{{ $botX }}" y1="{{ $botY + $botR + 4 }}"
+                                      x2="{{ $botX }}" y2="{{ $memY - 20 }}"
+                                      stroke="{{ $memColor }}" stroke-width="1.5" opacity="0.75"/>
+                                <circle cx="{{ $botX }}" cy="{{ $botY + $botR + 4 }}" r="3" fill="{{ $memColor }}" opacity="0.7"/>
                             </svg>
 
                             {{-- Nodo central BOT --}}
@@ -200,6 +222,27 @@
                                 <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-700 bg-gray-800 rounded-full shadow border border-indigo-100">
                                     BOT
                                 </span>
+                            </div>
+
+                            {{-- Nodo Memoria de conversación (light) --}}
+                            <div class="absolute z-10"
+                                 style="left:{{ $botX }}px; top:{{ $memY }}px; transform:translate(-50%,-50%); width:{{ $nodeW }}px;">
+                                <div title="La IA usa el historial de conversaciones de la BD para dar contexto y evitar repeticiones"
+                                     class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
+                                            {{ $memoriaActiva ? 'border-emerald-400 bg-white text-emerald-700' : 'border-gray-200 bg-white text-gray-400 opacity-60' }}">
+                                    <span class="text-sm leading-none select-none">💬</span>
+                                    <span class="truncate text-left leading-tight flex-1">Memoria BD</span>
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $memoriaActiva ? 'bg-emerald-400' : 'bg-gray-300' }}"></span>
+                                </div>
+                                @if($etapasActivas)
+                                <div title="Etapas IA activas: instrucciones contextuales por fase de conversación"
+                                     class="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
+                                            border-teal-400 bg-white text-teal-700">
+                                    <span class="text-sm leading-none select-none">🔄</span>
+                                    <span class="truncate text-left leading-tight flex-1">Etapas IA</span>
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0 bg-teal-400"></span>
+                                </div>
+                                @endif
                             </div>
 
                             {{-- Nodos API + Tiempo + Pipeline (izquierda) --}}
@@ -285,6 +328,11 @@
                                       letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
                                 <text x="686" y="20" font-size="9" font-weight="700" fill="#7c3aed"
                                       letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
+                                {{-- Línea Bot → Memoria (dark) --}}
+                                <line x1="{{ $botX }}" y1="{{ $botY + $botR + 4 }}"
+                                      x2="{{ $botX }}" y2="{{ $memY - 20 }}"
+                                      stroke="{{ $memColor }}" stroke-width="1.5" opacity="0.85"/>
+                                <circle cx="{{ $botX }}" cy="{{ $botY + $botR + 4 }}" r="3" fill="{{ $memColor }}" opacity="0.8"/>
                             </svg>
                             {{-- Bot node dark --}}
                             <div class="absolute z-10 flex flex-col items-center"
@@ -295,6 +343,28 @@
                                 </div>
                                 <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-300 bg-gray-800 rounded-full shadow border border-indigo-800">BOT</span>
                             </div>
+
+                            {{-- Nodo Memoria de conversación (dark) --}}
+                            <div class="absolute z-10"
+                                 style="left:{{ $botX }}px; top:{{ $memY }}px; transform:translate(-50%,-50%); width:{{ $nodeW }}px;">
+                                <div title="La IA usa el historial de conversaciones de la BD para dar contexto y evitar repeticiones"
+                                     class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
+                                            {{ $memoriaActiva ? 'border-emerald-500 bg-gray-800 text-emerald-300 hover:border-emerald-400' : 'border-gray-700 bg-gray-800 text-gray-500 opacity-60' }}">
+                                    <span class="text-sm leading-none select-none">💬</span>
+                                    <span class="truncate text-left leading-tight flex-1">Memoria BD</span>
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $memoriaActiva ? 'bg-emerald-400' : 'bg-gray-600' }}"></span>
+                                </div>
+                                @if($etapasActivas)
+                                <div title="Etapas IA activas: instrucciones contextuales por fase de conversación"
+                                     class="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
+                                            border-teal-600 bg-gray-800 text-teal-300 hover:border-teal-400">
+                                    <span class="text-sm leading-none select-none">🔄</span>
+                                    <span class="truncate text-left leading-tight flex-1">Etapas IA</span>
+                                    <span class="w-2 h-2 rounded-full flex-shrink-0 bg-teal-400"></span>
+                                </div>
+                                @endif
+                            </div>
+
                             {{-- API nodes dark --}}
                             @foreach($apis as $i => $node)
                                 @php
@@ -354,6 +424,14 @@
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>Pipeline media
                         </span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Memoria BD
+                        </span>
+                        @if($etapasActivas)
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-teal-400 inline-block"></span>Etapas IA
+                        </span>
+                        @endif
                         <span class="text-indigo-400 dark:text-indigo-500 font-medium">← clic en un nodo activo para insertar su etiqueta →</span>
                     </div>
 
@@ -637,6 +715,113 @@
                                 Configura APIs o crea catálogos para ver etiquetas disponibles aquí.
                             </p>
                             @endif
+                        </div>
+                    </div>
+
+                    {{-- ══ ETAPAS DE CONVERSACIÓN PARA IA (anti-ciclo) ══ --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
+                         x-data="{ chars: {{ strlen($botPasosIA ?? '') }}, max: 8000, ayuda: false }">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-100">Etapas de conversación — guía anti-ciclo para IA</p>
+                                    <p class="text-xs text-gray-400">Define qué debe hacer la IA en cada turno. El historial se inyecta automáticamente para evitar repeticiones.</p>
+                                </div>
+                            </div>
+                            <button type="button" @click="ayuda = !ayuda"
+                                    class="text-xs text-purple-400 hover:text-purple-200 transition-colors">
+                                ¿Cómo funciona?
+                            </button>
+                        </div>
+
+                        {{-- Panel de ayuda colapsable --}}
+                        <div x-show="ayuda" x-collapse class="px-5 py-4 bg-purple-900/10 border-b border-white/5 text-xs text-gray-300 space-y-2">
+                            <p><strong class="text-purple-300">¿Para qué sirve esto?</strong> Evita que la IA se «cicle» volviendo a hacer la misma pregunta o dando la misma respuesta. Define instrucciones distintas para cada etapa de la conversación.</p>
+                            <p><strong class="text-purple-300">Cómo funciona:</strong> El sistema conta automáticamente cuántos mensajes lleva la conversación con ese contacto. Según el número, inyecta la instrucción del paso correspondiente en el prompt de la IA. Además, los últimos <strong>10 intercambios</strong> se pasan siempre como historial para que la IA sepa qué ya se respondió.</p>
+                            <p><strong class="text-purple-300">Formato JSON:</strong> Array de objetos con <code class="bg-gray-700 px-1 rounded text-purple-200">desde</code>, <code class="bg-gray-700 px-1 rounded text-purple-200">hasta</code>, <code class="bg-gray-700 px-1 rounded text-purple-200">nombre</code> e <code class="bg-gray-700 px-1 rounded text-purple-200">instruccion</code>. El campo <code>hasta: 9999</code> cubre todos los mensajes restantes.</p>
+                            <pre class="bg-gray-900 rounded p-2 text-[10px] leading-relaxed text-gray-300 overflow-x-auto">[
+  { "desde": 1, "hasta": 1, "nombre": "Bienvenida",   "instruccion": "Saluda y pregunta qué necesita." },
+  { "desde": 2, "hasta": 4, "nombre": "Diagnóstico",  "instruccion": "Identifica la necesidad sin repetir preguntas." },
+  { "desde": 5, "hasta": 9999, "nombre": "Cierre",    "instruccion": "Resuelve o deriva a un humano." }
+]</pre>
+                        </div>
+
+                        <div class="px-5 py-4">
+                            <textarea name="bot_pasos_ia" rows="12" maxlength="8000"
+                                @input="chars = $event.target.value.length"
+                                class="w-full px-4 py-3 border border-white/10 bg-gray-700 text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
+                                placeholder='[{"desde":1,"hasta":1,"nombre":"Bienvenida","instruccion":"..."},...]'
+                            >{{ $botPasosIA }}</textarea>
+                            <div class="mt-1.5 flex items-center justify-between">
+                                <p class="text-xs text-gray-400">Si el campo está vacío, la IA solo usa el historial como contexto (sin instrucción de etapa).</p>
+                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
+                                    <span x-text="chars"></span>/<span x-text="max"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Modo de respuesta del bot --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-100">Modo de respuesta del bot</p>
+                                <p class="text-xs text-gray-400">Combina respuestas por pasos con IA según tu estrategia</p>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                @foreach([
+                                    ['value' => 'ia', 'label' => 'Solo IA', 'desc' => 'Usa siempre el prompt del sistema'],
+                                    ['value' => 'pasos', 'label' => 'Solo por pasos', 'desc' => 'Usa solo el flujo definido'],
+                                    ['value' => 'hibrido', 'label' => 'Híbrido', 'desc' => 'Primero flujo; si no coincide, IA'],
+                                ] as $modo)
+                                <label class="p-3 rounded-lg border border-white/10 cursor-pointer hover:border-indigo-500/40 transition-colors {{ $botModoRespuesta === $modo['value'] ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-gray-700/30' }}">
+                                    <input type="radio" name="bot_modo_respuesta" value="{{ $modo['value'] }}" class="sr-only" {{ $botModoRespuesta === $modo['value'] ? 'checked' : '' }}>
+                                    <p class="text-sm font-semibold text-gray-200">{{ $modo['label'] }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">{{ $modo['desc'] }}</p>
+                                </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Flujo por pasos (JSON) --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
+                         x-data="{ chars: {{ strlen($botFlujoPasos ?? '') }}, max: 12000 }">
+                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-100">Flujo por pasos</p>
+                                <p class="text-xs text-gray-400">Define los pasos y respuestas en JSON (inicio, steps, opciones y fallback)</p>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4">
+                            <textarea name="bot_flujo_pasos" rows="14" maxlength="12000"
+                                @input="chars = $event.target.value.length"
+                                class="w-full px-4 py-3 border border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-y"
+                                placeholder='{"inicio":"menu","steps":{"menu":{"mensaje":"Hola","opciones":{"1|ventas":"ventas"}}}}'
+                            >{{ $botFlujoPasos }}</textarea>
+                            <div class="mt-2 flex items-center justify-between">
+                                <p class="text-xs text-gray-400">Tip: puedes usar múltiples alias en una opción separando por <span class="font-mono text-amber-300">|</span>, por ejemplo: <span class="font-mono text-amber-300">"1|ventas|info"</span>.</p>
+                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
+                                    <span x-text="chars"></span>/<span x-text="max"></span>
+                                </span>
+                            </div>
                         </div>
                     </div>
 

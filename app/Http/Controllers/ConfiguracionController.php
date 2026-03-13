@@ -93,6 +93,9 @@ class ConfiguracionController extends Controller
 
         $systemPrompt = Configuracion::get('system_prompt', '');
         $botProveedor = Configuracion::get('bot_ia_proveedor', 'openai');
+        $botModoRespuesta = Configuracion::get('bot_modo_respuesta', 'ia');
+        $botFlujoPasos = Configuracion::get('bot_flujo_pasos', $this->defaultBotFlujoPasos());
+        $botPasosIA = Configuracion::get('bot_pasos_ia', $this->defaultBotPasosIA());
 
         // Modelos actuales (valor real, no solo booleano)
         $iaModelos = [
@@ -177,6 +180,9 @@ class ConfiguracionController extends Controller
             'estado'             => $estado,
             'systemPrompt'       => $systemPrompt,
             'botProveedor'       => $botProveedor,
+            'botModoRespuesta'   => $botModoRespuesta,
+            'botFlujoPasos'      => $botFlujoPasos,
+            'botPasosIA'         => $botPasosIA,
             'extDbs'             => $extDbs,
             'promptVerificacion' => $promptVerificacion,
             'hasPhoneField'      => $hasPhoneField,
@@ -204,7 +210,50 @@ class ConfiguracionController extends Controller
      */
     public function update(Request $request)
     {
+        $request->validate([
+            'bot_modo_respuesta' => ['nullable', 'in:ia,pasos,hibrido'],
+            'bot_flujo_pasos'    => ['nullable', 'string'],
+            'bot_pasos_ia'       => ['nullable', 'string'],
+        ]);
+
         $guardados = 0;
+
+        if ($request->has('bot_pasos_ia')) {
+            $pasosRaw = trim((string) $request->input('bot_pasos_ia', ''));
+            if ($pasosRaw !== '') {
+                $pasos = json_decode($pasosRaw, true);
+                if (!is_array($pasos)) {
+                    return redirect()->route('configuracion.index')
+                        ->with('error', 'Los pasos IA deben ser un JSON valido (array de etapas).');
+                }
+                Configuracion::set('bot_pasos_ia', json_encode($pasos, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), 'bot', 'Etapas de guia para la IA (anti-ciclo)');
+            } else {
+                Configuracion::clear('bot_pasos_ia');
+            }
+            $guardados++;
+        }
+
+        if ($request->filled('bot_modo_respuesta')) {
+            Configuracion::set('bot_modo_respuesta', $request->input('bot_modo_respuesta'), 'bot', 'Modo de respuesta del bot: ia|pasos|hibrido');
+            $guardados++;
+        }
+
+        if ($request->has('bot_flujo_pasos')) {
+            $flujoRaw = trim((string) $request->input('bot_flujo_pasos', ''));
+            if ($flujoRaw !== '') {
+                $flujo = json_decode($flujoRaw, true);
+                if (!is_array($flujo) || !isset($flujo['inicio']) || !isset($flujo['steps']) || !is_array($flujo['steps'])) {
+                    return redirect()->route('configuracion.index')
+                        ->with('error', 'El flujo por pasos debe ser JSON valido y contener las claves "inicio" y "steps".');
+                }
+
+                Configuracion::set('bot_flujo_pasos', json_encode($flujo, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), 'bot', 'Flujo conversacional por pasos en formato JSON');
+                $guardados++;
+            } else {
+                Configuracion::clear('bot_flujo_pasos');
+                $guardados++;
+            }
+        }
 
         // Guardar zona horaria del bot
         if ($request->has('bot_timezone')) {
@@ -313,6 +362,67 @@ class ConfiguracionController extends Controller
             : 'No se realizaron cambios (todos los campos estaban vacíos).';
 
         return redirect()->route('configuracion.index')->with('success', $msg);
+    }
+
+    private function defaultBotPasosIA(): string
+    {
+        $pasos = [
+            [
+                'desde'       => 1,
+                'hasta'       => 1,
+                'nombre'      => 'Bienvenida',
+                'instruccion' => 'Saluda cordialmente al usuario, presentate con el nombre del negocio y pregunta en que puedes ayudarle. No hagas mas de una pregunta a la vez.',
+            ],
+            [
+                'desde'       => 2,
+                'hasta'       => 3,
+                'nombre'      => 'Identificacion de necesidad',
+                'instruccion' => 'Escucha la necesidad del usuario y haz UNA pregunta de seguimiento para entender mejor su situacion. No repitas lo que ya te dijo.',
+            ],
+            [
+                'desde'       => 4,
+                'hasta'       => 6,
+                'nombre'      => 'Resolucion',
+                'instruccion' => 'Proporciona informacion concreta y util basada en lo que el usuario expreso. Si la solucion requiere atencion humana, indica como contactar con un asesor.',
+            ],
+            [
+                'desde'       => 7,
+                'hasta'       => 9999,
+                'nombre'      => 'Cierre o derivacion',
+                'instruccion' => 'Resume brevemente lo tratado y pregunta si hay algo mas en que puedas ayudar. Si llevas mas de 3 mensajes sin resolver, ofrece contacto directo con un humano.',
+            ],
+        ];
+
+        return json_encode($pasos, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
+    }
+
+    private function defaultBotFlujoPasos(): string
+    {
+        $flow = [
+            'inicio' => 'menu',
+            'fallback' => 'No entendi tu opcion. Escribe *menu* para ver las opciones disponibles.',
+            'steps' => [
+                'menu' => [
+                    'mensaje' => "Hola, soy el asistente virtual.\n\nElige una opcion:\n1) Ventas\n2) Soporte\n3) Horarios",
+                    'opciones' => [
+                        '1|ventas|venta' => 'ventas',
+                        '2|soporte|ayuda' => 'soporte',
+                        '3|horarios|horario' => 'horarios',
+                    ],
+                ],
+                'ventas' => [
+                    'mensaje' => 'Perfecto. Un asesor de ventas te contacta en breve. Escribe menu para volver.',
+                ],
+                'soporte' => [
+                    'mensaje' => 'Cuéntame tu problema tecnico en un mensaje y te ayudamos. Escribe menu para volver.',
+                ],
+                'horarios' => [
+                    'mensaje' => 'Nuestro horario es de lunes a viernes de 9:00 a 18:00. Escribe menu para volver.',
+                ],
+            ],
+        ];
+
+        return json_encode($flow, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: '';
     }
 
     /**
