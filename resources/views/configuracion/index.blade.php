@@ -683,7 +683,7 @@
                                                     <template x-for="f in flujos" :key="f.id">
                                                         <div class="group flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all"
                                                              :class="flujoActivo === f.id ? 'border-amber-500/60 bg-amber-500/15' : 'border-white/10 hover:border-white/20'">
-                                                            <button type="button" @click="cargarFlujo(f)"
+                                                                <button type="button" @click="toggleFlujo(f)"
                                                                     :title="flujoActivo === f.id ? 'Activo' : 'Cargar'"
                                                                     :class="flujoActivo === f.id ? 'bg-amber-500' : 'bg-gray-600'"
                                                                     class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
@@ -2192,6 +2192,7 @@
 
     {{-- Prompt activo persistido en el form --}}
     <input type="hidden" name="bot_prompt_activo" id="bot_prompt_activo_input" value="{{ $promptActivoId ?? '' }}">
+    <input type="hidden" name="bot_flujo_pasos_activo" id="bot_flujo_pasos_activo_input" value="{{ $flujoPasosActivoId ?? '' }}">
 
     </form>
 
@@ -3190,7 +3191,21 @@ function savedFlujoPasosManager() {
         flujoActivo: null,
         editandoId: null,
 
-        init() {},
+        init() {
+            const storedId = parseInt(document.getElementById('bot_flujo_pasos_activo_input')?.value ?? '0');
+            this.flujoActivo = storedId > 0 ? storedId : null;
+        },
+
+        toggleFlujo(f) {
+            if (this.flujoActivo === f.id) {
+                this.flujoActivo = null;
+                const hidden = document.getElementById('bot_flujo_pasos_activo_input');
+                if (hidden) hidden.value = '';
+                return;
+            }
+
+            this.cargarFlujo(f);
+        },
 
         insertarTagFlujo(tag) {
             const ta = document.getElementById('bot_flujo_pasos_textarea');
@@ -3209,6 +3224,8 @@ function savedFlujoPasosManager() {
             ta.value = f.contenido;
             ta.dispatchEvent(new Event('input'));
             this.flujoActivo = f.id;
+            const hidden = document.getElementById('bot_flujo_pasos_activo_input');
+            if (hidden) hidden.value = f.id;
             ta.classList.add('ring-2', 'ring-amber-400');
             setTimeout(() => ta.classList.remove('ring-2', 'ring-amber-400'), 1200);
         },
@@ -3243,6 +3260,8 @@ function savedFlujoPasosManager() {
                     this.flujos.push(res.data.flujo);
                     this.flujos.sort((a, b) => a.nombre.localeCompare(b.nombre));
                     this.flujoActivo = res.data.flujo.id;
+                    const hidden = document.getElementById('bot_flujo_pasos_activo_input');
+                    if (hidden) hidden.value = res.data.flujo.id;
                     this.nuevoNombre = '';
                 }
             } catch (e) {
@@ -3272,6 +3291,8 @@ function savedFlujoPasosManager() {
                     if (idx !== -1) this.flujos[idx] = res.data.flujo;
                     this.flujos.sort((a, b) => a.nombre.localeCompare(b.nombre));
                     this.flujoActivo = res.data.flujo.id;
+                    const hidden = document.getElementById('bot_flujo_pasos_activo_input');
+                    if (hidden) hidden.value = res.data.flujo.id;
                     this.editandoId = null;
                     this.nuevoNombre = '';
                 }
@@ -3289,7 +3310,11 @@ function savedFlujoPasosManager() {
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 });
                 this.flujos = this.flujos.filter(x => x.id !== f.id);
-                if (this.flujoActivo === f.id) this.flujoActivo = null;
+                if (this.flujoActivo === f.id) {
+                    this.flujoActivo = null;
+                    const hidden = document.getElementById('bot_flujo_pasos_activo_input');
+                    if (hidden) hidden.value = '';
+                }
             } catch (e) {
                 alert('No se pudo eliminar el flujo.');
             }

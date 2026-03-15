@@ -170,11 +170,13 @@ class ConfiguracionController extends Controller
         $savedEtapas    = collect();
         $savedFlujosPasos = collect();
         $promptActivoId = null;
+        $flujoPasosActivoId = null;
         try {
             $savedPrompts   = SavedPrompt::where('tipo', 'prompt')->orderBy('nombre')->get();
             $savedEtapas    = SavedPrompt::where('tipo', 'etapas')->orderBy('nombre')->get();
             $savedFlujosPasos = SavedPrompt::where('tipo', 'flujo_pasos')->orderBy('nombre')->get();
             $promptActivoId = (int) (Configuracion::get('bot_prompt_activo', '0')) ?: null;
+            $flujoPasosActivoId = (int) (Configuracion::get('bot_flujo_pasos_activo', '0')) ?: null;
         } catch (\Exception) {}
 
         // Estado de conexión con Google (OAuth2)
@@ -205,6 +207,7 @@ class ConfiguracionController extends Controller
             'savedEtapas'           => $savedEtapas,
             'savedFlujosPasos'      => $savedFlujosPasos,
             'promptActivoId'        => $promptActivoId,
+            'flujoPasosActivoId'    => $flujoPasosActivoId,
             'botTimezone'           => $botTimezone,
             'botCanvasLayout'       => $botCanvasLayout,
             'googleConectado'    => $googleConectado,
@@ -293,6 +296,17 @@ class ConfiguracionController extends Controller
                 Configuracion::set('bot_prompt_activo', (string) $id, 'bot', 'ID del prompt activo del bot');
             } else {
                 Configuracion::clear('bot_prompt_activo');
+            }
+            $guardados++;
+        }
+
+        // Guardar ID del flujo por pasos activo
+        if ($request->has('bot_flujo_pasos_activo')) {
+            $id = (int) $request->input('bot_flujo_pasos_activo');
+            if ($id > 0) {
+                Configuracion::set('bot_flujo_pasos_activo', (string) $id, 'bot', 'ID del flujo por pasos activo del bot');
+            } else {
+                Configuracion::clear('bot_flujo_pasos_activo');
             }
             $guardados++;
         }
