@@ -78,6 +78,8 @@ class BotController extends Controller
      */
     public function toggleBot()
     {
+        abort_unless(auth()->user()->can('instancias.pausar'), 403, 'No tienes permiso para pausar o reanudar el bot.');
+
         $actual = Configuracion::get('bot_activo', '0') === '1';
         $nuevo  = $actual ? '0' : '1';
 
@@ -519,6 +521,8 @@ class BotController extends Controller
      */
     public function crearInstancia(Request $request)
     {
+        abort_unless(auth()->user()->can('instancias.crear'), 403, 'No tienes permiso para crear instancias.');
+
         $request->validate([
             'nombre' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_-]+$/'],
         ], [
@@ -859,6 +863,8 @@ class BotController extends Controller
      */
     public function eliminarInstancia(string $instancia)
     {
+        abort_unless(auth()->user()->can('instancias.eliminar'), 403, 'No tienes permiso para eliminar instancias.');
+
         $enc = rawurlencode($instancia);
         try {
             Http::withHeaders(['apikey' => $this->apiKey])
@@ -910,6 +916,8 @@ class BotController extends Controller
      */
     public function toggleInstance(Request $request): JsonResponse
     {
+        abort_unless(auth()->user()->can('instancias.pausar'), 403, 'No tienes permiso para pausar instancias.');
+
         $request->validate(['instancia' => ['required', 'string']]);
 
         $inst = TenantInstance::where('instance_name', $request->instancia)

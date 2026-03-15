@@ -62,10 +62,19 @@
         <nav class="flex-1 px-3 py-5 overflow-y-auto space-y-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" aria-label="Navegación principal">
 
             @php
-                $authUser      = auth()->user();
-                $isSuperAdmin  = $authUser?->hasRole('super_admin');
-                $isAnfitrion   = $authUser?->hasRole('anfitrion') || $isSuperAdmin;
-                $hasTenant     = tenancy()->tenant !== null;
+                $authUser         = auth()->user();
+                $isSuperAdmin     = $authUser?->hasRole('super_admin');
+                $isAnfitrion      = $authUser?->hasRole('anfitrion');
+                $isColaborador    = $authUser?->hasRole('colaborador');
+                $hasTenant        = tenancy()->tenant !== null;
+                $impersonating    = $isSuperAdmin && session('tenancy_impersonate_id');
+                $impersonatedName = $impersonating ? (tenancy()->tenant?->nombre ?? '?') : null;
+
+                // Super admin mientras impersona: tiene acceso total al tenant
+                $canConfigBot     = $isSuperAdmin && $hasTenant;
+                $canConnectQr     = $hasTenant && ($isAnfitrion || $isSuperAdmin);
+                $canSeeInstancias = $hasTenant && ($isAnfitrion || $isSuperAdmin || $authUser?->can('instancias.ver'));
+                $canSeeConversas  = $hasTenant && ($isAnfitrion || $isSuperAdmin || $authUser?->can('ver.conversaciones'));
 
                 $sidebarModulos = collect();
                 try {
@@ -74,6 +83,30 @@
                     }
                 } catch (\Throwable) {}
             @endphp
+
+            {{-- ─────────────────────────────────────────────────────────────────
+                 BANNER: Super Admin impersonando un tenant
+            ───────────────────────────────────────────────────────────────── --}}
+            @if($impersonating)
+            <div class="mx-3 mb-3 px-3 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-bold text-amber-300 uppercase tracking-wide">Viendo negocio</p>
+                    <p class="text-xs font-semibold text-amber-200 truncate">{{ $impersonatedName }}</p>
+                </div>
+                <form method="POST" action="{{ route('admin.negocios.impersonate.exit') }}">
+                    @csrf @method('DELETE')
+                    <button type="submit" title="Salir del negocio"
+                            class="p-1 text-amber-400 hover:text-amber-200 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            @endif
 
             {{-- Dashboard --}}
             <a href="{{ route('dashboard') }}"
@@ -131,8 +164,8 @@
                 @endforeach
             @endif
 
-            {{-- ── Administración — solo anfitrion ── --}}
-            @if($isAnfitrion && $hasTenant)
+            {{-- ── Administración — solo super_admin (puede estar impersonando) ── --}}
+            @if($canConfigBot)
                 <p class="text-gray-500 text-[10px] font-semibold uppercase tracking-widest px-3 pt-5 pb-1.5">
                     Administración
                 </p>
@@ -155,8 +188,18 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                     </svg>
-                    Configuración
+                    Configuración Bot
                 </a>
+            @endif
+
+            {{-- ── Colaboradores — solo anfitrion ── --}}
+            @if($isAnfitrion && $hasTenant)
+                @if(!$canConfigBot)
+                    {{-- separador solo si no se mostró ya la sección Administración --}}
+                    <p class="text-gray-500 text-[10px] font-semibold uppercase tracking-widest px-3 pt-5 pb-1.5">
+                        Mi negocio
+                    </p>
+                @endif
 
                 <a href="{{ route('colaboradores.index') }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
@@ -169,12 +212,13 @@
                 </a>
             @endif
 
-            {{-- ── WhatsApp Bot — todos los roles con tenant ── --}}
+            {{-- ── WhatsApp Bot — instancias y conversaciones ── --}}
             @if($hasTenant)
                 <p class="text-gray-500 text-[10px] font-semibold uppercase tracking-widest px-3 pt-5 pb-1.5">
                     WhatsApp Bot
                 </p>
 
+                @if($canSeeConversas)
                 <a href="{{ route('bot.conversaciones') }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                           {{ request()->routeIs('bot.conversaciones') ? 'bg-indigo-600/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5 hover:text-gray-300' }}">
@@ -184,8 +228,9 @@
                     </svg>
                     Conversaciones
                 </a>
+                @endif
 
-                @if($isAnfitrion)
+                @if($canSeeInstancias)
                     <a href="{{ route('bot.index') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                               {{ request()->routeIs('bot.index') ? 'bg-indigo-600/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5 hover:text-gray-300' }}">
@@ -195,7 +240,9 @@
                         </svg>
                         Instancias Bot
                     </a>
+                @endif
 
+                @if($canConnectQr)
                     <a href="{{ route('bot.conectar') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                               {{ request()->routeIs('bot.conectar') ? 'bg-indigo-600/20 text-indigo-300' : 'text-gray-400 hover:bg-white/5 hover:text-gray-300' }}">
@@ -212,7 +259,7 @@
 
         {{-- Versión --}}
         <div class="px-5 py-2 text-center">
-            <span class="text-gray-600 text-[10px] font-medium tracking-widest">v4.1.3</span>
+            <span class="text-gray-600 text-[10px] font-medium tracking-widest">v4.1.4</span>
         </div>
 
         {{-- Usuario (parte inferior) --}}
@@ -338,7 +385,21 @@
 
         {{-- Área de contenido scrollable --}}
         <main id="main-content" class="flex-1 overflow-y-auto bg-gray-950 p-6" tabindex="-1">
-            {{ $slot }}
+        {{-- Alerta: contraseña temporal pendiente de cambio --}}
+        @if(auth()->user()?->must_change_password)
+        <div class="mb-5 flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-sm">
+            <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-amber-300">
+                Estás usando una <strong>contraseña temporal</strong>. Por seguridad, cámbiala ahora en
+                <a href="{{ route('profile.edit') }}" class="font-semibold underline hover:text-amber-200">tu perfil</a>.
+            </span>
+        </div>
+        @endif
+
+        {{ $slot }}
         </main>
 
     </div>

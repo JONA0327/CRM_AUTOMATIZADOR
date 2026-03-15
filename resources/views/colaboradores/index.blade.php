@@ -92,14 +92,24 @@
                         <td class="px-5 py-4 text-gray-400" x-text="c.email"></td>
                         <td class="px-4 py-4 text-xs text-gray-600" x-text="c.created_at"></td>
                         <td class="px-4 py-4">
-                            <button @click="confirmarEliminar(c)"
-                                    title="Eliminar colaborador"
-                                    class="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                            </button>
+                            <div class="flex items-center gap-1">
+                                <button @click="abrirPermisos(c)"
+                                        title="Gestionar permisos"
+                                        class="p-1.5 rounded-lg text-gray-600 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                </button>
+                                <button @click="confirmarEliminar(c)"
+                                        title="Eliminar colaborador"
+                                        class="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 </template>
@@ -152,10 +162,14 @@
                            class="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-400 mb-1.5">Contraseña <span class="text-red-400">*</span></label>
-                    <input x-model="form.password" type="password" required minlength="8" placeholder="Mínimo 8 caracteres"
-                           class="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-100 placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                <div class="flex items-start gap-2.5 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+                    <svg class="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    <p class="text-xs text-indigo-300 leading-relaxed">
+                        El sistema generará una contraseña temporal y la enviará automáticamente al correo del colaborador.
+                    </p>
                 </div>
 
                 <div x-show="errorModal" x-text="errorModal"
@@ -176,6 +190,60 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- MODAL: Permisos --}}
+    <div x-show="modalPermisos" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div @click.stop
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             class="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm">
+
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-100">Permisos</h3>
+                    <p class="text-xs text-gray-500 mt-0.5" x-text="colaPermisos?.name"></p>
+                </div>
+                <button @click="modalPermisos = false" class="text-gray-600 hover:text-gray-300 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-5 space-y-3">
+                <template x-for="(label, perm) in permisosOpciones" :key="perm">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <div class="relative flex-shrink-0">
+                            <input type="checkbox"
+                                   :value="perm"
+                                   x-model="permisosSeleccionados"
+                                   class="sr-only peer">
+                            <div class="w-9 h-5 rounded-full bg-gray-700 peer-checked:bg-indigo-600 transition-colors"></div>
+                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+                        </div>
+                        <span class="text-sm text-gray-300 group-hover:text-gray-100 transition-colors" x-text="label"></span>
+                    </label>
+                </template>
+            </div>
+
+            <div class="px-6 pb-5 flex gap-3">
+                <button @click="modalPermisos = false"
+                        class="flex-1 px-4 py-2.5 border border-white/10 text-gray-400 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors">
+                    Cancelar
+                </button>
+                <button @click="guardarPermisos()" :disabled="guardandoPermisos"
+                        class="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                    <svg x-show="guardandoPermisos" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    <span x-text="guardandoPermisos ? 'Guardando…' : 'Guardar permisos'"></span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -224,17 +292,22 @@ function colaboradoresPanel() {
         colaboradores:  @json($colaboradores ?? []),
         maxColabs:      {{ $max_collaborators ?? 3 }},
         total:          {{ $total ?? 0 }},
+        permisosOpciones: @json($permisos_opciones ?? []),
 
-        modalAbierto:   false,
-        modalEliminar:  false,
-        guardando:      false,
-        eliminando:     false,
-        mensaje:        '',
-        esError:        false,
-        errorModal:     '',
-        colaAEliminar:  null,
+        modalAbierto:         false,
+        modalEliminar:        false,
+        modalPermisos:        false,
+        guardando:            false,
+        eliminando:           false,
+        guardandoPermisos:    false,
+        mensaje:              '',
+        esError:              false,
+        errorModal:           '',
+        colaAEliminar:        null,
+        colaPermisos:         null,
+        permisosSeleccionados: [],
 
-        form: { name: '', username: '', email: '', password: '' },
+        form: { name: '', username: '', email: '' },
 
         init() {},
 
@@ -257,6 +330,46 @@ function colaboradoresPanel() {
         confirmarEliminar(c) {
             this.colaAEliminar = c;
             this.modalEliminar = true;
+        },
+
+        abrirPermisos(c) {
+            this.colaPermisos         = c;
+            this.permisosSeleccionados = [...(c.permisos ?? [])];
+            this.modalPermisos        = true;
+        },
+
+        async guardarPermisos() {
+            if (!this.colaPermisos) return;
+            this.guardandoPermisos = true;
+
+            try {
+                const res = await fetch(`/colaboradores/${this.colaPermisos.id}/permisos`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept':       'application/json',
+                    },
+                    body: JSON.stringify({ permisos: this.permisosSeleccionados }),
+                });
+
+                if (!res.ok) {
+                    const json = await res.json();
+                    this.mostrarMensaje(json.message ?? 'Error al guardar permisos', true);
+                    return;
+                }
+
+                // Update local permisos array for this collaborator
+                const idx = this.colaboradores.findIndex(c => c.id === this.colaPermisos.id);
+                if (idx !== -1) this.colaboradores[idx].permisos = [...this.permisosSeleccionados];
+
+                this.modalPermisos = false;
+                this.mostrarMensaje('Permisos actualizados', false);
+            } catch {
+                this.mostrarMensaje('Error de conexión', true);
+            } finally {
+                this.guardandoPermisos = false;
+            }
         },
 
         async guardar() {

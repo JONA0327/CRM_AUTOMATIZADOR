@@ -16,6 +16,12 @@ class RequireTenant
     {
         $user = Auth::user();
 
+        // Super admin con impersonación activa: tiene acceso al tenant en sesión
+        if ($user && $user->hasRole('super_admin') && session('tenancy_impersonate_id')) {
+            $middleware = app(\App\Http\Middleware\InitializeTenancyFromAuth::class);
+            return $middleware->handle($request, $next);
+        }
+
         if (! $user || ! $user->tenant_id) {
             if ($request->expectsJson()) {
                 return response()->json([

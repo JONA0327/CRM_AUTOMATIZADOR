@@ -34,16 +34,27 @@ class RolesAndPermissionsSeeder extends Seeder
             'configurar.apis',          // Guardar API keys (OpenAI, Evolution, etc.)
             'configurar.prompts',       // Editar system_prompt
             'configurar.bd_externas',   // Conectar bases de datos externas
+            'configurar.modulos',       // Crear/editar módulos de catálogo (no-code)
 
             // Negocio (Anfitrión)
-            'gestionar.instancias',     // Crear/conectar instancias WhatsApp
-            'gestionar.colaboradores',  // Invitar/eliminar colaboradores
-            'configurar.bot_basico',    // Proveedor de IA, verificación WA (sin prompt/APIs)
+            'gestionar.colaboradores',  // Invitar/eliminar colaboradores y gestionar sus permisos
 
-            // Todos los usuarios del negocio
+            // Instancias WhatsApp — asignables por el anfitrión a colaboradores
+            'instancias.ver',           // Ver lista de instancias
+            'instancias.conectar',      // Conectar instancia vía QR / pairing code
+            'instancias.crear',         // Crear nueva instancia
+            'instancias.eliminar',      // Eliminar instancia
+            'instancias.pausar',        // Pausar / reanudar bot en una instancia
+
+            // Catálogos — asignables por el anfitrión a colaboradores
+            'catalogos.ver',            // Ver registros de catálogos
+            'catalogos.editar',         // Crear / editar / eliminar registros
+
+            // Conversaciones — asignable por el anfitrión
+            'ver.conversaciones',       // Ver historial de conversaciones del bot
+
+            // Dashboard
             'ver.dashboard',
-            'gestionar.catalogos',      // CRUD de catálogos y módulos
-            'ver.conversaciones',       // Ver historial del bot
             'ver.bot',                  // Ver estado del bot
         ];
 
@@ -57,25 +68,24 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
         $superAdmin->syncPermissions(Permission::all());
 
-        // Anfitrión — gestión del propio negocio (sin APIs/prompts/BDs)
+        // Anfitrión — puede conectar sus números de WhatsApp y gestionar colaboradores
+        // NO puede configurar el bot, crear módulos ni acceder a configuración
         $anfitrion = Role::firstOrCreate(['name' => 'anfitrion', 'guard_name' => 'web']);
         $anfitrion->syncPermissions([
             'ver.dashboard',
-            'gestionar.instancias',
-            'gestionar.colaboradores',
-            'configurar.bot_basico',
-            'gestionar.catalogos',
-            'ver.conversaciones',
             'ver.bot',
+            'instancias.ver',
+            'instancias.conectar',
+            'catalogos.ver',
+            'ver.conversaciones',
+            'gestionar.colaboradores',
         ]);
 
-        // Colaborador — solo catálogos y conversaciones
+        // Colaborador — permisos mínimos; el anfitrión agrega permisos directos adicionales
         $colaborador = Role::firstOrCreate(['name' => 'colaborador', 'guard_name' => 'web']);
         $colaborador->syncPermissions([
             'ver.dashboard',
-            'gestionar.catalogos',
-            'ver.conversaciones',
-            'ver.bot',
+            'catalogos.ver',
         ]);
 
         // ── Usuario Super Admin ──────────────────────────────────────────────

@@ -39,9 +39,7 @@
                     <nav class="p-2 space-y-0.5" role="tablist" aria-label="Secciones de configuración" aria-orientation="vertical">
                         @foreach([
                             ['id' => 'bot',       'icon' => 'bot',      'label' => 'Bot & Prompts',    'color' => 'purple'],
-                            ['id' => 'whatsapp',  'icon' => 'wa',       'label' => 'WhatsApp',         'color' => 'green'],
-                            ['id' => 'ia',        'icon' => 'brain',    'label' => 'Modelos de IA',    'color' => 'blue'],
-                            ['id' => 'servicios', 'icon' => 'plug',     'label' => 'Servicios',        'color' => 'orange'],
+                            ['id' => 'apis',      'icon' => 'link',     'label' => 'Conectar APIs',    'color' => 'emerald'],
                             ['id' => 'dbs',       'icon' => 'db',       'label' => 'Bases de Datos',   'color' => 'indigo'],
                         ] as $tab)
                         <button type="button"
@@ -70,6 +68,10 @@
                             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
+                            @elseif($tab['icon'] === 'link')
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                            </svg>
                             @elseif($tab['icon'] === 'plug')
                             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -87,10 +89,9 @@
                                 @if($systemPrompt)
                                 <span class="ml-auto w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
                                 @endif
-                            @elseif($tab['id'] === 'whatsapp')
-                                <span class="ml-auto w-2 h-2 rounded-full {{ ($estado['evolution_url'] && $estado['evolution_key']) ? 'bg-green-400' : 'bg-amber-400' }} flex-shrink-0"></span>
-                            @elseif($tab['id'] === 'ia')
-                                <span class="ml-auto w-2 h-2 rounded-full {{ $estado['openai_key'] || $estado['deepseek_key'] || $estado['gemini_key'] ? 'bg-green-400' : 'bg-amber-400' }} flex-shrink-0"></span>
+                            @elseif($tab['id'] === 'apis')
+                                @php $anyApi = $estado['evolution_url'] || $estado['openai_key'] || $estado['deepseek_key'] || $estado['gemini_key'] || $googleConectado; @endphp
+                                <span class="ml-auto w-2 h-2 rounded-full {{ $anyApi ? 'bg-green-400' : 'bg-amber-400' }} flex-shrink-0"></span>
                             @endif
                         </button>
                         @endforeach
@@ -115,1851 +116,1469 @@
             {{-- ═══ CONTENIDO DEL TAB ACTIVO ═══ --}}
             <div class="flex-1 min-w-0 space-y-5">
 
-                {{-- ─── TAB: BOT & PROMPTS ─── --}}
+                {{-- ─── TAB: BOT & PROMPTS (N8N Canvas) ─── --}}
+                {{-- PHP data for canvas --}}
+                @php
+                    $canvasCatalogs = collect($availableTags)->where('tipo', 'catalogo')->values();
+                    $catalogsWithFiles = $modulosConArchivos->map(fn($mod) => 'CATALOGO_' . strtoupper(preg_replace('/[^A-Z0-9]/i', '_', $mod->slug)))->values()->all();
+                    $canvasDbs      = collect($availableTags)->where('tipo', 'db_ext')->values();
+                    $canvasApis     = collect($availableTags)->whereIn('tipo', ['api'])->where('activo', true)->values();
+                    $canvasTimezone = $botTimezone ?? '';
+                    $botCanvasLayout = json_decode(
+                        \App\Models\Configuracion::get('bot_canvas_layout', ''),
+                        true
+                    ) ?: null;
+                @endphp
+
                 <div x-show="activeTab === 'bot'" x-cloak
-                     id="panel-bot" role="tabpanel" aria-labelledby="tab-bot">
+                     id="panel-bot" role="tabpanel" aria-labelledby="tab-bot"
+                     x-data="botCanvas()"
+                     x-init="init()">
 
-                    {{-- ═══ DIAGRAMA DE NODOS ═══ --}}
-                    @php
-                        $apis   = collect($availableTags)->whereIn('tipo', ['api', 'tiempo', 'pipeline'])->where('activo', true)->values();
-                        $datos  = collect($availableTags)->whereIn('tipo', ['catalogo', 'db_ext'])->values();
-                        $nApis  = $apis->count();
-                        $nDatos = $datos->count();
-                        // 60px per node + 80px padding top/bottom → no overlap, no legend crowding
-                        $svgH   = max(420, max($nApis, $nDatos) * 62 + 80);
-                        $botX   = 350; $botY = $svgH / 2; $botR = 44;
-                        // Distribute nodes evenly with 40px top/bottom margin
-                        $apiYs  = collect(range(0, max(0, $nApis - 1)))->map(fn($i) =>
-                            $nApis > 1 ? 40 + ($i / ($nApis - 1)) * ($svgH - 80) : $svgH / 2
-                        );
-                        $datYs  = collect(range(0, max(0, $nDatos - 1)))->map(fn($i) =>
-                            $nDatos > 1 ? 40 + ($i / ($nDatos - 1)) * ($svgH - 80) : $svgH / 2
-                        );
-                        $nodeW  = 168;
-                        $apiX   = 10;
-                        $datX   = 700 - 10 - $nodeW;   // = 522
-                        // SVG line anchors
-                        $apiLineX = $apiX + $nodeW + 4; // 182
-                        $botLX    = $botX - $botR - 4;  // 302
-                        $botRX    = $botX + $botR + 4;  // 398
-                        $datLineX = $datX - 4;           // 518
-        // Nodo memoria de conversación
-        $memoriaActiva = true;            // historial siempre cargado desde BD
-        $etapasActivas = !empty($botPasosIA) && trim($botPasosIA) !== '' && $botPasosIA !== '[]';
-        $memY          = (int)($botY + $botR + 68); // centro vertical del nodo
-        $memColor      = '#22c55e';
-    @endphp
+                    {{-- ═══ LIENZO N8N ═══ --}}
+                    {{-- Layout: palette left + canvas center --}}
+                    <div class="flex gap-0 rounded-xl border border-white/10 overflow-hidden bg-gray-900" style="height:600px">
 
-                      <div class="mb-2 rounded-xl border border-white/10 overflow-hidden relative"
-                           x-data="{ z: 1 }"
-                           x-init="$nextTick(() => { z = $el.offsetWidth / 700 })"
-                           @resize.window="z = $el.offsetWidth / 700"
-                           :style="`height:${Math.round(z * {{ $svgH }})}px`">
-                        <div class="hidden">
-                        <div class="relative">
+                        {{-- ── PALETA ── --}}
+                        <div class="w-44 flex-shrink-0 border-r border-white/10 bg-gray-850 flex flex-col overflow-y-auto"
+                             style="background:#111827">
+                            <p class="px-3 pt-3 pb-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Nodos</p>
 
-                            {{-- SVG: líneas + fondo punteado (light) --}}
-                            <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <pattern id="dotsL" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-                                        <circle cx="12" cy="12" r="1" fill="#c7d2fe" opacity="0.6"/>
-                                    </pattern>
-                                </defs>
-                                <rect width="700" height="{{ $svgH }}" fill="url(#dotsL)"/>
+                            <template x-for="item in palette" :key="item.type">
+                                <div draggable="true"
+                                     @dragstart="startPaletteDrag(item.type, $event)"
+                                     class="mx-2 mb-1.5 flex items-center gap-2 px-2.5 py-2 rounded-lg border border-white/10 cursor-grab hover:border-indigo-500/60 hover:bg-indigo-500/10 transition-colors select-none"
+                                     :title="item.label">
+                                    <span class="text-base leading-none" x-text="item.icon"></span>
+                                    <span class="text-xs text-gray-300 leading-tight" x-text="item.label"></span>
+                                </div>
+                            </template>
 
-                                {{-- Líneas API → Bot --}}
-                                @foreach($apis as $i => $node)
-                                    @php
-                                        $ny    = $apiYs[$i];
-                                        $color = $node['activo'] ? '#6366f1' : '#d1d5db';
-                                        $sw    = $node['activo'] ? '1.5' : '1';
-                                        $dash  = $node['activo'] ? 'none' : '5,5';
-                                        $op    = $node['activo'] ? '0.85' : '0.35';
-                                    @endphp
-                                    <line x1="{{ $apiLineX }}" y1="{{ $ny }}"
-                                          x2="{{ $botLX }}" y2="{{ $botY }}"
-                                          stroke="{{ $color }}" stroke-width="{{ $sw }}"
-                                          stroke-dasharray="{{ $dash }}" opacity="{{ $op }}"/>
-                                    @if($node['activo'])
-                                        <circle cx="{{ $apiLineX }}" cy="{{ $ny }}" r="3.5" fill="#6366f1" opacity="0.7"/>
-                                        <circle cx="{{ $botLX }}" cy="{{ $botY }}" r="3.5" fill="#6366f1" opacity="0.7"/>
-                                    @endif
-                                @endforeach
+                            <div class="mt-auto px-3 pb-3 pt-2 border-t border-white/5 text-[9px] text-gray-600 leading-relaxed">
+                                Arrastra nodos al lienzo. Conecta el punto <span class="text-indigo-400">●</span> al nodo Bot para activar.
+                            </div>
+                        </div>
 
-                                {{-- Líneas Bot → Datos --}}
-                                @foreach($datos as $i => $node)
-                                    @php
-                                        $ny    = $datYs[$i];
-                                        $color = $node['tipo'] === 'catalogo' ? '#7c3aed' : '#d97706';
-                                        $dot   = $node['tipo'] === 'catalogo' ? '#7c3aed' : '#d97706';
-                                    @endphp
-                                    <line x1="{{ $botRX }}" y1="{{ $botY }}"
-                                          x2="{{ $datLineX }}" y2="{{ $ny }}"
-                                          stroke="{{ $color }}" stroke-width="1.5" opacity="0.85"/>
-                                    <circle cx="{{ $botRX }}" cy="{{ $botY }}" r="3.5" fill="{{ $dot }}" opacity="0.7"/>
-                                    <circle cx="{{ $datLineX }}" cy="{{ $ny }}" r="3.5" fill="{{ $dot }}" opacity="0.7"/>
-                                @endforeach
+                        {{-- ── CANVAS ── --}}
+                        <div class="relative flex-1 overflow-hidden"
+                             style="background: radial-gradient(circle at 1px 1px, rgba(255,255,255,.04) 1px, transparent 0); background-size:28px 28px;"
+                             @dragover.prevent
+                             @drop="onCanvasDrop($event)"
+                             @mousemove.window="onMouseMove($event)"
+                             @mouseup.window="onMouseUp($event)">
 
-                                {{-- Sección labels en SVG --}}
-                                <text x="14" y="20" font-size="9" font-weight="700" fill="#818cf8"
-                                      letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
-                                <text x="686" y="20" font-size="9" font-weight="700" fill="#a78bfa"
-                                      letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
-                                {{-- Línea Bot → Memoria (light) --}}
-                                <line x1="{{ $botX }}" y1="{{ $botY + $botR + 4 }}"
-                                      x2="{{ $botX }}" y2="{{ $memY - 20 }}"
-                                      stroke="{{ $memColor }}" stroke-width="1.5" opacity="0.75"/>
-                                <circle cx="{{ $botX }}" cy="{{ $botY + $botR + 4 }}" r="3" fill="{{ $memColor }}" opacity="0.7"/>
+                            {{-- SVG overlay for edges --}}
+                            {{-- x-for/x-if cannot be used inside <svg> (browser parses <template> as SVGElement, not HTMLTemplateElement).
+                                 Use x-html on a <g> for edges + x-show on a <path> for the temp connection. --}}
+                            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index:1"
+                                 @click="onSvgEdgeClick($event)">
+                                {{-- Existing edges rendered via innerHTML to avoid SVG template issue --}}
+                                <g x-html="edgesHtml"></g>
+                                {{-- Temp connection being drawn --}}
+                                <path x-show="connecting"
+                                      :d="connecting ? tempEdgePath() : ''"
+                                      fill="none"
+                                      stroke="#a5b4fc"
+                                      stroke-width="2"
+                                      stroke-dasharray="6 3"
+                                      opacity="0.8"/>
                             </svg>
 
-                            {{-- Nodo central BOT --}}
-                            <div class="absolute z-10 flex flex-col items-center"
-                                 style="left:{{ $botX }}px; top:{{ $botY }}px; transform:translate(-50%,-50%);">
-                                <div class="rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl border-4 border-white flex items-center justify-center"
-                                     style="width:88px;height:88px;">
-                                    <span class="text-4xl leading-none select-none">🤖</span>
-                                </div>
-                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-700 bg-gray-800 rounded-full shadow border border-indigo-100">
-                                    BOT
-                                </span>
-                            </div>
+                            {{-- Nodes --}}
+                            <template x-for="node in nodes" :key="node.id">
+                                <div class="absolute select-none"
+                                     :style="nodeCardStyle(node)"
+                                     style="z-index:2">
 
-                            {{-- Nodo Memoria de conversación (light) --}}
-                            <div class="absolute z-10"
-                                 style="left:{{ $botX }}px; top:{{ $memY }}px; transform:translate(-50%,-50%); width:{{ $nodeW }}px;">
-                                <div title="La IA usa el historial de conversaciones de la BD para dar contexto y evitar repeticiones"
-                                     class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
-                                            {{ $memoriaActiva ? 'border-emerald-400 bg-white text-emerald-700' : 'border-gray-200 bg-white text-gray-400 opacity-60' }}">
-                                    <span class="text-sm leading-none select-none">💬</span>
-                                    <span class="truncate text-left leading-tight flex-1">Memoria BD</span>
-                                    <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $memoriaActiva ? 'bg-emerald-400' : 'bg-gray-300' }}"></span>
-                                </div>
-                                @if($etapasActivas)
-                                <div title="Etapas IA activas: instrucciones contextuales por fase de conversación"
-                                     class="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
-                                            border-teal-400 bg-white text-teal-700">
-                                    <span class="text-sm leading-none select-none">🔄</span>
-                                    <span class="truncate text-left leading-tight flex-1">Etapas IA</span>
-                                    <span class="w-2 h-2 rounded-full flex-shrink-0 bg-teal-400"></span>
-                                </div>
-                                @endif
-                            </div>
+                                    {{-- Node card --}}
+                                    <div class="rounded-xl border-2 shadow-lg transition-all cursor-pointer"
+                                         :class="{
+                                             'border-indigo-500 ring-2 ring-indigo-500/40 bg-indigo-900/40': selectedNode && selectedNode.id === node.id,
+                                             'border-green-500/60 bg-gray-800': node.type === 'bot' && !(selectedNode && selectedNode.id === node.id),
+                                             'border-white/20 bg-gray-800': node.type !== 'bot' && !(selectedNode && selectedNode.id === node.id),
+                                             'opacity-50': node.type !== 'bot' && node.type !== 'memoria' && !isConnectedToBot(node.id),
+                                         }"
+                                         style="min-width:132px;max-width:160px"
+                                         @mousedown.stop="startDrag(node.id, $event)"
+                                         @click.stop="openModal(node.id)">
 
-                            {{-- Nodos API + Tiempo + Pipeline (izquierda) --}}
-                            @foreach($apis as $i => $node)
-                                @php
-                                    $esTiempo   = $node['tipo'] === 'tiempo';
-                                    $esPipeline = $node['tipo'] === 'pipeline';
-                                    $tooltipInactivo = $esTiempo   ? 'Configura la zona horaria del bot'
-                                                     : ($esPipeline ? 'Configura el pipeline en la sección Bot'
-                                                                    : 'Configura esta API en Modelos de IA o Servicios');
-                                    $activeClass = $esTiempo   ? 'border-cyan-400 bg-gray-800 text-cyan-300 hover:border-cyan-300 hover:shadow-md cursor-pointer'
-                                                 : ($esPipeline ? 'border-orange-400 bg-gray-800 text-orange-300 hover:border-orange-300 hover:shadow-md cursor-default'
-                                                                : 'border-indigo-300 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer');
-                                    $dotColor = $esTiempo   ? 'bg-cyan-400'
-                                              : ($esPipeline ? 'bg-orange-400'
-                                                             : 'bg-emerald-400');
-                                @endphp
-                                <div class="absolute z-10"
-                                     style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
-                                    <button type="button"
-                                            {{ ($node['activo'] && !$esPipeline && !empty($node['tag'])) ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
-                                            {{ ($node['activo'] && !$esPipeline) ? '' : 'disabled' }}
-                                            title="{{ $node['activo'] ? $node['preview'] : $tooltipInactivo }}"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all
-                                                   {{ $node['activo'] ? $activeClass : 'border-white/10 bg-gray-800/80 text-gray-400 cursor-not-allowed opacity-60' }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['activo'] ? $dotColor : 'bg-gray-300' }}"></span>
-                                        <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
-                                    </button>
-                                </div>
-                            @endforeach
+                                        <div class="px-3 py-2.5 flex items-center gap-2">
+                                            <span class="text-lg leading-none flex-shrink-0"
+                                                  x-text="nodeTypes[node.type]?.icon ?? '📦'"></span>
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-semibold text-gray-100 leading-tight truncate"
+                                                   x-text="nodeTypes[node.type]?.label ?? node.type"></p>
+                                                <p class="text-[9px] text-gray-400 leading-tight mt-0.5 truncate"
+                                                   x-text="node.type === 'bot' ? (modeLabels[botMode] ?? 'Cerebro central') : (nodeTypes[node.type]?.sub ?? '')"></p>
+                                            </div>
+                                        </div>
 
-                            {{-- Nodos Datos (derecha) --}}
-                            @foreach($datos as $i => $node)
-                                <div class="absolute z-10"
-                                     style="left:{{ $datX }}px; top:{{ $datYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
-                                    <button type="button"
-                                            onclick="insertarTag('{{ $node['tag'] }}')"
-                                            title="{{ $node['preview'] }}"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all cursor-pointer
-                                                   {{ $node['tipo'] === 'catalogo'
-                                                       ? 'border-purple-300 bg-gray-800 text-purple-700 hover:border-purple-500 hover:shadow-md'
-                                                       : 'border-amber-300 bg-gray-800 text-amber-700 hover:border-amber-500 hover:shadow-md' }}">
-                                        <span class="truncate text-left leading-tight flex-1">{{ $node['label'] }}</span>
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['tipo'] === 'catalogo' ? 'bg-purple-400' : 'bg-amber-400' }}"></span>
-                                    </button>
-                                </div>
-                            @endforeach
-                        </div>
+                                        {{-- Connected indicator --}}
+                                        <div x-show="isConnectedToBot(node.id) && node.type !== 'bot'"
+                                             class="px-2 pb-1.5">
+                                            <span class="text-[9px] text-green-400 font-semibold">● Conectado</span>
+                                        </div>
 
-                        </div>{{-- /scale light --}}
+                                        {{-- CRUD permission badges (catalog nodes only) --}}
+                                        <template x-if="node.type?.startsWith('catalogo_') && node.permisos">
+                                            <div class="px-2 pb-1.5 flex flex-wrap gap-1">
+                                                <span x-show="node.permisos?.consultar" class="text-[8px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">👁 Ver</span>
+                                                <span x-show="node.permisos?.crear"    class="text-[8px] px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">✚ Crear</span>
+                                                <span x-show="node.permisos?.editar"   class="text-[8px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300">✏ Editar</span>
+                                                <span x-show="node.permisos?.borrar"        class="text-[8px] px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">🗑 Borrar</span>
+                                                <span x-show="node.permisos?.media_enviar" class="text-[8px] px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300">📤 Enviar</span>
+                                                <span x-show="node.permisos?.media_guardar" class="text-[8px] px-1.5 py-0.5 rounded bg-violet-900/50 text-violet-300">💾 Guardar</span>
+                                            </div>
+                                        </template>
 
-                        {{-- Dark mode version --}}
-                        <div class="absolute top-0 left-0">
-                        <div class="relative origin-top-left" :style="`width:700px;height:{{ $svgH }}px;background:radial-gradient(ellipse at 30% 50%,#1e1b4b 0%,#111827 60%,#1a0a2e 100%);transform:scale(${z})`">
-                            <svg class="absolute inset-0" width="700" height="{{ $svgH }}" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <pattern id="dotsD" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-                                        <circle cx="12" cy="12" r="1" fill="#4f46e5" opacity="0.3"/>
-                                    </pattern>
-                                </defs>
-                                <rect width="700" height="{{ $svgH }}" fill="url(#dotsD)"/>
-                                @foreach($apis as $i => $node)
-                                    @php
-                                        $ny    = $apiYs[$i];
-                                        $color = $node['activo'] ? '#818cf8' : '#374151';
-                                        $dash  = $node['activo'] ? 'none' : '5,5';
-                                        $op    = $node['activo'] ? '0.8' : '0.4';
-                                    @endphp
-                                    <line x1="{{ $apiLineX }}" y1="{{ $ny }}" x2="{{ $botLX }}" y2="{{ $botY }}"
-                                          stroke="{{ $color }}" stroke-width="{{ $node['activo'] ? '1.5' : '1' }}"
-                                          stroke-dasharray="{{ $dash }}" opacity="{{ $op }}"/>
-                                    @if($node['activo'])
-                                        <circle cx="{{ $apiLineX }}" cy="{{ $ny }}" r="3.5" fill="#818cf8" opacity="0.7"/>
-                                    @endif
-                                @endforeach
-                                @foreach($datos as $i => $node)
-                                    @php $color = $node['tipo'] === 'catalogo' ? '#a78bfa' : '#fbbf24'; @endphp
-                                    <line x1="{{ $botRX }}" y1="{{ $botY }}" x2="{{ $datLineX }}" y2="{{ $datYs[$i] }}"
-                                          stroke="{{ $color }}" stroke-width="1.5" opacity="0.8"/>
-                                    <circle cx="{{ $datLineX }}" cy="{{ $datYs[$i] }}" r="3.5" fill="{{ $color }}" opacity="0.7"/>
-                                @endforeach
-                                <text x="14" y="20" font-size="9" font-weight="700" fill="#6366f1"
-                                      letter-spacing="1.5" font-family="ui-sans-serif,sans-serif">APIs</text>
-                                <text x="686" y="20" font-size="9" font-weight="700" fill="#7c3aed"
-                                      letter-spacing="1.5" text-anchor="end" font-family="ui-sans-serif,sans-serif">DATOS</text>
-                                {{-- Línea Bot → Memoria (dark) --}}
-                                <line x1="{{ $botX }}" y1="{{ $botY + $botR + 4 }}"
-                                      x2="{{ $botX }}" y2="{{ $memY - 20 }}"
-                                      stroke="{{ $memColor }}" stroke-width="1.5" opacity="0.85"/>
-                                <circle cx="{{ $botX }}" cy="{{ $botY + $botR + 4 }}" r="3" fill="{{ $memColor }}" opacity="0.8"/>
-                            </svg>
-                            {{-- Bot node dark --}}
-                            <div class="absolute z-10 flex flex-col items-center"
-                                 style="left:{{ $botX }}px; top:{{ $botY }}px; transform:translate(-50%,-50%);">
-                                <div class="rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl border-4 border-gray-800 flex items-center justify-center"
-                                     style="width:88px;height:88px;">
-                                    <span class="text-4xl leading-none select-none">🤖</span>
-                                </div>
-                                <span class="mt-2 px-3 py-0.5 text-xs font-extrabold tracking-widest text-indigo-300 bg-gray-800 rounded-full shadow border border-indigo-800">BOT</span>
-                            </div>
+                                        {{-- WhatsApp node badges --}}
+                                        <template x-if="node.type === 'whatsapp' && node.config">
+                                            <div class="px-2 pb-1.5 flex flex-wrap gap-1">
+                                                <span x-show="Object.values(node.config?.mensajeria ?? {}).some(v=>v)" class="text-[8px] px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">💬 Msg</span>
+                                                <span x-show="Object.values(node.config?.grupos ?? {}).some(v=>v)" class="text-[8px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">👥 Grupos</span>
+                                                <span x-show="Object.values(node.config?.contactos ?? {}).some(v=>v)" class="text-[8px] px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-300">👤 Cont.</span>
+                                            </div>
+                                        </template>
 
-                            {{-- Nodo Memoria de conversación (dark) --}}
-                            <div class="absolute z-10"
-                                 style="left:{{ $botX }}px; top:{{ $memY }}px; transform:translate(-50%,-50%); width:{{ $nodeW }}px;">
-                                <div title="La IA usa el historial de conversaciones de la BD para dar contexto y evitar repeticiones"
-                                     class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
-                                            {{ $memoriaActiva ? 'border-emerald-500 bg-gray-800 text-emerald-300 hover:border-emerald-400' : 'border-gray-700 bg-gray-800 text-gray-500 opacity-60' }}">
-                                    <span class="text-sm leading-none select-none">💬</span>
-                                    <span class="truncate text-left leading-tight flex-1">Memoria BD</span>
-                                    <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $memoriaActiva ? 'bg-emerald-400' : 'bg-gray-600' }}"></span>
-                                </div>
-                                @if($etapasActivas)
-                                <div title="Etapas IA activas: instrucciones contextuales por fase de conversación"
-                                     class="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm
-                                            border-teal-600 bg-gray-800 text-teal-300 hover:border-teal-400">
-                                    <span class="text-sm leading-none select-none">🔄</span>
-                                    <span class="truncate text-left leading-tight flex-1">Etapas IA</span>
-                                    <span class="w-2 h-2 rounded-full flex-shrink-0 bg-teal-400"></span>
-                                </div>
-                                @endif
-                            </div>
+                                        {{-- Google Calendar badges --}}
+                                        <template x-if="node.type === 'google-calendar' && node.config">
+                                            <div class="px-2 pb-1.5 flex flex-wrap gap-1">
+                                                <span x-show="node.config?.operaciones?.listar" class="text-[8px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">📅 Ver</span>
+                                                <span x-show="node.config?.operaciones?.crear" class="text-[8px] px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">➕ Crear</span>
+                                                <span x-show="node.config?.operaciones?.actualizar" class="text-[8px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300">✏ Editar</span>
+                                                <span x-show="node.config?.operaciones?.eliminar" class="text-[8px] px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">🗑 Borrar</span>
+                                            </div>
+                                        </template>
 
-                            {{-- API nodes dark --}}
-                            @foreach($apis as $i => $node)
-                                @php
-                                    $esPipelineD = $node['tipo'] === 'pipeline';
-                                    $esTiempoD   = $node['tipo'] === 'tiempo';
-                                    $darkClass   = $esTiempoD   ? 'border-cyan-600 bg-gray-800 text-cyan-300 hover:border-cyan-400 hover:shadow-md cursor-pointer'
-                                                 : ($esPipelineD ? 'border-orange-600 bg-gray-800 text-orange-300 hover:border-orange-400 hover:shadow-md cursor-default'
-                                                                 : 'border-indigo-700 bg-gray-800 text-indigo-300 hover:border-indigo-500 hover:shadow-md cursor-pointer');
-                                    $dotD        = $esTiempoD ? 'bg-cyan-400' : ($esPipelineD ? 'bg-orange-400' : 'bg-emerald-400');
-                                @endphp
-                                <div class="absolute z-10"
-                                     style="left:{{ $apiX }}px; top:{{ $apiYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
-                                    <button type="button"
-                                            {{ (!$esPipelineD && !empty($node['tag'])) ? "onclick=\"insertarTag('{$node['tag']}')\"" : '' }}
-                                            {{ $esPipelineD ? 'disabled' : '' }}
-                                            title="{{ $node['preview'] }}"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm transition-all {{ $darkClass }}">
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $dotD }}"></span>
-                                        <span class="truncate text-left leading-tight">{{ $node['label'] }}</span>
-                                    </button>
-                                </div>
-                            @endforeach
-                            {{-- Data nodes dark --}}
-                            @foreach($datos as $i => $node)
-                                <div class="absolute z-10"
-                                     style="left:{{ $datX }}px; top:{{ $datYs[$i] }}px; transform:translateY(-50%); width:{{ $nodeW }}px;">
-                                    <button type="button"
-                                            onclick="insertarTag('{{ $node['tag'] }}')"
-                                            title="{{ $node['preview'] }}"
-                                            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium shadow-sm cursor-pointer transition-all
-                                                   {{ $node['tipo'] === 'catalogo'
-                                                       ? 'border-purple-700 bg-gray-800 text-purple-300 hover:border-purple-500 hover:shadow-md'
-                                                       : 'border-amber-700 bg-gray-800 text-amber-300 hover:border-amber-500 hover:shadow-md' }}">
-                                        <span class="truncate text-left leading-tight flex-1">{{ $node['label'] }}</span>
-                                        <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $node['tipo'] === 'catalogo' ? 'bg-purple-400' : 'bg-amber-400' }}"></span>
-                                    </button>
-                                </div>
-                            @endforeach
-                        </div>
-                        </div>{{-- /scale dark --}}
-                        </div>{{-- /diagrama container --}}
+                                        {{-- Google Drive badges --}}
+                                        <template x-if="node.type === 'google-drive' && node.config">
+                                            <div class="px-2 pb-1.5 flex flex-wrap gap-1">
+                                                <span x-show="node.config?.operaciones?.listar" class="text-[8px] px-1.5 py-0.5 rounded bg-yellow-900/50 text-yellow-300">📂 Ver</span>
+                                                <span x-show="node.config?.operaciones?.subir" class="text-[8px] px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">⬆ Subir</span>
+                                                <span x-show="node.config?.operaciones?.descargar" class="text-[8px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">⬇ Bajar</span>
+                                                <span x-show="node.config?.operaciones?.eliminar" class="text-[8px] px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">🗑 Borrar</span>
+                                            </div>
+                                        </template>
 
-                    {{-- Leyenda (fuera del diagrama para no superponerse) --}}
-                    <div class="mb-5 mt-2.5 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 dark:text-gray-500">
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Activo
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Catálogo
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>BD externa
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span>Tiempo
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>Pipeline media
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>Memoria BD
-                        </span>
-                        @if($etapasActivas)
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-teal-400 inline-block"></span>Etapas IA
-                        </span>
-                        @endif
-                        <span class="text-indigo-400 dark:text-indigo-500 font-medium">← clic en un nodo activo para insertar su etiqueta →</span>
-                    </div>
-
-                    {{-- ─── Zona horaria ─── --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mb-4">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-100">Zona horaria del bot</p>
-                                <p class="text-xs text-gray-400">Usa el tag <code class="bg-gray-700/50 px-1 rounded text-cyan-400">[HORA_ACTUAL]</code> en el prompt para inyectar la fecha y hora actual</p>
-                            </div>
-                            @if($botTimezone)
-                                <span class="ml-auto text-xs text-cyan-400 font-medium">{{ $botTimezone }}</span>
-                            @endif
-                        </div>
-                        <div class="px-5 py-4">
-                            <select name="bot_timezone"
-                                    class="w-full bg-gray-900 border border-white/10 text-gray-100 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500">
-                                <option value="">— Sin zona horaria —</option>
-                                <optgroup label="México">
-                                    <option value="America/Mexico_City"   {{ $botTimezone === 'America/Mexico_City'   ? 'selected' : '' }}>Ciudad de México (CST/CDT)</option>
-                                    <option value="America/Monterrey"     {{ $botTimezone === 'America/Monterrey'     ? 'selected' : '' }}>Monterrey (CST/CDT)</option>
-                                    <option value="America/Tijuana"       {{ $botTimezone === 'America/Tijuana'       ? 'selected' : '' }}>Tijuana (PST/PDT)</option>
-                                    <option value="America/Chihuahua"     {{ $botTimezone === 'America/Chihuahua'     ? 'selected' : '' }}>Chihuahua (MST/MDT)</option>
-                                    <option value="America/Hermosillo"    {{ $botTimezone === 'America/Hermosillo'    ? 'selected' : '' }}>Hermosillo (MST)</option>
-                                </optgroup>
-                                <optgroup label="Latinoamérica">
-                                    <option value="America/Bogota"                  {{ $botTimezone === 'America/Bogota'                  ? 'selected' : '' }}>Colombia (COT)</option>
-                                    <option value="America/Lima"                    {{ $botTimezone === 'America/Lima'                    ? 'selected' : '' }}>Perú (PET)</option>
-                                    <option value="America/Santiago"                {{ $botTimezone === 'America/Santiago'                ? 'selected' : '' }}>Chile (CLT/CLST)</option>
-                                    <option value="America/Argentina/Buenos_Aires"  {{ $botTimezone === 'America/Argentina/Buenos_Aires'  ? 'selected' : '' }}>Argentina (ART)</option>
-                                    <option value="America/Sao_Paulo"               {{ $botTimezone === 'America/Sao_Paulo'               ? 'selected' : '' }}>Brasil / São Paulo (BRT)</option>
-                                    <option value="America/Caracas"                 {{ $botTimezone === 'America/Caracas'                 ? 'selected' : '' }}>Venezuela (VET)</option>
-                                    <option value="America/Guayaquil"               {{ $botTimezone === 'America/Guayaquil'               ? 'selected' : '' }}>Ecuador (ECT)</option>
-                                    <option value="America/La_Paz"                  {{ $botTimezone === 'America/La_Paz'                  ? 'selected' : '' }}>Bolivia (BOT)</option>
-                                    <option value="America/Asuncion"                {{ $botTimezone === 'America/Asuncion'                ? 'selected' : '' }}>Paraguay (PYT)</option>
-                                    <option value="America/Montevideo"              {{ $botTimezone === 'America/Montevideo'              ? 'selected' : '' }}>Uruguay (UYT)</option>
-                                    <option value="America/Havana"                  {{ $botTimezone === 'America/Havana'                  ? 'selected' : '' }}>Cuba (CST/CDT)</option>
-                                    <option value="America/Santo_Domingo"           {{ $botTimezone === 'America/Santo_Domingo'           ? 'selected' : '' }}>República Dominicana (AST)</option>
-                                    <option value="America/Guatemala"               {{ $botTimezone === 'America/Guatemala'               ? 'selected' : '' }}>Guatemala (CST)</option>
-                                    <option value="America/Panama"                  {{ $botTimezone === 'America/Panama'                  ? 'selected' : '' }}>Panamá (EST)</option>
-                                </optgroup>
-                                <optgroup label="Estados Unidos &amp; Canadá">
-                                    <option value="America/New_York"   {{ $botTimezone === 'America/New_York'   ? 'selected' : '' }}>Nueva York (EST/EDT)</option>
-                                    <option value="America/Chicago"    {{ $botTimezone === 'America/Chicago'    ? 'selected' : '' }}>Chicago (CST/CDT)</option>
-                                    <option value="America/Denver"     {{ $botTimezone === 'America/Denver'     ? 'selected' : '' }}>Denver (MST/MDT)</option>
-                                    <option value="America/Los_Angeles"{{ $botTimezone === 'America/Los_Angeles'? 'selected' : '' }}>Los Ángeles (PST/PDT)</option>
-                                    <option value="America/Phoenix"    {{ $botTimezone === 'America/Phoenix'    ? 'selected' : '' }}>Phoenix (MST)</option>
-                                    <option value="America/Toronto"    {{ $botTimezone === 'America/Toronto'    ? 'selected' : '' }}>Toronto (EST/EDT)</option>
-                                </optgroup>
-                                <optgroup label="Europa">
-                                    <option value="Europe/Madrid"  {{ $botTimezone === 'Europe/Madrid'  ? 'selected' : '' }}>España (CET/CEST)</option>
-                                    <option value="Europe/London"  {{ $botTimezone === 'Europe/London'  ? 'selected' : '' }}>Reino Unido (GMT/BST)</option>
-                                    <option value="Europe/Paris"   {{ $botTimezone === 'Europe/Paris'   ? 'selected' : '' }}>Francia (CET/CEST)</option>
-                                </optgroup>
-                                <optgroup label="Universal">
-                                    <option value="UTC" {{ $botTimezone === 'UTC' ? 'selected' : '' }}>UTC</option>
-                                </optgroup>
-                            </select>
-                            <p class="mt-2 text-xs text-gray-500">
-                                Ejemplo de salida: <em class="text-gray-400">lunes 7 de marzo de 2026, 14:30 hrs (America/Mexico_City)</em>
-                            </p>
-                        </div>
-                    </div>
-
-                    {{-- Selector de proveedor --}}
-                    <div class="bg-indigo-900/30 rounded-xl shadow-sm border border-white/5 overflow-hidden">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-100">Proveedor de IA activo</p>
-                                <p class="text-xs text-gray-400">El bot usará este modelo para generar respuestas</p>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4">
-                            <div class="grid grid-cols-3 gap-3">
-                                @foreach([
-                                    ['value' => 'openai',   'label' => 'ChatGPT',    'sub' => 'GPT-4o, GPT-4o-mini',   'color' => 'teal'],
-                                    ['value' => 'deepseek', 'label' => 'DeepSeek',   'sub' => 'deepseek-chat',          'color' => 'blue'],
-                                    ['value' => 'gemini',   'label' => 'Gemini',     'sub' => 'gemini-1.5-pro/flash',   'color' => 'orange'],
-                                ] as $prov)
-                                <label class="relative flex flex-col gap-1 p-3.5 rounded-xl border-2 cursor-pointer transition-all
-                                              {{ $botProveedor === $prov['value'] ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-900/20' : 'border-white/10 border-white/10 hover:border-white/10' }}">
-                                    <input type="radio" name="bot_ia_proveedor" value="{{ $prov['value'] }}"
-                                           {{ $botProveedor === $prov['value'] ? 'checked' : '' }}
-                                           class="sr-only"/>
-                                    <p class="text-sm font-semibold text-gray-100">{{ $prov['label'] }}</p>
-                                    <p class="text-xs text-gray-400">{{ $prov['sub'] }}</p>
-                                    @if ($botProveedor === $prov['value'])
-                                        <svg class="absolute top-2.5 right-2.5 w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                        </svg>
-                                    @endif
-                                </label>
-                                @endforeach
-                            </div>
-                            <p class="mt-2.5 text-xs text-gray-400">Configura la API Key del proveedor seleccionado en la pestaña "Modelos de IA".</p>
-                        </div>
-                    </div>
-
-                    {{-- System Prompt --}}
-                    <div class="bg-indigo-900/30 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
-                         x-data="savedPromptsManager()"
-                         x-init="init()">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-100">Prompt del sistema</p>
-                                    <p class="text-xs text-gray-400">Instrucciones base del bot en cada conversación</p>
-                                </div>
-                            </div>
-                            <x-config-badge :configured="(bool)$systemPrompt"/>
-                        </div>
-
-                        {{-- ── Prompts guardados ── --}}
-                        <div class="px-5 pt-4 pb-0">
-                            {{-- Lista de prompts guardados --}}
-                            <template x-if="prompts.length > 0">
-                                <div class="mb-4">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prompts guardados</p>
-                                        <span class="text-xs text-gray-400" x-text="prompts.length + ' prompt(s)'"></span>
-                                    </div>
-                                    <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                                        <template x-for="p in prompts" :key="p.id">
-                                            <div class="group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
-                                                 :class="promptActivo === p.id
-                                                     ? 'border-purple-500/60 bg-purple-500/15'
-                                                     : 'border-white/10 hover:border-white/20'">
-                                                {{-- Toggle activar/desactivar --}}
-                                                <button type="button"
-                                                        @click="togglePrompt(p)"
-                                                        :class="promptActivo === p.id ? 'bg-purple-500' : 'bg-gray-600'"
-                                                        class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"
-                                                        :title="promptActivo === p.id ? 'Desactivar prompt' : 'Activar prompt'">
-                                                    <span :class="promptActivo === p.id ? 'translate-x-4' : 'translate-x-0'"
-                                                          class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200"></span>
-                                                </button>
-                                                <button type="button"
-                                                        @click="cargarPrompt(p)"
-                                                        class="flex-1 text-left min-w-0">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-sm font-medium truncate"
-                                                              :class="promptActivo === p.id ? 'text-purple-300' : 'text-gray-200'"
-                                                              x-text="p.nombre"></span>
-                                                    </div>
-                                                    <p class="text-xs text-gray-400 truncate mt-0.5" x-text="p.contenido.substring(0,80) + (p.contenido.length > 80 ? '…' : '')"></p>
-                                                </button>
-                                                <button type="button"
-                                                        @click="editarPrompt(p)"
-                                                        title="Editar prompt"
-                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 rounded transition-all">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                    </svg>
-                                                </button>
-                                                <button type="button"
-                                                        @click="eliminarPrompt(p)"
-                                                        title="Eliminar prompt"
-                                                        class="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-all">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
+                                        {{-- External DB node badges --}}
+                                        <template x-if="['db-mysql','db-mongodb','db-postgresql'].includes(node.type) && node.config?.permisos">
+                                            <div class="px-2 pb-1.5 flex flex-wrap gap-1">
+                                                <span x-show="node.config?.permisos?.consultar" class="text-[8px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">👁 Ver</span>
+                                                <span x-show="node.config?.permisos?.crear" class="text-[8px] px-1.5 py-0.5 rounded bg-green-900/50 text-green-300">✚ Crear</span>
+                                                <span x-show="node.config?.permisos?.editar" class="text-[8px] px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300">✏ Editar</span>
+                                                <span x-show="node.config?.permisos?.borrar" class="text-[8px] px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">🗑 Borrar</span>
                                             </div>
                                         </template>
                                     </div>
-                                </div>
-                            </template>
 
-                            {{-- Guardar / Editar prompt --}}
-                            <div class="mb-3 space-y-2">
-                                <template x-if="editandoId">
-                                    <p class="text-xs text-purple-400 font-medium flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                        Editando — el contenido actual del textarea se guardará
-                                    </p>
-                                </template>
-                                <div class="flex items-center gap-2">
-                                    <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
-                                           class="flex-1 text-xs px-3 py-2 border border-white/10 bg-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
-                                           @keydown.enter.prevent="editandoId ? actualizarPrompt() : guardarPrompt()">
-                                    <template x-if="editandoId">
-                                        <button type="button" @click="cancelarEdicion()"
-                                                class="px-2.5 py-2 text-xs text-gray-400 hover:text-gray-200 border border-white/10 rounded-lg transition-colors">✕</button>
-                                    </template>
-                                    <button type="button"
-                                            @click="editandoId ? actualizarPrompt() : guardarPrompt()"
-                                            :disabled="!nuevoNombre.trim() || guardando"
-                                            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg transition-colors disabled:opacity-50">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                                        </svg>
-                                        <span x-text="editandoId ? 'Actualizar' : 'Guardar prompt'"></span>
+                                    {{-- Delete button (non-bot, non-memoria) --}}
+                                    <button x-show="node.type !== 'bot' && node.type !== 'memoria'"
+                                            type="button"
+                                            @click.stop="deleteNode(node.id)"
+                                            class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-700 border border-white/20 text-gray-400 hover:text-red-400 hover:bg-red-900/40 flex items-center justify-center text-[10px] z-10 transition-colors"
+                                            title="Quitar nodo">
+                                        ✕
                                     </button>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="px-5 pb-4">
-                            <textarea id="system_prompt" name="system_prompt" rows="10" maxlength="8000"
-                                x-ref="textarea"
-                                @input="chars = $event.target.value.length"
-                                placeholder="Eres un asistente de ventas especializado en... Responde siempre en español, de forma clara y amable..."
-                                class="w-full px-4 py-3 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
-                            >{{ $systemPrompt }}</textarea>
-                            <div class="mt-1.5 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Usa <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-900/50 border border-indigo-700/50 text-indigo-300 font-mono text-[10px]"><span class="opacity-50">{}</span> ETIQUETA</span> para inyectar datos al enviar. Clic en el diagrama o en los chips para insertar.</p>
-                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
-                                    <span x-text="chars"></span>/<span x-text="max"></span>
-                                </span>
-                            </div>
+                                    {{-- Output port (right side, for non-bot nodes) --}}
+                                    <div x-show="node.type !== 'bot'"
+                                         class="absolute top-1/2 -translate-y-1/2 -right-3 w-5 h-5 rounded-full border-2 bg-gray-900 cursor-crosshair hover:bg-indigo-500 hover:border-indigo-400 transition-colors z-10 flex items-center justify-center"
+                                         :class="isConnectedToBot(node.id) ? 'border-green-400 bg-green-900/40' : 'border-white/30'"
+                                         @mousedown.stop.prevent="startConnect(node.id, $event)"
+                                         title="Arrastrar para conectar">
+                                        <span class="w-2 h-2 rounded-full"
+                                              :class="isConnectedToBot(node.id) ? 'bg-green-400' : 'bg-gray-500'"></span>
+                                    </div>
 
-                            {{-- Paleta de etiquetas disponibles --}}
-                            @php
-                                $tagsActivos  = collect($availableTags)->where('activo', true);
-                                $tagsApis     = $tagsActivos->where('tipo', 'api');
-                                $tagsCatalogo = $tagsActivos->where('tipo', 'catalogo');
-                                $tagsDbExt    = $tagsActivos->where('tipo', 'db_ext');
-                            @endphp
-                            @if($tagsActivos->isNotEmpty())
-                            <div class="mt-3 pt-3 border-t border-white/5 space-y-2">
-                                @if($tagsApis->isNotEmpty())
-                                <div class="flex items-start gap-2 flex-wrap">
-                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">APIs</span>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach($tagsApis as $tag)
-                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
-                                                title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-900/40 border border-indigo-700/60 text-indigo-300 text-xs font-mono hover:bg-indigo-900/70 hover:border-indigo-500 transition-colors cursor-pointer select-none">
-                                            <span class="text-indigo-500 text-[10px]">{}</span>{{ $tag['tag'] }}
-                                        </button>
-                                        @endforeach
+                                    {{-- Input port (left side, bot only) --}}
+                                    <div x-show="node.type === 'bot'"
+                                         class="absolute top-1/2 -translate-y-1/2 -left-3 w-5 h-5 rounded-full border-2 border-green-400 bg-green-900/40 z-10 flex items-center justify-center"
+                                         @mouseup.stop="endConnect(node.id)"
+                                         title="Soltar aquí para conectar">
+                                        <span class="w-2 h-2 rounded-full bg-green-400"></span>
                                     </div>
                                 </div>
-                                @endif
-                                @if($tagsCatalogo->isNotEmpty())
-                                <div class="flex items-start gap-2 flex-wrap">
-                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">Catálogos</span>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach($tagsCatalogo as $tag)
-                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
-                                                title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-900/40 border border-purple-700/60 text-purple-300 text-xs font-mono hover:bg-purple-900/70 hover:border-purple-500 transition-colors cursor-pointer select-none">
-                                            <span class="text-purple-500 text-[10px]">{}</span>{{ $tag['tag'] }}
-                                        </button>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                @endif
-                                @if($tagsDbExt->isNotEmpty())
-                                <div class="flex items-start gap-2 flex-wrap">
-                                    <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 w-16 mt-1 flex-shrink-0">BDs ext.</span>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach($tagsDbExt as $tag)
-                                        <button type="button" onclick="insertarTag('{{ $tag['tag'] }}')"
-                                                title="{{ $tag['preview'] }}"
-                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-900/40 border border-amber-700/60 text-amber-300 text-xs font-mono hover:bg-amber-900/70 hover:border-amber-500 transition-colors cursor-pointer select-none">
-                                            <span class="text-amber-500 text-[10px]">{}</span>{{ $tag['tag'] }}
-                                        </button>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                @endif
-                            </div>
-                            @else
-                            <p class="mt-3 text-xs text-gray-400 italic">
-                                Configura APIs o crea catálogos para ver etiquetas disponibles aquí.
-                            </p>
-                            @endif
-                        </div>
-                    </div>
-
-                    {{-- ══ ETAPAS DE CONVERSACIÓN PARA IA (anti-ciclo) ══ --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
-                         x-data="{ chars: {{ strlen($botPasosIA ?? '') }}, max: 8000, ayuda: false }">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-100">Etapas de conversación — guía anti-ciclo para IA</p>
-                                    <p class="text-xs text-gray-400">Define qué debe hacer la IA en cada turno. El historial se inyecta automáticamente para evitar repeticiones.</p>
-                                </div>
-                            </div>
-                            <button type="button" @click="ayuda = !ayuda"
-                                    class="text-xs text-purple-400 hover:text-purple-200 transition-colors">
-                                ¿Cómo funciona?
-                            </button>
-                        </div>
-
-                        {{-- Panel de ayuda colapsable --}}
-                        <div x-show="ayuda" x-collapse class="px-5 py-4 bg-purple-900/10 border-b border-white/5 text-xs text-gray-300 space-y-2">
-                            <p><strong class="text-purple-300">¿Para qué sirve esto?</strong> Evita que la IA se «cicle» volviendo a hacer la misma pregunta o dando la misma respuesta. Define instrucciones distintas para cada etapa de la conversación.</p>
-                            <p><strong class="text-purple-300">Cómo funciona:</strong> El sistema conta automáticamente cuántos mensajes lleva la conversación con ese contacto. Según el número, inyecta la instrucción del paso correspondiente en el prompt de la IA. Además, los últimos <strong>10 intercambios</strong> se pasan siempre como historial para que la IA sepa qué ya se respondió.</p>
-                            <p><strong class="text-purple-300">Formato JSON:</strong> Array de objetos con <code class="bg-gray-700 px-1 rounded text-purple-200">desde</code>, <code class="bg-gray-700 px-1 rounded text-purple-200">hasta</code>, <code class="bg-gray-700 px-1 rounded text-purple-200">nombre</code> e <code class="bg-gray-700 px-1 rounded text-purple-200">instruccion</code>. El campo <code>hasta: 9999</code> cubre todos los mensajes restantes.</p>
-                            <pre class="bg-gray-900 rounded p-2 text-[10px] leading-relaxed text-gray-300 overflow-x-auto">[
-  { "desde": 1, "hasta": 1, "nombre": "Bienvenida",   "instruccion": "Saluda y pregunta qué necesita." },
-  { "desde": 2, "hasta": 4, "nombre": "Diagnóstico",  "instruccion": "Identifica la necesidad sin repetir preguntas." },
-  { "desde": 5, "hasta": 9999, "nombre": "Cierre",    "instruccion": "Resuelve o deriva a un humano." }
-]</pre>
-                        </div>
-
-                        <div class="px-5 py-4">
-                            <textarea name="bot_pasos_ia" rows="12" maxlength="8000"
-                                @input="chars = $event.target.value.length"
-                                class="w-full px-4 py-3 border border-white/10 bg-gray-700 text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
-                                placeholder='[{"desde":1,"hasta":1,"nombre":"Bienvenida","instruccion":"..."},...]'
-                            >{{ $botPasosIA }}</textarea>
-                            <div class="mt-1.5 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Si el campo está vacío, la IA solo usa el historial como contexto (sin instrucción de etapa).</p>
-                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
-                                    <span x-text="chars"></span>/<span x-text="max"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Modo de respuesta del bot --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-3 3-3-3z"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-100">Modo de respuesta del bot</p>
-                                <p class="text-xs text-gray-400">Combina respuestas por pasos con IA según tu estrategia</p>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                @foreach([
-                                    ['value' => 'ia', 'label' => 'Solo IA', 'desc' => 'Usa siempre el prompt del sistema'],
-                                    ['value' => 'pasos', 'label' => 'Solo por pasos', 'desc' => 'Usa solo el flujo definido'],
-                                    ['value' => 'hibrido', 'label' => 'Híbrido', 'desc' => 'Primero flujo; si no coincide, IA'],
-                                ] as $modo)
-                                <label class="p-3 rounded-lg border border-white/10 cursor-pointer hover:border-indigo-500/40 transition-colors {{ $botModoRespuesta === $modo['value'] ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-gray-700/30' }}">
-                                    <input type="radio" name="bot_modo_respuesta" value="{{ $modo['value'] }}" class="sr-only" {{ $botModoRespuesta === $modo['value'] ? 'checked' : '' }}>
-                                    <p class="text-sm font-semibold text-gray-200">{{ $modo['label'] }}</p>
-                                    <p class="text-xs text-gray-400 mt-0.5">{{ $modo['desc'] }}</p>
-                                </label>
-                                @endforeach
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Flujo por pasos (JSON) --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
-                         x-data="{ chars: {{ strlen($botFlujoPasos ?? '') }}, max: 12000 }">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-100">Flujo por pasos</p>
-                                <p class="text-xs text-gray-400">Define los pasos y respuestas en JSON (inicio, steps, opciones y fallback)</p>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4">
-                            <textarea name="bot_flujo_pasos" rows="14" maxlength="12000"
-                                @input="chars = $event.target.value.length"
-                                class="w-full px-4 py-3 border border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-y"
-                                placeholder='{"inicio":"menu","steps":{"menu":{"mensaje":"Hola","opciones":{"1|ventas":"ventas"}}}}'
-                            >{{ $botFlujoPasos }}</textarea>
-                            <div class="mt-2 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Tip: puedes usar múltiples alias en una opción separando por <span class="font-mono text-amber-300">|</span>, por ejemplo: <span class="font-mono text-amber-300">"1|ventas|info"</span>.</p>
-                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
-                                    <span x-text="chars"></span>/<span x-text="max"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Prompt verificación WhatsApp --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-5"
-                         x-data="{ chars: {{ strlen($promptVerificacion ?? '') }}, max: 1000 }">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-100">Mensaje de verificación WhatsApp</p>
-                                    <p class="text-xs text-gray-400">Enviado al pulsar el ícono WhatsApp en campos de teléfono</p>
-                                </div>
-                            </div>
-                            <x-config-badge :configured="(bool)$promptVerificacion"/>
-                        </div>
-                        <div class="px-5 py-4">
-                            <textarea name="bot_prompt_verificacion" rows="4" maxlength="1000"
-                                @input="chars = $event.target.value.length"
-                                placeholder="Hola, te contactamos para verificar tu número de WhatsApp. ¿Confirmas que este número te pertenece?"
-                                class="w-full px-4 py-3 border border-white/10 border-white/10 bg-gray-700 dark:text-white rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition resize-y"
-                            >{{ $promptVerificacion }}</textarea>
-                            <div class="mt-1.5 flex items-center justify-between">
-                                <p class="text-xs text-gray-400">Requiere Evolution API configurada e instancia activa.</p>
-                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-400'">
-                                    <span x-text="chars"></span>/<span x-text="max"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    {{-- ═══ PIPELINE DE MEDIOS ═══ --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-4"
-                         x-data="mediaPipelineManager()"
-                         x-init="init()">
-
-                        {{-- Header --}}
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-900/50 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-100">Pipeline de Medios</p>
-                                    <p class="text-xs text-gray-400">Define cómo procesar imágenes, audios, videos y documentos entrantes</p>
-                                </div>
-                            </div>
-                            <button type="button" @click="guardar()"
-                                    :disabled="saving"
-                                    class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                                    :class="saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-60'">
-                                <svg x-show="saving" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                                </svg>
-                                <span x-text="saved ? 'Guardado' : (saving ? 'Guardando...' : 'Guardar pipeline')"></span>
-                            </button>
-                        </div>
-
-                        {{-- Tabs de tipo de media --}}
-                        <div class="flex border-b border-white/5 overflow-x-auto">
-                            <template x-for="mt in mediaTypes" :key="mt.key">
-                                <button type="button"
-                                        @click="activeType = mt.key"
-                                        class="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors"
-                                        :class="activeType === mt.key
-                                            ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
-                                            : 'border-transparent text-gray-400 hover:text-gray-200'">
-                                    <span x-text="mt.icon"></span>
-                                    <span x-text="mt.label"></span>
-                                    <span x-show="pipeline[mt.key] && pipeline[mt.key].activo"
-                                          class="w-1.5 h-1.5 rounded-full bg-green-400 ml-0.5"></span>
-                                </button>
                             </template>
+
+                            {{-- Empty state --}}
+                            <div x-show="nodes.length <= 2"
+                                 class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="text-center">
+                                    <p class="text-4xl mb-3 opacity-30">⬅</p>
+                                    <p class="text-sm text-gray-500">Arrastra nodos desde la paleta al lienzo</p>
+                                    <p class="text-xs text-gray-600 mt-1">Luego conecta su puerto al nodo Bot para activarlos</p>
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        {{-- Panel de cada tipo de media --}}
-                        <template x-for="mt in mediaTypes" :key="mt.key">
-                            <div x-show="activeType === mt.key" class="p-5 space-y-4">
+                    {{-- Canvas layout hidden input (serialized on form submit) --}}
+                    <input type="hidden" name="bot_canvas_layout" id="bot_canvas_layout_input"
+                           :value="getCanvasJson()">
 
-                                {{-- Toggle activo --}}
-                                <div class="flex items-center justify-between">
+                    {{-- ═══ MODAL DE CONFIGURACIÓN DE NODO ═══ --}}
+                    <div x-show="modalOpen"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                         style="background:rgba(0,0,0,.6)"
+                         @click.self="modalOpen = false">
+
+                        <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-gray-800 border border-white/10 shadow-2xl"
+                             @click.stop>
+
+                            {{-- Modal Header --}}
+                            <div class="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-white/10 bg-gray-800">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-2xl" x-text="selectedNode ? (nodeTypes[selectedNode.type]?.icon ?? '📦') : ''"></span>
                                     <div>
-                                        <p class="text-sm font-medium text-gray-200" x-text="'Procesar ' + mt.label.toLowerCase() + ' entrante'"></p>
-                                        <p class="text-xs text-gray-400 mt-0.5" x-text="mt.desc"></p>
+                                        <p class="text-sm font-bold text-gray-100"
+                                           x-text="selectedNode ? (nodeTypes[selectedNode.type]?.label ?? selectedNode.type) : ''"></p>
+                                        <p class="text-xs text-gray-400"
+                                           x-text="selectedNode ? (nodeTypes[selectedNode.type]?.desc ?? '') : ''"></p>
                                     </div>
-                                    <button type="button" @click="pipeline[mt.key].activo = !pipeline[mt.key].activo"
-                                            :class="pipeline[mt.key].activo ? 'bg-indigo-500' : 'bg-gray-600'"
-                                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
-                                        <span :class="pipeline[mt.key].activo ? 'translate-x-5' : 'translate-x-0'"
-                                              class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
-                                    </button>
                                 </div>
+                                <button type="button" @click="modalOpen = false"
+                                        class="p-1.5 rounded-lg text-gray-400 hover:text-gray-100 hover:bg-white/10 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
 
-                                {{-- Pasos (solo si activo) --}}
-                                <div x-show="pipeline[mt.key].activo" x-transition class="space-y-2">
-                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pasos del pipeline</p>
+                            <div class="px-5 py-5 space-y-5">
 
-                                    <template x-for="(paso, idx) in pipeline[mt.key].pasos" :key="idx">
-                                        <div class="bg-gray-900/60 border border-white/5 rounded-lg p-3 space-y-2">
-                                            <div class="flex items-center gap-2">
-                                                {{-- Número de paso --}}
-                                                <span class="w-5 h-5 rounded-full bg-indigo-900/60 text-indigo-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0"
-                                                      x-text="idx + 1"></span>
+                                {{-- ── NODO BOT ── --}}
+                                <template x-if="selectedNode?.type === 'bot'">
+                                    <div class="space-y-5">
 
-                                                {{-- Tipo de paso --}}
-                                                <select x-model="paso.tipo"
-                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-                                                    <template x-for="(info, key) in stepTypes" :key="key">
-                                                        <option :value="key" x-text="info.icon + ' ' + info.label"></option>
-                                                    </template>
-                                                </select>
-
-                                                {{-- Proveedor --}}
-                                                <select x-model="paso.proveedor"
-                                                        class="w-36 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-                                                    <option value="auto">Auto</option>
-                                                    <option value="openai">OpenAI</option>
-                                                    <option value="gemini">Gemini</option>
-                                                    <option value="whisper">Whisper</option>
-                                                </select>
-
-                                                {{-- Eliminar paso --}}
-                                                <button type="button" @click="removerPaso(mt.key, idx)"
-                                                        x-show="pipeline[mt.key].pasos.length > 1"
-                                                        class="w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-
-                                            {{-- Prompt personalizado --}}
-                                            <input x-model="paso.prompt"
-                                                   type="text"
-                                                   placeholder="Prompt personalizado (opcional)..."
-                                                   class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 placeholder-gray-600 focus:outline-none focus:border-indigo-500">
-
-                                            {{-- Opciones extra para generar_imagen --}}
-                                            <div x-show="paso.tipo === 'generar_imagen'" class="grid grid-cols-3 gap-2">
-                                                <div>
-                                                    <p class="text-[10px] text-gray-500 mb-1">Tamaño</p>
-                                                    <select x-model="paso.size"
-                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
-                                                        <option value="1024x1024">1024×1024</option>
-                                                        <option value="1792x1024">1792×1024</option>
-                                                        <option value="1024x1792">1024×1792</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <p class="text-[10px] text-gray-500 mb-1">Calidad</p>
-                                                    <select x-model="paso.quality"
-                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
-                                                        <option value="standard">Standard</option>
-                                                        <option value="hd">HD</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <p class="text-[10px] text-gray-500 mb-1">Estilo</p>
-                                                    <select x-model="paso.style"
-                                                            class="w-full bg-gray-800 border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
-                                                        <option value="vivid">Vívido</option>
-                                                        <option value="natural">Natural</option>
-                                                    </select>
-                                                </div>
+                                        {{-- Modo respuesta --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Modo de respuesta</p>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                @foreach([
+                                                    ['value' => 'ia',      'label' => 'Solo IA',   'icon' => '🤖', 'desc' => 'Siempre usa el prompt'],
+                                                    ['value' => 'pasos',   'label' => 'Por pasos', 'icon' => '📋', 'desc' => 'Solo el flujo definido'],
+                                                    ['value' => 'hibrido', 'label' => 'Híbrido',   'icon' => '⚡', 'desc' => 'Flujo → IA como fallback'],
+                                                ] as $modo)
+                                                <label @click="botMode = '{{ $modo['value'] }}'"
+                                                       :class="botMode === '{{ $modo['value'] }}' ? 'bg-indigo-500/15 border-indigo-500/60 ring-1 ring-indigo-500/30' : 'border-white/10 hover:border-indigo-400/40'"
+                                                       class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition-all text-center">
+                                                    <input type="radio" name="bot_modo_respuesta" value="{{ $modo['value'] }}" class="sr-only"
+                                                           :checked="botMode === '{{ $modo['value'] }}'">
+                                                    <span class="text-xl">{{ $modo['icon'] }}</span>
+                                                    <p class="text-xs font-semibold text-gray-200">{{ $modo['label'] }}</p>
+                                                    <p class="text-[10px] text-gray-400">{{ $modo['desc'] }}</p>
+                                                </label>
+                                                @endforeach
                                             </div>
                                         </div>
-                                    </template>
 
-                                    {{-- Agregar paso --}}
-                                    <button type="button" @click="agregarPaso(mt.key)"
-                                            class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-white/10 text-xs text-gray-500 hover:border-indigo-500/40 hover:text-indigo-400 transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Agregar paso
-                                    </button>
+                                        {{-- Template preview según modo --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Ejemplo de funcionamiento</p>
 
-                                    {{-- Destino --}}
-                                    <div class="pt-2 border-t border-white/5">
-                                        <p class="text-xs font-semibold text-gray-400 mb-2">Destino del resultado</p>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <template x-for="(dest, key) in destinoTypes" :key="key">
-                                                <label class="flex items-start gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all"
-                                                       :class="pipeline[mt.key].destino === key
-                                                           ? 'border-indigo-500/60 bg-indigo-500/10'
-                                                           : 'border-white/5 hover:border-white/15'">
-                                                    <input type="radio" :name="'destino_' + mt.key" :value="key"
-                                                           x-model="pipeline[mt.key].destino" class="sr-only">
-                                                    <span class="text-base leading-none mt-0.5" x-text="dest.icon"></span>
-                                                    <div>
-                                                        <p class="text-xs font-medium text-gray-200" x-text="dest.label"></p>
-                                                        <p class="text-[10px] text-gray-500 mt-0.5" x-text="dest.desc"></p>
-                                                    </div>
-                                                </label>
+                                            {{-- Solo IA --}}
+                                            <div x-show="botMode === 'ia'" class="rounded-xl bg-gray-900 border border-white/8 p-4 space-y-2 text-xs">
+                                                <p class="font-semibold text-indigo-300 mb-1">🤖 Flujo: Solo IA</p>
+                                                <div class="flex items-start gap-2">
+                                                    <span class="text-green-400 font-mono mt-0.5">👤</span>
+                                                    <div class="bg-gray-800 rounded-lg px-3 py-2 text-gray-300">¿Cuánto cuesta el producto X?</div>
+                                                </div>
+                                                <div class="flex items-start gap-2 justify-end">
+                                                    <div class="bg-indigo-900/60 rounded-lg px-3 py-2 text-indigo-200">El System Prompt guía la respuesta → IA genera texto libre.</div>
+                                                    <span class="text-indigo-400 font-mono mt-0.5">🤖</span>
+                                                </div>
+                                                <p class="text-gray-500 pt-1">Agrega nodos <strong class="text-indigo-400">IA</strong> y <strong class="text-purple-400">System Prompt</strong> al lienzo y conéctalos al Bot.</p>
+                                            </div>
+
+                                            {{-- Por pasos --}}
+                                            <div x-show="botMode === 'pasos'" class="rounded-xl bg-gray-900 border border-white/8 p-4 space-y-2 text-xs">
+                                                <p class="font-semibold text-amber-300 mb-1">📋 Flujo: Por pasos</p>
+                                                <div class="flex items-start gap-2">
+                                                    <span class="text-green-400 font-mono mt-0.5">👤</span>
+                                                    <div class="bg-gray-800 rounded-lg px-3 py-2 text-gray-300">Hola</div>
+                                                </div>
+                                                <div class="flex items-start gap-2 justify-end">
+                                                    <div class="bg-amber-900/40 rounded-lg px-3 py-2 text-amber-200">El nodo <em>Flujo por Pasos</em> devuelve el mensaje del paso "inicio".</div>
+                                                    <span class="text-amber-400 font-mono mt-0.5">🤖</span>
+                                                </div>
+                                                <p class="text-gray-500 pt-1">Agrega el nodo <strong class="text-amber-400">Flujo por Pasos</strong> y conéctalo al Bot.</p>
+                                            </div>
+
+                                            {{-- Híbrido --}}
+                                            <div x-show="botMode === 'hibrido'" class="rounded-xl bg-gray-900 border border-white/8 p-4 space-y-2 text-xs">
+                                                <p class="font-semibold text-emerald-300 mb-1">⚡ Flujo: Híbrido</p>
+                                                <div class="flex items-start gap-2">
+                                                    <span class="text-green-400 font-mono mt-0.5">👤</span>
+                                                    <div class="bg-gray-800 rounded-lg px-3 py-2 text-gray-300">Quiero saber más sobre sus servicios</div>
+                                                </div>
+                                                <div class="flex items-start gap-2 justify-end">
+                                                    <div class="bg-emerald-900/40 rounded-lg px-3 py-2 text-emerald-200">① El flujo por pasos intenta responder → si no hay match, ② la IA toma el control.</div>
+                                                    <span class="text-emerald-400 font-mono mt-0.5">🤖</span>
+                                                </div>
+                                                <p class="text-gray-500 pt-1">Necesitas ambos nodos: <strong class="text-amber-400">Flujo por Pasos</strong> + <strong class="text-indigo-400">IA</strong> conectados al Bot.</p>
+                                            </div>
+                                        </div>
+
+                                        {{-- Zona horaria --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Zona horaria <span class="font-mono text-cyan-400 normal-case">[HORA_ACTUAL]</span></p>
+                                            <select name="bot_timezone"
+                                                    class="w-full bg-gray-900 border border-white/10 text-gray-100 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500">
+                                                <option value="">— Sin zona horaria —</option>
+                                                <optgroup label="México">
+                                                    <option value="America/Mexico_City"  {{ ($botTimezone??'') === 'America/Mexico_City'  ? 'selected' : '' }}>Ciudad de México (CST/CDT)</option>
+                                                    <option value="America/Monterrey"    {{ ($botTimezone??'') === 'America/Monterrey'    ? 'selected' : '' }}>Monterrey (CST/CDT)</option>
+                                                    <option value="America/Tijuana"      {{ ($botTimezone??'') === 'America/Tijuana'      ? 'selected' : '' }}>Tijuana (PST/PDT)</option>
+                                                    <option value="America/Chihuahua"    {{ ($botTimezone??'') === 'America/Chihuahua'    ? 'selected' : '' }}>Chihuahua (MST/MDT)</option>
+                                                    <option value="America/Hermosillo"   {{ ($botTimezone??'') === 'America/Hermosillo'   ? 'selected' : '' }}>Hermosillo (MST)</option>
+                                                </optgroup>
+                                                <optgroup label="Latinoamérica">
+                                                    <option value="America/Bogota"                 {{ ($botTimezone??'') === 'America/Bogota'                 ? 'selected' : '' }}>Colombia (COT)</option>
+                                                    <option value="America/Lima"                   {{ ($botTimezone??'') === 'America/Lima'                   ? 'selected' : '' }}>Perú (PET)</option>
+                                                    <option value="America/Santiago"               {{ ($botTimezone??'') === 'America/Santiago'               ? 'selected' : '' }}>Chile (CLT/CLST)</option>
+                                                    <option value="America/Argentina/Buenos_Aires" {{ ($botTimezone??'') === 'America/Argentina/Buenos_Aires' ? 'selected' : '' }}>Argentina (ART)</option>
+                                                    <option value="America/Sao_Paulo"              {{ ($botTimezone??'') === 'America/Sao_Paulo'              ? 'selected' : '' }}>Brasil / São Paulo (BRT)</option>
+                                                    <option value="America/Caracas"                {{ ($botTimezone??'') === 'America/Caracas'                ? 'selected' : '' }}>Venezuela (VET)</option>
+                                                    <option value="America/Guayaquil"              {{ ($botTimezone??'') === 'America/Guayaquil'              ? 'selected' : '' }}>Ecuador (ECT)</option>
+                                                    <option value="America/La_Paz"                 {{ ($botTimezone??'') === 'America/La_Paz'                 ? 'selected' : '' }}>Bolivia (BOT)</option>
+                                                    <option value="America/Asuncion"               {{ ($botTimezone??'') === 'America/Asuncion'               ? 'selected' : '' }}>Paraguay (PYT)</option>
+                                                    <option value="America/Montevideo"             {{ ($botTimezone??'') === 'America/Montevideo'             ? 'selected' : '' }}>Uruguay (UYT)</option>
+                                                    <option value="America/Santo_Domingo"          {{ ($botTimezone??'') === 'America/Santo_Domingo'          ? 'selected' : '' }}>Rep. Dominicana (AST)</option>
+                                                    <option value="America/Guatemala"              {{ ($botTimezone??'') === 'America/Guatemala'              ? 'selected' : '' }}>Guatemala (CST)</option>
+                                                    <option value="America/Panama"                 {{ ($botTimezone??'') === 'America/Panama'                 ? 'selected' : '' }}>Panamá (EST)</option>
+                                                </optgroup>
+                                                <optgroup label="Estados Unidos &amp; Canadá">
+                                                    <option value="America/New_York"    {{ ($botTimezone??'') === 'America/New_York'    ? 'selected' : '' }}>Nueva York (EST/EDT)</option>
+                                                    <option value="America/Chicago"     {{ ($botTimezone??'') === 'America/Chicago'     ? 'selected' : '' }}>Chicago (CST/CDT)</option>
+                                                    <option value="America/Denver"      {{ ($botTimezone??'') === 'America/Denver'      ? 'selected' : '' }}>Denver (MST/MDT)</option>
+                                                    <option value="America/Los_Angeles" {{ ($botTimezone??'') === 'America/Los_Angeles' ? 'selected' : '' }}>Los Ángeles (PST/PDT)</option>
+                                                    <option value="America/Phoenix"     {{ ($botTimezone??'') === 'America/Phoenix'     ? 'selected' : '' }}>Phoenix (MST)</option>
+                                                    <option value="America/Toronto"     {{ ($botTimezone??'') === 'America/Toronto'     ? 'selected' : '' }}>Toronto (EST/EDT)</option>
+                                                </optgroup>
+                                                <optgroup label="Europa">
+                                                    <option value="Europe/Madrid" {{ ($botTimezone??'') === 'Europe/Madrid' ? 'selected' : '' }}>España (CET/CEST)</option>
+                                                    <option value="Europe/London" {{ ($botTimezone??'') === 'Europe/London' ? 'selected' : '' }}>Reino Unido (GMT/BST)</option>
+                                                    <option value="Europe/Paris"  {{ ($botTimezone??'') === 'Europe/Paris'  ? 'selected' : '' }}>Francia (CET/CEST)</option>
+                                                </optgroup>
+                                                <optgroup label="Universal">
+                                                    <option value="UTC" {{ ($botTimezone??'') === 'UTC' ? 'selected' : '' }}>UTC</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+
+                                        {{-- Prompt verificación WhatsApp --}}
+                                        @if($hasPhoneField)
+                                        <div x-data="{ chars: {{ strlen($promptVerificacion ?? '') }}, max: 1000 }">
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Mensaje verificación WhatsApp</p>
+                                            <textarea name="bot_prompt_verificacion" rows="3" maxlength="1000"
+                                                @input="chars = $event.target.value.length"
+                                                placeholder="Hola, te contactamos para verificar tu número de WhatsApp…"
+                                                class="w-full px-3 py-2 border border-white/10 bg-gray-700 text-white rounded-lg text-xs leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition resize-y"
+                                            >{{ $promptVerificacion }}</textarea>
+                                            <div class="flex justify-end mt-1">
+                                                <span class="text-xs font-mono text-gray-500"><span x-text="chars"></span>/<span x-text="max"></span></span>
+                                            </div>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO SYSTEM PROMPT ── --}}
+                                <template x-if="selectedNode?.type === 'system-prompt'">
+                                    <div x-data="savedPromptsManager()" x-init="init()" class="space-y-4">
+
+                                        {{-- Tag palette (only connected nodes) --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Etiquetas disponibles</p>
+                                            <div x-show="connectedTags().length > 0" class="flex flex-wrap gap-1.5">
+                                                <template x-for="tag in connectedTags()" :key="tag.tag">
+                                                    <button type="button"
+                                                            @click="insertarTag(tag.tag)"
+                                                            :title="tag.preview"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-900/40 border border-indigo-700/60 text-indigo-300 text-xs font-mono hover:bg-indigo-900/70 hover:border-indigo-500 transition-colors cursor-pointer select-none">
+                                                        <span class="text-indigo-500 text-[10px]">{}</span>
+                                                        <span x-text="tag.tag"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                            <p x-show="connectedTags().length === 0" class="text-xs text-gray-500 italic">
+                                                Conecta nodos al Bot para que aparezcan sus etiquetas aquí.
+                                            </p>
+                                        </div>
+
+                                        {{-- Prompts guardados --}}
+                                        <div>
+                                            <div class="flex items-center justify-between mb-2">
+                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Prompts guardados</p>
+                                                <span class="text-xs text-gray-500" x-text="prompts.length + ' guardado(s)'"></span>
+                                            </div>
+                                            <template x-if="prompts.length > 0">
+                                                <div class="space-y-1 max-h-32 overflow-y-auto pr-1 mb-3">
+                                                    <template x-for="p in prompts" :key="p.id">
+                                                        <div class="group flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all"
+                                                             :class="promptActivo === p.id ? 'border-purple-500/60 bg-purple-500/15' : 'border-white/10 hover:border-white/20'">
+                                                            <button type="button" @click="togglePrompt(p)"
+                                                                    :class="promptActivo === p.id ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                    class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                                <span :class="promptActivo === p.id ? 'translate-x-4' : 'translate-x-0'"
+                                                                      class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200"></span>
+                                                            </button>
+                                                            <button type="button" @click="cargarPrompt(p)" class="flex-1 text-left min-w-0">
+                                                                <span class="text-xs font-medium truncate"
+                                                                      :class="promptActivo === p.id ? 'text-purple-300' : 'text-gray-200'"
+                                                                      x-text="p.nombre"></span>
+                                                            </button>
+                                                            <button type="button" @click="editarPrompt(p)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-purple-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                            </button>
+                                                            <button type="button" @click="eliminarPrompt(p)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" x-model="nuevoNombre" placeholder="Nombre del prompt…"
+                                                       class="flex-1 text-xs px-2.5 py-1.5 border border-white/10 bg-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
+                                                       @keydown.enter.prevent="editandoId ? actualizarPrompt() : guardarPrompt()">
+                                                <template x-if="editandoId">
+                                                    <button type="button" @click="cancelarEdicion()"
+                                                            class="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-white/10 rounded-lg">✕</button>
+                                                </template>
+                                                <button type="button"
+                                                        @click="editandoId ? actualizarPrompt() : guardarPrompt()"
+                                                        :disabled="!nuevoNombre.trim() || guardando"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg transition-colors disabled:opacity-50"
+                                                        x-text="editandoId ? 'Actualizar' : 'Guardar'">
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {{-- Textarea --}}
+                                        <div x-data="{ chars: {{ strlen($systemPrompt ?? '') }}, max: 8000 }">
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Contenido del prompt</p>
+                                            <textarea id="system_prompt" name="system_prompt" rows="12" maxlength="8000"
+                                                @input="chars = $event.target.value.length"
+                                                placeholder="Eres un asistente de ventas especializado en… Responde siempre en español, de forma clara y amable…"
+                                                class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
+                                            >{{ $systemPrompt }}</textarea>
+                                            <div class="flex justify-between mt-1">
+                                                <p class="text-xs text-gray-500">Usa etiquetas <span class="font-mono text-indigo-400">[TAG]</span> para inyectar datos dinámicos.</p>
+                                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-500'">
+                                                    <span x-text="chars"></span>/<span x-text="max"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO ETAPAS IA ── --}}
+                                <template x-if="selectedNode?.type === 'etapas-ia'">
+                                    <div class="space-y-4">
+                                        <div x-data="{ ayuda: false, chars: {{ strlen($botPasosIA ?? '') }}, max: 8000 }">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Etapas de conversación (anti-ciclo)</p>
+                                                <button type="button" @click="ayuda = !ayuda"
+                                                        class="text-xs text-purple-400 hover:text-purple-200">¿Cómo funciona?</button>
+                                            </div>
+                                            <div x-show="ayuda" x-collapse class="mb-3 p-3 rounded-lg bg-purple-900/10 border border-white/5 text-xs text-gray-300 space-y-2">
+                                                <p><strong class="text-purple-300">¿Para qué?</strong> Evita que la IA repita preguntas. Define instrucciones distintas por etapa.</p>
+                                                <p><strong class="text-purple-300">Formato:</strong> Array JSON con <code class="bg-gray-700 px-1 rounded">desde</code>, <code class="bg-gray-700 px-1 rounded">hasta</code>, <code class="bg-gray-700 px-1 rounded">nombre</code>, <code class="bg-gray-700 px-1 rounded">instruccion</code>.</p>
+                                                <pre class="bg-gray-900 rounded p-2 text-[10px] overflow-x-auto">[
+  { "desde": 1, "hasta": 1, "nombre": "Bienvenida", "instruccion": "Saluda y pregunta." },
+  { "desde": 2, "hasta": 9999, "nombre": "Cierre", "instruccion": "Resuelve o deriva." }
+]</pre>
+                                            </div>
+                                            <textarea name="bot_pasos_ia" rows="12" maxlength="8000"
+                                                @input="chars = $event.target.value.length"
+                                                class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
+                                                placeholder='[{"desde":1,"hasta":1,"nombre":"Bienvenida","instruccion":"..."}]'
+                                            >{{ $botPasosIA }}</textarea>
+                                            <div class="flex justify-end mt-1">
+                                                <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-500'">
+                                                    <span x-text="chars"></span>/<span x-text="max"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO FLUJO POR PASOS ── --}}
+                                <template x-if="selectedNode?.type === 'flujo-pasos'">
+                                    <div x-data="{ chars: {{ strlen($botFlujoPasos ?? '') }}, max: 12000 }" class="space-y-3">
+                                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Flujo conversacional por pasos</p>
+                                        <p class="text-xs text-gray-400">JSON con claves <code class="bg-gray-700 px-1 rounded text-xs">inicio</code> y <code class="bg-gray-700 px-1 rounded text-xs">steps</code>. Cada step puede tener <code class="bg-gray-700 px-1 rounded text-xs">mensaje</code> y <code class="bg-gray-700 px-1 rounded text-xs">opciones</code>.</p>
+                                        <textarea name="bot_flujo_pasos" rows="15" maxlength="12000"
+                                            @input="chars = $event.target.value.length"
+                                            class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-y"
+                                            placeholder='{"inicio":"menu","steps":{"menu":{"mensaje":"Hola\n1) Ventas\n2) Soporte","opciones":{"1|ventas":"ventas","2|soporte":"soporte"}}}}'
+                                        >{{ $botFlujoPasos }}</textarea>
+                                        <div class="flex justify-end">
+                                            <span class="text-xs font-mono" :class="chars >= max * 0.9 ? 'text-red-500 font-semibold' : 'text-gray-500'">
+                                                <span x-text="chars"></span>/<span x-text="max"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO MEMORIA ── --}}
+                                <template x-if="selectedNode?.type === 'memoria'">
+                                    <div class="space-y-3">
+                                        <div class="flex items-start gap-3 p-3 rounded-lg bg-green-900/20 border border-green-500/30">
+                                            <span class="text-2xl">💬</span>
+                                            <div>
+                                                <p class="text-sm font-semibold text-green-300">Memoria siempre activa</p>
+                                                <p class="text-xs text-gray-400 mt-1">Los últimos <strong class="text-green-300">10 intercambios</strong> de cada conversación se inyectan automáticamente en el contexto de la IA. No requiere configuración.</p>
+                                            </div>
+                                        </div>
+                                        <p class="text-xs text-gray-500">Este nodo no puede desconectarse del Bot.</p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO PIPELINE ── --}}
+                                <template x-if="selectedNode?.type === 'pipeline'">
+                                    <div x-data="mediaPipelineManager()" x-init="init()">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Pipeline de medios</p>
+                                            <button type="button" @click="guardar()"
+                                                    :disabled="saving"
+                                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                                    :class="saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-60'">
+                                                <span x-text="saved ? '✓ Guardado' : (saving ? 'Guardando…' : 'Guardar pipeline')"></span>
+                                            </button>
+                                        </div>
+
+                                        {{-- Tabs --}}
+                                        <div class="flex border-b border-white/5 mb-4 overflow-x-auto">
+                                            <template x-for="mt in mediaTypes" :key="mt.key">
+                                                <button type="button"
+                                                        @click="activeType = mt.key"
+                                                        class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors"
+                                                        :class="activeType === mt.key
+                                                            ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
+                                                            : 'border-transparent text-gray-400 hover:text-gray-200'">
+                                                    <span x-text="mt.icon"></span>
+                                                    <span x-text="mt.label"></span>
+                                                    <span x-show="pipeline[mt.key] && pipeline[mt.key].activo"
+                                                          class="w-1.5 h-1.5 rounded-full bg-green-400 ml-0.5"></span>
+                                                </button>
                                             </template>
                                         </div>
+
+                                        {{-- Content --}}
+                                        <template x-for="mt in mediaTypes" :key="mt.key">
+                                            <div x-show="activeType === mt.key" class="space-y-3">
+                                                <div class="flex items-center justify-between">
+                                                    <div>
+                                                        <p class="text-sm font-medium text-gray-200" x-text="'Procesar ' + mt.label.toLowerCase() + ' entrante'"></p>
+                                                        <p class="text-xs text-gray-400 mt-0.5" x-text="mt.desc"></p>
+                                                    </div>
+                                                    <button type="button" @click="pipeline[mt.key].activo = !pipeline[mt.key].activo"
+                                                            :class="pipeline[mt.key].activo ? 'bg-indigo-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                        <span :class="pipeline[mt.key].activo ? 'translate-x-5' : 'translate-x-0'"
+                                                              class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
+                                                    </button>
+                                                </div>
+
+                                                <div x-show="pipeline[mt.key].activo" x-transition class="space-y-2">
+                                                    <template x-for="(paso, idx) in pipeline[mt.key].pasos" :key="idx">
+                                                        <div class="bg-gray-900/60 border border-white/5 rounded-lg p-2.5 space-y-2">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="w-4 h-4 rounded-full bg-indigo-900/60 text-indigo-400 text-[9px] font-bold flex items-center justify-center flex-shrink-0" x-text="idx + 1"></span>
+                                                                <select x-model="paso.tipo"
+                                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                                                    <template x-for="(info, key) in stepTypes" :key="key">
+                                                                        <option :value="key" x-text="info.icon + ' ' + info.label"></option>
+                                                                    </template>
+                                                                </select>
+                                                                <select x-model="paso.proveedor"
+                                                                        class="w-28 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-indigo-500">
+                                                                    <option value="auto">Auto</option>
+                                                                    <option value="openai">OpenAI</option>
+                                                                    <option value="gemini">Gemini</option>
+                                                                    <option value="whisper">Whisper</option>
+                                                                </select>
+                                                                <button type="button" @click="removerPaso(mt.key, idx)"
+                                                                        x-show="pipeline[mt.key].pasos.length > 1"
+                                                                        class="w-5 h-5 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0">
+                                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                </button>
+                                                            </div>
+                                                            <input x-model="paso.prompt" type="text" placeholder="Prompt personalizado (opcional)…"
+                                                                   class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1 placeholder-gray-600 focus:outline-none focus:border-indigo-500">
+                                                        </div>
+                                                    </template>
+                                                    <button type="button" @click="agregarPaso(mt.key)"
+                                                            class="w-full py-1.5 border-2 border-dashed border-white/10 hover:border-indigo-500/50 text-xs text-gray-500 hover:text-indigo-400 rounded-lg transition-colors">
+                                                        + Agregar paso
+                                                    </button>
+
+                                                    {{-- Destino --}}
+                                                    <div class="pt-2 border-t border-white/5">
+                                                        <p class="text-xs font-semibold text-gray-500 mb-1.5">Destino del resultado</p>
+                                                        <select x-model="pipeline[mt.key].destino"
+                                                                class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                                                            <template x-for="dest in destinosDisponibles" :key="dest.id">
+                                                                <option :value="dest.id" x-text="dest.label"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <script>
+                                        function mediaPipelineManager() {
+                                            return {
+                                                activeType: 'image',
+                                                saving: false,
+                                                saved: false,
+                                                saveError: null,
+                                                pipeline: @json($pipeline),
+                                                destinosDisponibles: @json($destinosDisponibles),
+                                                mediaTypes: [
+                                                    { key: 'image',    icon: '🖼',  label: 'Imagen',    desc: 'Fotos y capturas enviadas por el usuario' },
+                                                    { key: 'audio',    icon: '🎙',  label: 'Audio',     desc: 'Mensajes de voz y audios' },
+                                                    { key: 'video',    icon: '🎬',  label: 'Video',     desc: 'Videos cortos' },
+                                                    { key: 'document', icon: '📄',  label: 'Documento', desc: 'PDFs, Word, Excel y otros archivos' },
+                                                ],
+                                                stepTypes: @json($pasosDisponibles),
+
+                                                init() {
+                                                    const keys = ['image', 'audio', 'video', 'document'];
+                                                    for (const key of keys) {
+                                                        if (!this.pipeline[key]) {
+                                                            this.pipeline[key] = { activo: false, pasos: [{ tipo: 'vision', proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' };
+                                                        }
+                                                        if (!Array.isArray(this.pipeline[key].pasos) || this.pipeline[key].pasos.length === 0) {
+                                                            this.pipeline[key].pasos = [{ tipo: 'vision', proveedor: 'auto', prompt: '' }];
+                                                        }
+                                                        if (!this.pipeline[key].destino) this.pipeline[key].destino = 'pasar_a_bot';
+                                                    }
+                                                },
+
+                                                agregarPaso(tipo) {
+                                                    this.pipeline[tipo].pasos.push({ tipo: 'vision', proveedor: 'auto', prompt: '' });
+                                                },
+
+                                                removerPaso(tipo, idx) {
+                                                    this.pipeline[tipo].pasos.splice(idx, 1);
+                                                },
+
+                                                async guardar() {
+                                                    this.saving = true;
+                                                    this.saveError = null;
+                                                    try {
+                                                        const res = await fetch('{{ route("configuracion.pipeline.save") }}', {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                                                'Accept': 'application/json',
+                                                            },
+                                                            body: JSON.stringify({ pipeline: this.pipeline }),
+                                                        });
+                                                        if (res.ok) {
+                                                            this.saved = true;
+                                                            setTimeout(() => this.saved = false, 2500);
+                                                        } else {
+                                                            const data = await res.json().catch(() => ({}));
+                                                            this.saveError = data.message || 'Error al guardar el pipeline.';
+                                                        }
+                                                    } catch (e) {
+                                                        this.saveError = 'Error de conexión al guardar.';
+                                                    } finally {
+                                                        this.saving = false;
+                                                    }
+                                                },
+                                            };
+                                        }
+                                        </script>
                                     </div>
-                                </div>
+                                </template>
 
-                                {{-- Info cuando está inactivo --}}
-                                <div x-show="!pipeline[mt.key].activo" class="py-2">
-                                    <p class="text-xs text-gray-500">Activa este tipo para configurar su pipeline de procesamiento.</p>
-                                </div>
+                                {{-- ── NODO IA ── --}}
+                                <template x-if="selectedNode?.type === 'ia'">
+                                    <div x-data="iaNodeManager()" x-init="init()" class="space-y-5">
 
-                            </div>
-                        </template>
+                                        <p class="text-xs text-gray-400">Selecciona el proveedor de IA que usará el bot y configura el modelo y capacidades.</p>
 
-                        {{-- Mensaje de error --}}
-                        <div x-show="saveError" x-transition class="px-5 pb-4">
-                            <p class="text-xs text-red-400 bg-red-900/20 border border-red-500/20 rounded-lg px-3 py-2" x-text="saveError"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <script>
-                function mediaPipelineManager() {
-                    return {
-                        activeType: 'image',
-                        saving: false,
-                        saved: false,
-                        saveError: null,
-                        pipeline: @json($pipeline),
-
-                        stepTypes: {
-                            vision:         { label: 'Analizar imagen',       icon: '👁' },
-                            ocr:            { label: 'Extraer texto (OCR)',    icon: '📝' },
-                            transcribir:    { label: 'Transcribir audio',      icon: '🎙' },
-                            resumir:        { label: 'Resumir con IA',         icon: '📋' },
-                            generar_imagen: { label: 'Generar imagen (DALL-E)','icon': '🎨' },
-                        },
-
-                        destinoTypes: @json($destinosDisponibles),
-
-                        mediaTypes: [
-                            { key: 'image',     label: 'Imagen',      icon: '🖼', desc: 'Imágenes enviadas por el usuario' },
-                            { key: 'audio',     label: 'Audio / Voz', icon: '🎙', desc: 'Audios y notas de voz (PTT)' },
-                            { key: 'video',     label: 'Video',       icon: '🎬', desc: 'Videos enviados por el usuario' },
-                            { key: 'documento', label: 'Documento',   icon: '📄', desc: 'PDFs y archivos adjuntos' },
-                        ],
-
-                        init() {
-                            // Asegurar que cada tipo tenga estructura válida
-                            const defaults = {
-                                image:     { activo: false, pasos: [{ tipo: 'vision',      proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
-                                audio:     { activo: false, pasos: [{ tipo: 'transcribir', proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
-                                video:     { activo: false, pasos: [{ tipo: 'transcribir', proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
-                                documento: { activo: false, pasos: [{ tipo: 'vision',      proveedor: 'auto', prompt: '' }], destino: 'pasar_a_bot' },
-                            };
-                            for (const key of Object.keys(defaults)) {
-                                if (!this.pipeline[key]) this.pipeline[key] = defaults[key];
-                                if (!Array.isArray(this.pipeline[key].pasos) || !this.pipeline[key].pasos.length) {
-                                    this.pipeline[key].pasos = defaults[key].pasos;
-                                }
-                                if (!this.pipeline[key].destino) this.pipeline[key].destino = 'pasar_a_bot';
-                            }
-                        },
-
-                        agregarPaso(tipo) {
-                            this.pipeline[tipo].pasos.push({ tipo: 'vision', proveedor: 'auto', prompt: '' });
-                        },
-
-                        removerPaso(tipo, idx) {
-                            this.pipeline[tipo].pasos.splice(idx, 1);
-                        },
-
-                        async guardar() {
-                            this.saving = true;
-                            this.saveError = null;
-                            try {
-                                const res = await fetch('{{ route("configuracion.pipeline.save") }}', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                        'Accept': 'application/json',
-                                    },
-                                    body: JSON.stringify({ pipeline: this.pipeline }),
-                                });
-                                if (res.ok) {
-                                    this.saved = true;
-                                    setTimeout(() => this.saved = false, 2500);
-                                } else {
-                                    const data = await res.json().catch(() => ({}));
-                                    this.saveError = data.message || 'Error al guardar el pipeline.';
-                                }
-                            } catch (e) {
-                                this.saveError = 'Error de conexión al guardar.';
-                            } finally {
-                                this.saving = false;
-                            }
-                        },
-                    };
-                }
-                </script>
-
-                {{-- ═══ MEDIA ADJUNTA DE CATÁLOGOS ═══ --}}
-                @if($modulosConArchivos->isNotEmpty())
-                <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden mt-4"
-                     x-data="catalogMediaManager()"
-                     x-init="init()"
-                     x-show="activeTab === 'bot'" x-cloak>
-
-                    <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-purple-900/50 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-semibold text-gray-100">Media adjunta de catálogos</p>
-                                <p class="text-xs text-gray-400">El bot enviará imágenes, videos o documentos de tus catálogos cuando el usuario lo solicite</p>
-                            </div>
-                        </div>
-                        <button type="button" @click="guardar()" :disabled="saving"
-                                class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                                :class="saved ? 'bg-green-600 text-white' : 'bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-60'">
-                            <span x-text="saved ? 'Guardado' : (saving ? 'Guardando...' : 'Guardar')"></span>
-                        </button>
-                    </div>
-
-                    <div class="px-5 py-4 space-y-3">
-                        <p class="text-xs text-gray-500">
-                            Activa los módulos que tienen imágenes, videos o documentos. El bot incluirá los registros en su contexto
-                            y enviará el archivo adjunto automáticamente cuando el usuario pida ver o recibir ese contenido.
-                        </p>
-
-                        @foreach($modulosConArchivos as $modulo)
-                        @php
-                            $mc          = $catalogMediaConfig[$modulo->slug] ?? [];
-                            $camposFile  = $modulo->fields->where('tipo', 'file');
-                            $camposTexto = $modulo->fields->whereNotIn('tipo', ['file', 'id']);
-                        @endphp
-                        <div class="bg-gray-900/50 border border-white/5 rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-base">{{ $modulo->icono }}</span>
-                                    <p class="text-sm font-semibold text-gray-200">{{ $modulo->nombre }}</p>
-                                </div>
-                                <button type="button" @click="toggle('{{ $modulo->slug }}')"
-                                        :class="config['{{ $modulo->slug }}']?.activo ? 'bg-purple-500' : 'bg-gray-600'"
-                                        class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
-                                    <span :class="config['{{ $modulo->slug }}']?.activo ? 'translate-x-4' : 'translate-x-0'"
-                                          class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform duration-200"></span>
-                                </button>
-                            </div>
-
-                            <div x-show="config['{{ $modulo->slug }}']?.activo" x-transition class="space-y-3">
-
-                                {{-- Lista de campos de archivo (múltiple) --}}
-                                <div>
-                                    <label class="block text-xs text-gray-400 mb-1.5">Campos de archivo a enviar</label>
-                                    <div class="space-y-1.5">
-                                        <template x-for="(campo, idx) in (config['{{ $modulo->slug }}']?.campos ?? [])" :key="idx">
-                                            <div class="flex gap-2 items-center">
-                                                <select @change="setCampoField('{{ $modulo->slug }}', idx, 'campo_slug', $event.target.value)"
-                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                                    @foreach($camposFile as $cf)
-                                                    <option value="{{ $cf->slug }}" :selected="campo.campo_slug === '{{ $cf->slug }}'">{{ $cf->nombre }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <select @change="setCampoField('{{ $modulo->slug }}', idx, 'mediatype', $event.target.value)"
-                                                        class="flex-1 bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                                    <option value="image"    :selected="(campo.mediatype ?? 'image') === 'image'">Imagen</option>
-                                                    <option value="video"    :selected="campo.mediatype === 'video'">Video</option>
-                                                    <option value="document" :selected="campo.mediatype === 'document'">Documento</option>
-                                                    <option value="audio"    :selected="campo.mediatype === 'audio'">Audio</option>
-                                                </select>
-                                                {{-- Toggle Ver una vez --}}
-                                                <button type="button"
-                                                        @click="setCampoField('{{ $modulo->slug }}', idx, 'view_once', !campo.view_once)"
-                                                        :class="campo.view_once ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'"
-                                                        :title="campo.view_once ? 'Ver una vez: ON' : 'Ver una vez: OFF'"
-                                                        class="flex-shrink-0 px-2 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap">
-                                                    1×
+                                        {{-- Selector de proveedor --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Proveedor</p>
+                                            <div class="grid grid-cols-3 gap-2">
+                                                <button type="button" @click="setProveedor('openai')"
+                                                        :class="proveedor === 'openai' ? 'ring-2 ring-teal-500 border-teal-500/40 bg-teal-500/10' : 'border-white/10 hover:border-teal-400/50'"
+                                                        class="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all">
+                                                    <svg class="w-6 h-6 text-teal-400" viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
+                                                    <span class="text-xs font-semibold text-gray-200">ChatGPT</span>
+                                                    <span class="text-[10px] text-teal-400" x-text="modeloActual('openai')"></span>
                                                 </button>
-                                                <button type="button" @click="removeCampo('{{ $modulo->slug }}', idx)"
-                                                        class="text-red-400 hover:text-red-300 text-base leading-none flex-shrink-0 px-1">✕</button>
+                                                <button type="button" @click="setProveedor('deepseek')"
+                                                        :class="proveedor === 'deepseek' ? 'ring-2 ring-blue-500 border-blue-500/40 bg-blue-500/10' : 'border-white/10 hover:border-blue-400/50'"
+                                                        class="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all">
+                                                    <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                                    <span class="text-xs font-semibold text-gray-200">DeepSeek</span>
+                                                    <span class="text-[10px] text-blue-400" x-text="modeloActual('deepseek')"></span>
+                                                </button>
+                                                <button type="button" @click="setProveedor('gemini')"
+                                                        :class="proveedor === 'gemini' ? 'ring-2 ring-orange-500 border-orange-500/40 bg-orange-500/10' : 'border-white/10 hover:border-orange-400/50'"
+                                                        class="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all">
+                                                    <svg class="w-6 h-6 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 00-1.82 1.17L3.1 17.47A2 2 0 005 20h14a2 2 0 001.9-2.53L13.82 3.17A2 2 0 0012 2z"/></svg>
+                                                    <span class="text-xs font-semibold text-gray-200">Gemini</span>
+                                                    <span class="text-[10px] text-orange-400" x-text="modeloActual('gemini')"></span>
+                                                </button>
                                             </div>
-                                        </template>
-                                    </div>
-                                    <button type="button" @click="addCampo('{{ $modulo->slug }}')"
-                                            class="mt-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                                        + Agregar campo
-                                    </button>
-                                </div>
-
-                                {{-- Caption y máx. registros --}}
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs text-gray-400 mb-1">Caption del archivo</label>
-                                        <select @change="setField('{{ $modulo->slug }}', 'caption_campo', $event.target.value)"
-                                                class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                            <option value="">— Sin caption —</option>
-                                            @foreach($camposTexto as $ct)
-                                            <option value="{{ $ct->slug }}" {{ ($mc['caption_campo'] ?? '') === $ct->slug ? 'selected' : '' }}>
-                                                {{ $ct->nombre }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs text-gray-400 mb-1">Máx. registros en contexto</label>
-                                        <input type="number" min="1" max="10"
-                                               :value="config['{{ $modulo->slug }}']?.max_resultados ?? 3"
-                                               @change="setField('{{ $modulo->slug }}', 'max_resultados', parseInt($event.target.value) || 3)"
-                                               class="w-full bg-gray-800 border border-white/10 text-gray-100 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-purple-500">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
-
-                        <p class="text-[10px] text-gray-600 mt-2">
-                            El bot usa marcadores internos <code class="bg-gray-700/50 px-1 rounded text-gray-400">[[MEDIA:modulo:id]]</code>
-                            que el sistema intercepta para enviar el archivo al usuario.
-                            Agrega <code class="bg-gray-700/50 px-1 rounded text-gray-400">[CATALOGO_NOMBRE]</code> al prompt del bot para activar el módulo.
-                        </p>
-                    </div>
-                </div>
-
-                <script>
-                function catalogMediaManager() {
-                    return {
-                        saving: false,
-                        saved: false,
-                        config: @json((object) $catalogMediaConfig),
-
-                        init() {
-                            @foreach($modulosConArchivos as $modulo)
-                            @php $firstFileSlug = $modulo->fields->where('tipo','file')->first()?->slug ?? ''; @endphp
-                            if (!this.config['{{ $modulo->slug }}']) {
-                                this.config['{{ $modulo->slug }}'] = {
-                                    activo: false,
-                                    campos: [{ campo_slug: '{{ $firstFileSlug }}', mediatype: 'image' }],
-                                    caption_campo: '',
-                                    max_resultados: 3,
-                                };
-                            } else {
-                                // Normalizar formato antiguo (campo_slug + mediatype → campos array)
-                                const mc = this.config['{{ $modulo->slug }}'];
-                                if (!mc.campos || !Array.isArray(mc.campos) || mc.campos.length === 0) {
-                                    mc.campos = mc.campo_slug
-                                        ? [{ campo_slug: mc.campo_slug, mediatype: mc.mediatype || 'image' }]
-                                        : [{ campo_slug: '{{ $firstFileSlug }}', mediatype: 'image' }];
-                                }
-                            }
-                            @endforeach
-                        },
-
-                        toggle(slug) {
-                            if (!this.config[slug]) this.config[slug] = { activo: false, campos: [], caption_campo: '', max_resultados: 3 };
-                            this.config[slug].activo = !this.config[slug].activo;
-                        },
-
-                        setField(slug, field, value) {
-                            if (!this.config[slug]) this.config[slug] = { activo: true, campos: [], caption_campo: '', max_resultados: 3 };
-                            this.config[slug][field] = value;
-                        },
-
-                        setCampoField(slug, idx, field, value) {
-                            if (!this.config[slug]?.campos?.[idx]) return;
-                            this.config[slug].campos[idx][field] = value;
-                        },
-
-                        addCampo(slug) {
-                            if (!this.config[slug]) return;
-                            this.config[slug].campos.push({ campo_slug: '', mediatype: 'image' });
-                        },
-
-                        removeCampo(slug, idx) {
-                            if (!this.config[slug]?.campos) return;
-                            this.config[slug].campos.splice(idx, 1);
-                        },
-
-                        async guardar() {
-                            this.saving = true;
-                            try {
-                                const res = await fetch('{{ route("configuracion.catalog-media.save") }}', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                        'Accept': 'application/json',
-                                    },
-                                    body: JSON.stringify({ config: this.config }),
-                                });
-                                if (res.ok) { this.saved = true; setTimeout(() => this.saved = false, 2500); }
-                            } finally { this.saving = false; }
-                        },
-                    };
-                }
-                </script>
-                @endif
-
-                {{-- ─── TAB: WHATSAPP / EVOLUTION ─── --}}
-                <div x-show="activeTab === 'whatsapp'" x-cloak
-                     id="panel-whatsapp" role="tabpanel" aria-labelledby="tab-whatsapp">
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
-                        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-100">Evolution API</p>
-                                    <p class="text-xs text-gray-400">Gestiona instancias y mensajes de WhatsApp</p>
-                                </div>
-                            </div>
-                            <x-config-badge :configured="$estado['evolution_url'] && $estado['evolution_key']"/>
-                        </div>
-                        <div class="px-5 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <x-config-field name="evolution_url" label="URL del servidor" tipo="text"
-                                placeholder="https://tu-evolution-api.com"
-                                :configured="$estado['evolution_url']"/>
-                            <x-config-field name="evolution_key" label="API Key global" tipo="password"
-                                placeholder="Tu API Key de Evolution"
-                                :configured="$estado['evolution_key']"/>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-                        <div class="flex items-start gap-3">
-                            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <div>
-                                <p class="text-sm font-medium text-amber-800 dark:text-amber-300">¿Cómo conectar WhatsApp?</p>
-                                <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                                    Configura la URL y API Key de tu Evolution API, luego ve a <strong>Bot → Conectar</strong> para escanear el código QR y vincular tu número de WhatsApp.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- ─── TAB: MODELOS DE IA ─── --}}
-                <div x-show="activeTab === 'ia'" x-cloak class="space-y-4"
-                     id="panel-ia" role="tabpanel" aria-labelledby="tab-ia">
-
-                    {{-- Info banner --}}
-                    <div class="flex items-start gap-3 bg-blue-500/10 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-400">
-                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <span>Selecciona el modelo de cada proveedor. Las capacidades de <strong>audio</strong> e <strong>imágenes</strong> solo se muestran cuando el modelo o proveedor las soporta.</span>
-                    </div>
-
-                    {{-- ════ OPENAI ════ --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{
-                             open:        {{ $estado['openai_key'] ? 'true' : 'false' }},
-                             modelo:      @js($iaModelos['openai']),
-                             customOn:    false,
-                             customVal:   '',
-                             whisper:     {{ $iaToggles['openai_whisper'] ? 'true' : 'false' }},
-                             imagen:      {{ $iaToggles['openai_imagen']  ? 'true' : 'false' }},
-                             modelos: [
-                                 { id: 'gpt-4o',        label: 'GPT-4o',         tag: 'Recomendado' },
-                                 { id: 'gpt-4o-mini',   label: 'GPT-4o Mini',    tag: 'Rápido'      },
-                                 { id: 'gpt-4-turbo',   label: 'GPT-4 Turbo',    tag: null          },
-                                 { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo',  tag: 'Económico'   },
-                                 { id: 'o1',            label: 'o1',             tag: 'Razonamiento'},
-                                 { id: 'o3-mini',       label: 'o3-mini',        tag: null          },
-                             ],
-                             init() {
-                                 const found = this.modelos.find(m => m.id === this.modelo);
-                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
-                             },
-                             elegir(id) {
-                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
-                                 else { this.customOn = false; this.modelo = id; }
-                             },
-                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
-                         }"
-                         x-init="init()">
-
-                        {{-- Header --}}
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0L4.01 14.2A4.501 4.501 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.808 2.768a4.504 4.504 0 0 1-.689 8.122V12.57a.79.79 0 0 0-.412-.719zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.806-2.767a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">ChatGPT (OpenAI)</p>
-                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'GPT-4o · DALL-E 3 · Whisper'"></p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$estado['openai_key']"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-5 space-y-5">
-
-                                {{-- API Key --}}
-                                <x-config-field name="openai_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['openai_key']"/>
-
-                                {{-- Selector de modelo --}}
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                                        <template x-for="m in modelos" :key="m.id">
-                                            <button type="button" @click="elegir(m.id)"
-                                                    :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40'
-                                                        : 'border-white/10 hover:border-teal-300 hover:bg-gray-800'"
-                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                                <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
-                                                <span x-show="m.tag" class="text-[10px] text-teal-400 font-medium mt-0.5" x-text="m.tag"></span>
-                                                <span x-show="modelo === m.id && !customOn"
-                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-teal-500 rounded-full flex items-center justify-center">
-                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
-                                                        <polyline points="2,6 5,9 10,3"/>
-                                                    </svg>
-                                                </span>
-                                            </button>
-                                        </template>
-                                        {{-- Personalizado --}}
-                                        <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40' : 'border-dashed border-white/10 hover:border-teal-300'"
-                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
-                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
-                                        </button>
-                                    </div>
-                                    <div x-show="customOn" x-transition>
-                                        <input type="text" x-model="customVal" placeholder="ej: gpt-4o-2024-11-20"
-                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"/>
-                                    </div>
-                                    <input type="hidden" name="openai_model" :value="modeloFinal">
-                                </div>
-
-                                {{-- Capacidades adicionales (Whisper + DALL-E — siempre disponibles con key OpenAI) --}}
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Capacidades adicionales</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                                        {{-- Whisper --}}
-                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                                     :class="whisper ? 'bg-teal-100' : 'bg-gray-200'">
-                                                    <svg class="w-4 h-4" :class="whisper ? 'text-teal-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <p class="text-xs font-semibold text-gray-200">Whisper</p>
-                                                    <p class="text-[10px] text-gray-400">Transcripción de voz a texto</p>
-                                                </div>
-                                            </div>
-                                            <button type="button" @click="whisper = !whisper"
-                                                    :class="whisper ? 'bg-teal-500' : 'bg-gray-300'"
-                                                    class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
-                                                <span :class="whisper ? 'translate-x-5' : 'translate-x-0'"
-                                                      class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
-                                            </button>
-                                            <input type="hidden" name="openai_whisper_activo" :value="whisper ? '1' : '0'">
+                                            <input type="hidden" name="bot_ia_proveedor" :value="proveedor">
                                         </div>
 
-                                        {{-- DALL-E 3 --}}
-                                        <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                                     :class="imagen ? 'bg-purple-100' : 'bg-gray-200'">
-                                                    <svg class="w-4 h-4" :class="imagen ? 'text-purple-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <p class="text-xs font-semibold text-gray-200">DALL-E 3</p>
-                                                    <p class="text-[10px] text-gray-400">Generación de imágenes con IA</p>
-                                                </div>
-                                            </div>
-                                            <button type="button" @click="imagen = !imagen"
-                                                    :class="imagen ? 'bg-purple-500' : 'bg-gray-300'"
-                                                    class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
-                                                <span :class="imagen ? 'translate-x-5' : 'translate-x-0'"
-                                                      class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
-                                            </button>
-                                            <input type="hidden" name="openai_imagen_activo" :value="imagen ? '1' : '0'">
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ════ DEEPSEEK ════ --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{
-                             open:     {{ $estado['deepseek_key'] ? 'true' : 'false' }},
-                             modelo:   @js($iaModelos['deepseek']),
-                             customOn: false,
-                             customVal:'',
-                             modelos: [
-                                 { id: 'deepseek-chat',     label: 'DeepSeek Chat',     tag: 'Recomendado'   },
-                                 { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner', tag: 'R1 · Avanzado' },
-                                 { id: 'deepseek-coder',    label: 'DeepSeek Coder',    tag: 'Programación'  },
-                             ],
-                             init() {
-                                 const found = this.modelos.find(m => m.id === this.modelo);
-                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
-                             },
-                             elegir(id) {
-                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
-                                 else { this.customOn = false; this.modelo = id; }
-                             },
-                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
-                         }"
-                         x-init="init()">
-
-                        {{-- Header --}}
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">DeepSeek</p>
-                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'deepseek-chat · deepseek-reasoner'"></p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$estado['deepseek_key']"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-5 space-y-5">
-
-                                {{-- API Key --}}
-                                <x-config-field name="deepseek_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['deepseek_key']"/>
-
-                                {{-- Selector de modelo --}}
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                                        <template x-for="m in modelos" :key="m.id">
-                                            <button type="button" @click="elegir(m.id)"
-                                                    :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-blue-500 bg-blue-500/10 border-blue-500/30'
-                                                        : 'border-white/10 hover:border-blue-300 hover:bg-gray-800'"
-                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                                <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
-                                                <span x-show="m.tag" class="text-[10px] text-blue-600 font-medium mt-0.5" x-text="m.tag"></span>
-                                                <span x-show="modelo === m.id && !customOn"
-                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
-                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
-                                                        <polyline points="2,6 5,9 10,3"/>
-                                                    </svg>
-                                                </span>
-                                            </button>
-                                        </template>
-                                        <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-blue-500 bg-blue-500/10 border-blue-500/30' : 'border-dashed border-white/10 hover:border-blue-300'"
-                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
-                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
-                                        </button>
-                                    </div>
-                                    <div x-show="customOn" x-transition>
-                                        <input type="text" x-model="customVal" placeholder="ej: deepseek-v3"
-                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-                                    </div>
-                                    <input type="hidden" name="deepseek_model" :value="modeloFinal">
-                                </div>
-
-                                {{-- Sin capacidades adicionales --}}
-                                <div class="flex items-center gap-2 py-2 text-xs text-gray-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    DeepSeek no incluye transcripción de audio ni generación de imágenes.
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ════ GEMINI ════ --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{
-                             open:     {{ $estado['gemini_key'] ? 'true' : 'false' }},
-                             modelo:   @js($iaModelos['gemini']),
-                             customOn: false,
-                             customVal:'',
-                             audio:    {{ $iaToggles['gemini_audio'] ? 'true' : 'false' }},
-                             modelos: [
-                                 { id: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash',  tag: 'Más rápido',   audio: true  },
-                                 { id: 'gemini-2.0-flash',     label: 'Gemini 2.0 Flash',  tag: 'Estable',      audio: true  },
-                                 { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash',  tag: 'Rápido',       audio: true  },
-                                 { id: 'gemini-1.5-flash-8b',  label: 'Flash 1.5 8B',      tag: 'Ultra rápido', audio: true  },
-                                 { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro',    tag: 'Más potente',  audio: true  },
-                                 { id: 'gemini-1.0-pro',       label: 'Gemini 1.0 Pro',    tag: 'Básico',       audio: false },
-                             ],
-                             init() {
-                                 const found = this.modelos.find(m => m.id === this.modelo);
-                                 if (!found && this.modelo) { this.customOn = true; this.customVal = this.modelo; }
-                             },
-                             elegir(id) {
-                                 if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
-                                 else {
-                                     this.customOn = false;
-                                     this.modelo   = id;
-                                     // Apagar audio automáticamente si el modelo no lo soporta
-                                     const m = this.modelos.find(m => m.id === id);
-                                     if (m && !m.audio) this.audio = false;
-                                 }
-                             },
-                             get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
-                             get soportaAudio() {
-                                 if (this.customOn) return true;
-                                 const m = this.modelos.find(m => m.id === this.modelo);
-                                 return m ? m.audio : true;
-                             },
-                         }"
-                         x-init="init()">
-
-                        {{-- Header --}}
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2a2 2 0 00-1.82 1.17L3.1 17.47A2 2 0 005 20h14a2 2 0 001.9-2.53L13.82 3.17A2 2 0 0012 2z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">Google Gemini</p>
-                                    <p class="text-xs text-gray-400" x-text="modeloFinal || 'gemini-1.5-flash · gemini-1.5-pro'"></p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$estado['gemini_key']"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-5 space-y-5">
-
-                                {{-- API Key --}}
-                                <x-config-field name="gemini_key" label="API Key" tipo="password" placeholder="AIza..." :configured="$estado['gemini_key']"/>
-
-                                {{-- Selector de modelo --}}
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Modelo de chat</p>
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                                        <template x-for="m in modelos" :key="m.id">
-                                            <button type="button" @click="elegir(m.id)"
-                                                    :class="modelo === m.id && !customOn
-                                                        ? 'ring-2 ring-orange-500 bg-orange-500/10 border-orange-200'
-                                                        : 'border-white/10 hover:border-orange-300 hover:bg-gray-800'"
-                                                    class="relative flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                                <div class="flex items-center gap-1 w-full">
-                                                    <span class="text-xs font-semibold text-gray-200 leading-tight flex-1" x-text="m.label"></span>
-                                                    {{-- Ícono audio para modelos que lo soportan --}}
-                                                    <svg x-show="m.audio" class="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-                                                    </svg>
-                                                </div>
-                                                <span x-show="m.tag" class="text-[10px] text-orange-600 font-medium mt-0.5" x-text="m.tag"></span>
-                                                <span x-show="modelo === m.id && !customOn"
-                                                      class="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-orange-500 rounded-full flex items-center justify-center">
-                                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12">
-                                                        <polyline points="2,6 5,9 10,3"/>
-                                                    </svg>
-                                                </span>
-                                            </button>
-                                        </template>
-                                        <button type="button" @click="elegir('__custom__')"
-                                                :class="customOn ? 'ring-2 ring-orange-500 bg-orange-500/10 border-orange-200' : 'border-dashed border-white/10 hover:border-orange-300'"
-                                                class="flex flex-col items-start px-3 py-2.5 border rounded-lg transition-all text-left">
-                                            <span class="text-xs font-semibold text-gray-300">Personalizado</span>
-                                            <span class="text-[10px] text-gray-500 mt-0.5">Escribe el ID del modelo</span>
-                                        </button>
-                                    </div>
-                                    <div x-show="customOn" x-transition>
-                                        <input type="text" x-model="customVal" placeholder="ej: gemini-2.0-flash-thinking-exp"
-                                               class="w-full px-3 py-2 text-sm border border-white/10 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"/>
-                                    </div>
-                                    <input type="hidden" name="gemini_model" :value="modeloFinal">
-                                </div>
-
-                                {{-- Capacidades adicionales (solo si el modelo las soporta) --}}
-                                <div x-show="soportaAudio" x-transition>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Capacidades adicionales</p>
-                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-800 rounded-xl border border-white/5">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                                 :class="audio ? 'bg-orange-100' : 'bg-gray-200'">
-                                                <svg class="w-4 h-4" :class="audio ? 'text-orange-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-                                                </svg>
-                                            </div>
+                                        {{-- ── OpenAI config ── --}}
+                                        <div x-show="proveedor === 'openai'" class="space-y-4">
                                             <div>
-                                                <p class="text-xs font-semibold text-gray-200">Audio nativo</p>
-                                                <p class="text-[10px] text-gray-400">Transcripción multimodal integrada en el modelo</p>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modelo</p>
+                                                <div class="grid grid-cols-2 gap-1.5">
+                                                    <template x-for="m in openai.modelos" :key="m.id">
+                                                        <button type="button" @click="openai.elegir(m.id)"
+                                                                :class="openai.modelo === m.id && !openai.customOn ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40' : 'border-white/10 hover:border-teal-300 hover:bg-gray-800'"
+                                                                class="relative flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                            <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
+                                                            <span x-show="m.tag" class="text-[10px] text-teal-400 font-medium mt-0.5" x-text="m.tag"></span>
+                                                            <span x-show="openai.modelo === m.id && !openai.customOn"
+                                                                  class="absolute top-1.5 right-1.5 w-3 h-3 bg-teal-500 rounded-full flex items-center justify-center">
+                                                                <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>
+                                                            </span>
+                                                        </button>
+                                                    </template>
+                                                    <button type="button" @click="openai.elegir('__custom__')"
+                                                            :class="openai.customOn ? 'ring-2 ring-teal-500 bg-teal-500/15 border-teal-500/40' : 'border-dashed border-white/10 hover:border-teal-300'"
+                                                            class="flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                        <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                                    </button>
+                                                </div>
+                                                <div x-show="openai.customOn" x-transition class="mt-2">
+                                                    <input type="text" x-model="openai.customVal" placeholder="ej: gpt-4o-2024-11-20"
+                                                           class="w-full px-3 py-1.5 text-xs border border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500"/>
+                                                </div>
+                                                <input type="hidden" name="openai_model" :value="openai.modeloFinal">
+                                            </div>
+                                            {{-- Capacidades --}}
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Capacidades</p>
+                                                <div class="space-y-2">
+                                                    <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <span class="text-base">🎙</span>
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-200">Whisper (voz → texto)</p>
+                                                                <p class="text-[10px] text-gray-400">Transcripción de mensajes de voz</p>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" @click="openai.whisper = !openai.whisper"
+                                                                :class="openai.whisper ? 'bg-teal-500' : 'bg-gray-600'"
+                                                                class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                            <span :class="openai.whisper ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                        </button>
+                                                        <input type="hidden" name="openai_whisper_activo" :value="openai.whisper ? '1' : '0'">
+                                                    </div>
+                                                    <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <span class="text-base">🖼</span>
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-200">Vision (leer imágenes)</p>
+                                                                <p class="text-[10px] text-gray-400">El bot analiza fotos enviadas por el usuario</p>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" @click="openai.imagen = !openai.imagen"
+                                                                :class="openai.imagen ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                            <span :class="openai.imagen ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                        </button>
+                                                        <input type="hidden" name="openai_imagen_activo" :value="openai.imagen ? '1' : '0'">
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <button type="button" @click="audio = !audio"
-                                                :class="audio ? 'bg-orange-500' : 'bg-gray-300'"
-                                                class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
-                                            <span :class="audio ? 'translate-x-5' : 'translate-x-0'"
-                                                  class="inline-block h-5 w-5 rounded-full bg-gray-800 shadow ring-0 transition-transform duration-200"></span>
-                                        </button>
-                                    </div>
-                                    <input type="hidden" name="gemini_audio_activo" :value="audio ? '1' : '0'">
-                                </div>
 
-                                {{-- Aviso cuando el modelo NO soporta audio --}}
-                                <div x-show="!soportaAudio" x-transition class="flex items-center gap-2 py-1 text-xs text-gray-400">
-                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                                    </svg>
-                                    Este modelo no soporta transcripción de audio nativa.
-                                </div>
+                                        {{-- ── DeepSeek config ── --}}
+                                        <div x-show="proveedor === 'deepseek'" class="space-y-4">
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modelo</p>
+                                                <div class="grid grid-cols-2 gap-1.5">
+                                                    <template x-for="m in deepseek.modelos" :key="m.id">
+                                                        <button type="button" @click="deepseek.elegir(m.id)"
+                                                                :class="deepseek.modelo === m.id && !deepseek.customOn ? 'ring-2 ring-blue-500 bg-blue-500/15 border-blue-500/40' : 'border-white/10 hover:border-blue-300 hover:bg-gray-800'"
+                                                                class="relative flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                            <span class="text-xs font-semibold text-gray-200 leading-tight" x-text="m.label"></span>
+                                                            <span x-show="m.tag" class="text-[10px] text-blue-400 font-medium mt-0.5" x-text="m.tag"></span>
+                                                            <span x-show="deepseek.modelo === m.id && !deepseek.customOn"
+                                                                  class="absolute top-1.5 right-1.5 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>
+                                                            </span>
+                                                        </button>
+                                                    </template>
+                                                    <button type="button" @click="deepseek.elegir('__custom__')"
+                                                            :class="deepseek.customOn ? 'ring-2 ring-blue-500 bg-blue-500/15 border-blue-500/40' : 'border-dashed border-white/10 hover:border-blue-300'"
+                                                            class="flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                        <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                                    </button>
+                                                </div>
+                                                <div x-show="deepseek.customOn" x-transition class="mt-2">
+                                                    <input type="text" x-model="deepseek.customVal" placeholder="ej: deepseek-v3"
+                                                           class="w-full px-3 py-1.5 text-xs border border-white/10 rounded-lg focus:ring-2 focus:ring-blue-500"/>
+                                                </div>
+                                                <input type="hidden" name="deepseek_model" :value="deepseek.modeloFinal">
+                                            </div>
+                                            <p class="text-xs text-gray-500 flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                DeepSeek no soporta lectura de imágenes ni audio nativo.
+                                            </p>
+                                        </div>
 
-                            </div>
-                        </div>
-                    </div>
+                                        {{-- ── Gemini config ── --}}
+                                        <div x-show="proveedor === 'gemini'" class="space-y-4">
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Modelo</p>
+                                                <div class="grid grid-cols-2 gap-1.5">
+                                                    <template x-for="m in gemini.modelos" :key="m.id">
+                                                        <button type="button" @click="gemini.elegir(m.id)"
+                                                                :class="gemini.modelo === m.id && !gemini.customOn ? 'ring-2 ring-orange-500 bg-orange-500/15 border-orange-500/40' : 'border-white/10 hover:border-orange-300 hover:bg-gray-800'"
+                                                                class="relative flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                            <div class="flex items-center gap-1 w-full">
+                                                                <span class="text-xs font-semibold text-gray-200 leading-tight flex-1" x-text="m.label"></span>
+                                                                <svg x-show="m.audio" class="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                                                <svg x-show="m.vision" class="w-3 h-3 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                            </div>
+                                                            <span x-show="m.tag" class="text-[10px] text-orange-400 font-medium mt-0.5" x-text="m.tag"></span>
+                                                            <span x-show="gemini.modelo === m.id && !gemini.customOn"
+                                                                  class="absolute top-1.5 right-1.5 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+                                                                <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>
+                                                            </span>
+                                                        </button>
+                                                    </template>
+                                                    <button type="button" @click="gemini.elegir('__custom__')"
+                                                            :class="gemini.customOn ? 'ring-2 ring-orange-500 bg-orange-500/15 border-orange-500/40' : 'border-dashed border-white/10 hover:border-orange-300'"
+                                                            class="flex flex-col items-start px-3 py-2 border rounded-lg transition-all text-left">
+                                                        <span class="text-xs font-semibold text-gray-300">Personalizado</span>
+                                                    </button>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5 mt-1.5 text-[10px] text-gray-500">
+                                                    <span class="flex items-center gap-1"><svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg> soporta audio</span>
+                                                    <span class="flex items-center gap-1"><svg class="w-3 h-3 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> soporta imágenes</span>
+                                                </div>
+                                                <div x-show="gemini.customOn" x-transition class="mt-2">
+                                                    <input type="text" x-model="gemini.customVal" placeholder="ej: gemini-2.0-flash-thinking-exp"
+                                                           class="w-full px-3 py-1.5 text-xs border border-white/10 rounded-lg focus:ring-2 focus:ring-orange-500"/>
+                                                </div>
+                                                <input type="hidden" name="gemini_model" :value="gemini.modeloFinal">
+                                            </div>
+                                            {{-- Capacidades Gemini --}}
+                                            <div x-show="gemini.soportaAudio || gemini.soportaVision">
+                                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Capacidades</p>
+                                                <div class="space-y-2">
+                                                    <div x-show="gemini.soportaAudio" class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <span class="text-base">🎙</span>
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-200">Audio nativo</p>
+                                                                <p class="text-[10px] text-gray-400">Transcripción multimodal integrada</p>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" @click="gemini.audio = !gemini.audio"
+                                                                :class="gemini.audio ? 'bg-orange-500' : 'bg-gray-600'"
+                                                                class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                            <span :class="gemini.audio ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                        </button>
+                                                        <input type="hidden" name="gemini_audio_activo" :value="gemini.audio ? '1' : '0'">
+                                                    </div>
+                                                    <div x-show="gemini.soportaVision" class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <span class="text-base">🖼</span>
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-200">Vision (leer imágenes)</p>
+                                                                <p class="text-[10px] text-gray-400">El bot analiza fotos enviadas por el usuario</p>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" @click="gemini.vision = !gemini.vision"
+                                                                :class="gemini.vision ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                            <span :class="gemini.vision ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                        </button>
+                                                        <input type="hidden" name="gemini_vision_activo" :value="gemini.vision ? '1' : '0'">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                </div>
-
-                {{-- ─── TAB: SERVICIOS ─── --}}
-                <div x-show="activeTab === 'servicios'" x-cloak class="space-y-4"
-                     id="panel-servicios" role="tabpanel" aria-labelledby="tab-servicios">
-
-                    {{-- Google --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{ open: {{ ($estado['google_client_id'] || $estado['google_client_secret'] || $googleConectado) ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">Google (Calendar & Drive)</p>
-                                    @if($googleConectado)
-                                        <p class="text-xs text-green-600 font-medium flex items-center gap-1">
-                                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
-                                            Conectado: {{ $googleEmail }}
+                                        <p class="text-xs text-gray-500">
+                                            Configura las API Keys en
+                                            <button type="button" @click="modalOpen=false; $dispatch('set-tab', 'apis')" class="text-emerald-400 hover:underline">Conectar APIs</button>.
                                         </p>
-                                    @else
-                                        <p class="text-xs text-gray-400">OAuth2 para Calendar y Drive — Sin conectar</p>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$googleConectado"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-5 space-y-5">
-
-                                {{-- Paso 1: Credenciales OAuth2 --}}
-                                <div>
-                                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-                                        Paso 1 — Credenciales OAuth2 (Google Cloud Console)
-                                    </p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <x-config-field name="google_client_id" label="Client ID" tipo="password" placeholder="12345-abc.apps.googleusercontent.com" :configured="$estado['google_client_id']"/>
-                                        <x-config-field name="google_client_secret" label="Client Secret" tipo="password" placeholder="GOCSPX-..." :configured="$estado['google_client_secret']"/>
                                     </div>
-                                    <p class="mt-2 text-xs text-gray-400">
-                                        Crea las credenciales en
-                                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-500 hover:underline">
-                                            Google Cloud Console
-                                        </a>
-                                        como «Aplicación web». Agrega
-                                        <code class="bg-gray-700 px-1 rounded text-xs font-mono">{{ route('configuracion.google.callback') }}</code>
-                                        como URI de redireccionamiento autorizado.
-                                    </p>
-                                </div>
+                                </template>
 
-                                {{-- Paso 2: Autorizar cuenta --}}
-                                <div class="border-t border-white/5 pt-4">
-                                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-                                        Paso 2 — Autorizar cuenta de Google
-                                    </p>
+                                {{-- ── NODO CATÁLOGO (con permisos CRUD) ── --}}
+                                <template x-if="selectedNode?.type?.startsWith('catalogo_')">
+                                    <div class="space-y-4">
 
-                                    @if($googleConectado)
-                                        {{-- Conectado: mostrar cuenta y botón desconectar --}}
-                                        <div class="flex items-center justify-between bg-green-500/10 dark:bg-green-900/20 border border-green-500/30 dark:border-green-800 rounded-xl px-4 py-3">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                                    </svg>
+                                        {{-- Etiqueta de contexto --}}
+                                        <div class="p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <p class="text-xs font-bold text-gray-300 mb-1">Etiqueta de contexto</p>
+                                            <template x-for="tag in (nodeTypes[selectedNode?.type]?.tags ?? [])" :key="tag.tag">
+                                                <div class="flex items-start gap-2 mt-2">
+                                                    <button type="button"
+                                                            @click="insertarTag(tag.tag)"
+                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-900/40 border border-indigo-700/60 text-indigo-300 text-xs font-mono hover:bg-indigo-900/70 hover:border-indigo-500 transition-colors cursor-pointer">
+                                                        <span class="text-indigo-500 text-[10px]">{}</span>
+                                                        <span x-text="tag.tag"></span>
+                                                    </button>
+                                                    <p class="text-xs text-gray-400 mt-0.5" x-text="tag.preview"></p>
                                                 </div>
-                                                <div>
-                                                    <p class="text-sm font-semibold text-green-400 dark:text-green-300">Cuenta conectada</p>
-                                                    <p class="text-xs text-green-600 dark:text-green-400">{{ $googleEmail }}</p>
+                                            </template>
+                                        </div>
+
+                                        {{-- Permisos CRUD --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Permisos del bot sobre este catálogo</p>
+                                            <p class="text-[10px] text-gray-500 mb-3">Define qué operaciones puede ejecutar el bot cuando el usuario lo solicite.</p>
+
+                                            <div class="space-y-2">
+                                                {{-- Consultar --}}
+                                                <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-base">👁</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">Consultar</p>
+                                                            <p class="text-[10px] text-gray-400">El bot puede leer y mostrar registros</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.permisos.consultar = !selectedNode.permisos.consultar"
+                                                            :class="selectedNode.permisos?.consultar ? 'bg-blue-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.permisos?.consultar ? 'translate-x-4' : 'translate-x-0'"
+                                                              class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+
+                                                {{-- Crear --}}
+                                                <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-base">➕</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">Crear</p>
+                                                            <p class="text-[10px] text-gray-400">El bot puede agregar nuevos registros</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.permisos.crear = !selectedNode.permisos.crear"
+                                                            :class="selectedNode.permisos?.crear ? 'bg-green-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.permisos?.crear ? 'translate-x-4' : 'translate-x-0'"
+                                                              class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+
+                                                {{-- Editar --}}
+                                                <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-base">✏️</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">Editar</p>
+                                                            <p class="text-[10px] text-gray-400">El bot puede modificar registros existentes</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.permisos.editar = !selectedNode.permisos.editar"
+                                                            :class="selectedNode.permisos?.editar ? 'bg-amber-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.permisos?.editar ? 'translate-x-4' : 'translate-x-0'"
+                                                              class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+
+                                                {{-- Borrar --}}
+                                                <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-base">🗑️</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">Borrar</p>
+                                                            <p class="text-[10px] text-gray-400">El bot puede eliminar registros</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.permisos.borrar = !selectedNode.permisos.borrar"
+                                                            :class="selectedNode.permisos?.borrar ? 'bg-red-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.permisos?.borrar ? 'translate-x-4' : 'translate-x-0'"
+                                                              class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+
+                                                {{-- Media adjunta (solo si el catálogo tiene campos de archivo) --}}
+                                                <div x-show="nodeTypes[selectedNode?.type]?.hasFiles">
+                                                    <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-purple-900/30">
+                                                        <div class="flex items-center gap-2.5">
+                                                            <span class="text-base">📎</span>
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-200">Media del catálogo</p>
+                                                                <p class="text-[10px] text-gray-400">Activa opciones de envío y recepción de archivos</p>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button"
+                                                                @click="selectedNode.permisos.media = !selectedNode.permisos.media"
+                                                                :class="selectedNode.permisos?.media ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                            <span :class="selectedNode.permisos?.media ? 'translate-x-4' : 'translate-x-0'"
+                                                                  class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                        </button>
+                                                    </div>
+                                                    {{-- Sub-opciones --}}
+                                                    <div x-show="selectedNode.permisos?.media" x-transition class="mt-2 ml-3 space-y-1.5">
+                                                        <div class="flex items-center justify-between px-3 py-2 bg-gray-900/40 rounded-xl border border-white/5">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="text-sm">📤</span>
+                                                                <div>
+                                                                    <p class="text-xs font-medium text-gray-300">Enviar archivos al usuario</p>
+                                                                    <p class="text-[10px] text-gray-500">El bot enviará imágenes, videos o documentos del catálogo</p>
+                                                                </div>
+                                                            </div>
+                                                            <button type="button"
+                                                                    @click="selectedNode.permisos.media_enviar = !selectedNode.permisos.media_enviar"
+                                                                    :class="selectedNode.permisos?.media_enviar ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                    class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                                <span :class="selectedNode.permisos?.media_enviar ? 'translate-x-4' : 'translate-x-0'"
+                                                                      class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                            </button>
+                                                        </div>
+                                                        <div class="flex items-center justify-between px-3 py-2 bg-gray-900/40 rounded-xl border border-white/5">
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="text-sm">💾</span>
+                                                                <div>
+                                                                    <p class="text-xs font-medium text-gray-300">Guardar archivos recibidos</p>
+                                                                    <p class="text-[10px] text-gray-500">Guarda fotos, videos o audios enviados por el usuario en el catálogo</p>
+                                                                </div>
+                                                            </div>
+                                                            <button type="button"
+                                                                    @click="selectedNode.permisos.media_guardar = !selectedNode.permisos.media_guardar"
+                                                                    :class="selectedNode.permisos?.media_guardar ? 'bg-violet-500' : 'bg-gray-600'"
+                                                                    class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                                <span :class="selectedNode.permisos?.media_guardar ? 'translate-x-4' : 'translate-x-0'"
+                                                                      class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <button type="button"
-                                                    onclick="if(confirm('¿Desconectar la cuenta de Google? El bot no podrá acceder a Calendar ni Drive.')){const f=document.createElement('form');f.method='POST';f.action='{{ route('configuracion.google.revoke') }}';const c=document.createElement('input');c.type='hidden';c.name='_token';c.value=document.querySelector('meta[name=csrf-token]').content;f.appendChild(c);const m=document.createElement('input');m.type='hidden';m.name='_method';m.value='DELETE';f.appendChild(m);document.body.appendChild(f);f.submit();}"
-                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-500/10 hover:bg-red-100 border border-red-500/30 rounded-lg transition-colors">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                                </svg>
-                                                Desconectar
-                                            </button>
                                         </div>
-                                    @else
-                                        {{-- No conectado: instrucciones + botón --}}
-                                        <div class="bg-gray-800 bg-gray-700/50 rounded-xl border border-white/10 border-white/10 px-4 py-4 flex items-center justify-between gap-4">
-                                            <div class="text-sm text-gray-600 text-gray-300">
-                                                <p class="font-medium text-gray-300 text-gray-200 mb-0.5">Sin cuenta conectada</p>
-                                                <p class="text-xs text-gray-400">
-                                                    Guarda primero el Client ID y Client Secret, luego haz clic en «Conectar con Google» para autorizar el acceso a Calendar y Drive.
-                                                </p>
+
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)"
+                                           class="text-xs text-amber-400">
+                                            ⚠ Conecta este nodo al Bot para activar sus permisos y etiquetas.
+                                        </p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)"
+                                           class="text-xs text-green-400">
+                                            ✓ Conectado — permisos y etiquetas activos en el bot.
+                                        </p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO WHATSAPP ── --}}
+                                <template x-if="selectedNode?.type === 'whatsapp'">
+                                    <div class="space-y-4 max-h-[30rem] overflow-y-auto pr-1">
+
+                                        {{-- Estado de conexión --}}
+                                        <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <div class="w-8 h-8 rounded-lg bg-green-900/50 flex items-center justify-center flex-shrink-0">
+                                                <span class="text-base">📱</span>
                                             </div>
-                                            @if($estado['google_client_id'] && $estado['google_client_secret'])
-                                                <a href="{{ route('configuracion.google.redirect') }}"
-                                                   class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-800 text-gray-300 text-sm font-semibold rounded-lg border border-white/10 shadow-sm transition-colors">
-                                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                                                    </svg>
-                                                    Conectar con Google
-                                                </a>
-                                            @else
-                                                <span class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-white/10 cursor-not-allowed select-none"
-                                                      title="Guarda primero el Client ID y Client Secret">
-                                                    Conectar con Google
-                                                </span>
-                                            @endif
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-xs font-semibold text-gray-200">Evolution API</p>
+                                                <div class="flex flex-wrap gap-2 mt-0.5">
+                                                    @if(($estado['evolution_url'] ?? false) && ($estado['evolution_key'] ?? false))
+                                                    <span class="text-[10px] text-green-400 font-semibold">✔ URL + API Key configuradas</span>
+                                                    @else
+                                                    <span class="text-[10px] text-amber-400">⚠ Configura las credenciales en</span>
+                                                    <button type="button" @click="modalOpen=false; $dispatch('set-tab','apis')" class="text-[10px] text-emerald-400 hover:underline">Conectar APIs ↗</button>
+                                                    @endif
+                                                </div>
+                                            </div>
                                         </div>
-                                    @endif
-                                </div>
 
-                            </div>
-                        </div>
-                    </div>
+                                        {{-- Mensajería --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mensajería — tipos que puede enviar el bot</p>
+                                            <div class="grid grid-cols-2 gap-1.5">
+                                                @foreach([
+                                                    ['k'=>'texto',     'e'=>'💬', 'l'=>'Texto'],
+                                                    ['k'=>'imagen',    'e'=>'🖼',  'l'=>'Imagen'],
+                                                    ['k'=>'video',     'e'=>'🎦', 'l'=>'Video'],
+                                                    ['k'=>'audio',     'e'=>'🎤', 'l'=>'Audio'],
+                                                    ['k'=>'documento', 'e'=>'📄', 'l'=>'Documento'],
+                                                    ['k'=>'ubicacion', 'e'=>'📍', 'l'=>'Ubicación'],
+                                                    ['k'=>'contacto',  'e'=>'👤', 'l'=>'Contacto vCard'],
+                                                    ['k'=>'sticker',   'e'=>'🎭', 'l'=>'Sticker'],
+                                                    ['k'=>'encuesta',  'e'=>'📊', 'l'=>'Encuesta/Poll'],
+                                                    ['k'=>'lista',     'e'=>'📋', 'l'=>'Lista de opciones'],
+                                                    ['k'=>'botones',   'e'=>'🔘', 'l'=>'Botones de acción'],
+                                                ] as $wi)
+                                                <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-900/60 rounded-lg border border-white/5">
+                                                    <span class="text-xs text-gray-300">{{ $wi['e'] }} {{ $wi['l'] }}</span>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.mensajeria.{{ $wi['k'] }} = !selectedNode.config.mensajeria.{{ $wi['k'] }}"
+                                                            :class="selectedNode.config?.mensajeria?.{{ $wi['k'] }} ? 'bg-green-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.mensajeria?.{{ $wi['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-3 w-3 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
 
-                    {{-- AssemblyAI --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{ open: {{ $estado['assembly_key'] ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">AssemblyAI</p>
-                                    <p class="text-xs text-gray-400">Transcripción de audio y voz a texto</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$estado['assembly_key']"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-4">
-                                <x-config-field name="assembly_key" label="API Key" tipo="password" placeholder="Tu API Key de AssemblyAI" :configured="$estado['assembly_key']"/>
-                            </div>
-                        </div>
-                    </div>
+                                        {{-- Gestión de grupos --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Gestión de grupos</p>
+                                            <div class="grid grid-cols-2 gap-1.5">
+                                                @foreach([
+                                                    ['k'=>'listar',            'e'=>'📋', 'l'=>'Obtener grupos'],
+                                                    ['k'=>'miembros',          'e'=>'👥', 'l'=>'Ver miembros'],
+                                                    ['k'=>'crear',             'e'=>'➕', 'l'=>'Crear grupo'],
+                                                    ['k'=>'addParticipantes',  'e'=>'👤+', 'l'=>'Agregar miembros'],
+                                                    ['k'=>'removeParticipantes','e'=>'👤-','l'=>'Quitar miembros'],
+                                                    ['k'=>'promoverAdmin',     'e'=>'⭐', 'l'=>'Promover admin'],
+                                                    ['k'=>'destituirAdmin',    'e'=>'⬇', 'l'=>'Destituir admin'],
+                                                    ['k'=>'actualizarNombre',  'e'=>'✏', 'l'=>'Cambiar nombre'],
+                                                    ['k'=>'actualizarDesc',    'e'=>'📝', 'l'=>'Cambiar descripción'],
+                                                    ['k'=>'salir',             'e'=>'🚶', 'l'=>'Salir del grupo'],
+                                                ] as $gi)
+                                                <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-900/60 rounded-lg border border-white/5">
+                                                    <span class="text-xs text-gray-300">{{ $gi['e'] }} {{ $gi['l'] }}</span>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.grupos.{{ $gi['k'] }} = !selectedNode.config.grupos.{{ $gi['k'] }}"
+                                                            :class="selectedNode.config?.grupos?.{{ $gi['k'] }} ? 'bg-blue-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.grupos?.{{ $gi['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-3 w-3 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
 
-                    {{-- Zoom --}}
-                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
-                         x-data="{ open: {{ ($estado['zoom_account_id'] || $estado['zoom_client_id']) ? 'true' : 'false' }} }">
-                        <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-800 dark:hover:bg-gray-750 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-sky-600" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M24 12c0 6.627-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0s12 5.373 12 12zM6.5 8.5A1.5 1.5 0 005 10v4.5A2.5 2.5 0 007.5 17h7A1.5 1.5 0 0016 15.5V11a2.5 2.5 0 00-2.5-2.5H6.5zm10.25 1.45l-2.5 1.786V12.3l2.5 1.786c.32.228.75.005.75-.393v-3.35c0-.398-.43-.62-.75-.393z"/>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-sm font-semibold text-gray-100">Zoom</p>
-                                    <p class="text-xs text-gray-400">Integración con reuniones y webinars</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <x-config-badge :configured="$estado['zoom_account_id'] && $estado['zoom_client_id'] && $estado['zoom_client_secret']"/>
-                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </div>
-                        </button>
-                        <div x-show="open" x-collapse class="border-t border-white/5">
-                            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <x-config-field name="zoom_account_id" label="Account ID" tipo="password" placeholder="Tu Account ID" :configured="$estado['zoom_account_id']"/>
-                                <x-config-field name="zoom_client_id" label="Client ID" tipo="password" placeholder="Tu Client ID" :configured="$estado['zoom_client_id']"/>
-                                <x-config-field name="zoom_client_secret" label="Client Secret" tipo="password" placeholder="Tu Client Secret" :configured="$estado['zoom_client_secret']"/>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                        {{-- Mensajes y Chats --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Mensajes y chats</p>
+                                            <div class="grid grid-cols-2 gap-1.5">
+                                                @foreach([
+                                                    ['k'=>'eliminar',    'e'=>'🗑', 'l'=>'Eliminar mensaje'],
+                                                    ['k'=>'reaccionar',  'e'=>'😀', 'l'=>'Reaccionar emoji'],
+                                                    ['k'=>'marcarLeido', 'e'=>'✔✔', 'l'=>'Marcar leído'],
+                                                    ['k'=>'obtener',     'e'=>'📥', 'l'=>'Obtener mensajes'],
+                                                    ['k'=>'archivar',    'e'=>'📦', 'l'=>'Archivar chat'],
+                                                ] as $mi)
+                                                <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-900/60 rounded-lg border border-white/5">
+                                                    <span class="text-xs text-gray-300">{{ $mi['e'] }} {{ $mi['l'] }}</span>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.mensajes.{{ $mi['k'] }} = !selectedNode.config.mensajes.{{ $mi['k'] }}"
+                                                            :class="selectedNode.config?.mensajes?.{{ $mi['k'] }} ? 'bg-amber-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.mensajes?.{{ $mi['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-3 w-3 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        {{-- Contactos --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Contactos</p>
+                                            <div class="grid grid-cols-2 gap-1.5">
+                                                @foreach([
+                                                    ['k'=>'buscar',     'e'=>'🔍', 'l'=>'Buscar contactos'],
+                                                    ['k'=>'verificar',  'e'=>'✔',  'l'=>'Verificar número'],
+                                                    ['k'=>'fotoPerfil', 'e'=>'🖼',  'l'=>'Foto de perfil'],
+                                                ] as $ci)
+                                                <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-900/60 rounded-lg border border-white/5">
+                                                    <span class="text-xs text-gray-300">{{ $ci['e'] }} {{ $ci['l'] }}</span>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.contactos.{{ $ci['k'] }} = !selectedNode.config.contactos.{{ $ci['k'] }}"
+                                                            :class="selectedNode.config?.contactos?.{{ $ci['k'] }} ? 'bg-cyan-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.contactos?.{{ $ci['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-3 w-3 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        {{-- Eventos Webhook --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Eventos webhook a procesar</p>
+                                            <div class="grid grid-cols-2 gap-1.5">
+                                                @foreach([
+                                                    ['k'=>'message',           'l'=>'messages.upsert'],
+                                                    ['k'=>'connectionUpdate',  'l'=>'connection.update'],
+                                                    ['k'=>'sendMessage',       'l'=>'send.message'],
+                                                    ['k'=>'contactsUpdate',    'l'=>'contacts.update'],
+                                                    ['k'=>'presenceUpdate',    'l'=>'presence.update'],
+                                                    ['k'=>'chatsUpdate',       'l'=>'chats.update'],
+                                                    ['k'=>'groupUpdate',       'l'=>'groups.upsert'],
+                                                    ['k'=>'groupParticipants', 'l'=>'group-participants'],
+                                                    ['k'=>'qrcodeUpdated',     'l'=>'qrcode.updated'],
+                                                    ['k'=>'labelsEdit',        'l'=>'labels.edit'],
+                                                ] as $ei)
+                                                <div class="flex items-center justify-between px-2.5 py-1.5 bg-gray-900/60 rounded-lg border border-white/5">
+                                                    <span class="text-[10px] font-mono text-gray-400 truncate">{{ $ei['l'] }}</span>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.eventos.{{ $ei['k'] }} = !selectedNode.config.eventos.{{ $ei['k'] }}"
+                                                            :class="selectedNode.config?.eventos?.{{ $ei['k'] }} ? 'bg-purple-500' : 'bg-gray-600'"
+                                                            class="ml-1 flex-shrink-0 relative inline-flex h-4 w-8 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.eventos?.{{ $ei['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-3 w-3 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)" class="text-xs text-amber-400">⚠ Conecta este nodo al Bot para activarlo.</p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)" class="text-xs text-green-400">✓ Conectado — configuración activa en el bot.</p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO GOOGLE CALENDAR ── --}}
+                                <template x-if="selectedNode?.type === 'google-calendar'">
+                                    <div class="space-y-4">
+                                        {{-- Estado --}}
+                                        <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <span class="text-xl">📅</span>
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-200">Google Calendar</p>
+                                                @if($googleConectado)
+                                                <p class="text-[10px] text-green-400 font-semibold">✔ Google conectado{{ $googleEmail ? ' (' . $googleEmail . ')' : '' }}</p>
+                                                @else
+                                                <span class="text-[10px] text-amber-400">⚠ Conecta Google en </span>
+                                                <button type="button" @click="modalOpen=false; $dispatch('set-tab','apis')" class="text-[10px] text-emerald-400 hover:underline">Conectar APIs ↗</button>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        {{-- Calendar ID --}}
+                                        <div>
+                                            <label class="block text-xs text-gray-400 mb-1">ID del calendario <span class="text-gray-600">(vacío = calendario principal)</span></label>
+                                            <input type="text" x-model="selectedNode.config.calendarId" placeholder="example@group.calendar.google.com"
+                                                   class="w-full px-3 py-2 bg-gray-900 border border-white/10 text-gray-100 text-xs rounded-lg focus:outline-none focus:border-blue-500">
+                                        </div>
+                                        {{-- Operaciones --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Permisos del bot en Google Calendar</p>
+                                            <div class="space-y-1.5">
+                                                @foreach([
+                                                    ['k'=>'listar',     'e'=>'📋', 'l'=>'Listar eventos',           'd'=>'Consultar próximos eventos del calendario'],
+                                                    ['k'=>'detalle',    'e'=>'🔍', 'l'=>'Ver detalle de evento',     'd'=>'Obtener información completa de un evento'],
+                                                    ['k'=>'crear',      'e'=>'➕', 'l'=>'Crear evento',                 'd'=>'Agendar nuevas citas o eventos'],
+                                                    ['k'=>'actualizar', 'e'=>'✏', 'l'=>'Actualizar evento',            'd'=>'Modificar fecha, hora o descripción'],
+                                                    ['k'=>'eliminar',   'e'=>'🗑', 'l'=>'Eliminar evento',              'd'=>'Cancelar o borrar eventos'],
+                                                    ['k'=>'invitar',    'e'=>'📧', 'l'=>'Invitar participantes',       'd'=>'Agregar asistentes al evento'],
+                                                ] as $cali)
+                                                <div class="flex items-center justify-between px-3 py-2 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-base">{{ $cali['e'] }}</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">{{ $cali['l'] }}</p>
+                                                            <p class="text-[10px] text-gray-400">{{ $cali['d'] }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.operaciones.{{ $cali['k'] }} = !selectedNode.config.operaciones.{{ $cali['k'] }}"
+                                                            :class="selectedNode.config?.operaciones?.{{ $cali['k'] }} ? 'bg-blue-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.operaciones?.{{ $cali['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)" class="text-xs text-amber-400">⚠ Conecta este nodo al Bot para activarlo.</p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)" class="text-xs text-green-400">✓ Conectado — permisos activos.</p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO GOOGLE DRIVE ── --}}
+                                <template x-if="selectedNode?.type === 'google-drive'">
+                                    <div class="space-y-4">
+                                        {{-- Estado --}}
+                                        <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <span class="text-xl">📂</span>
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-200">Google Drive</p>
+                                                @if($googleConectado)
+                                                <p class="text-[10px] text-green-400 font-semibold">✔ Google conectado{{ $googleEmail ? ' (' . $googleEmail . ')' : '' }}</p>
+                                                @else
+                                                <span class="text-[10px] text-amber-400">⚠ Conecta Google en </span>
+                                                <button type="button" @click="modalOpen=false; $dispatch('set-tab','apis')" class="text-[10px] text-emerald-400 hover:underline">Conectar APIs ↗</button>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        {{-- Folder ID --}}
+                                        <div>
+                                            <label class="block text-xs text-gray-400 mb-1">ID de carpeta raíz <span class="text-gray-600">(vacío = Mi Drive)</span></label>
+                                            <input type="text" x-model="selectedNode.config.carpetaId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+                                                   class="w-full px-3 py-2 bg-gray-900 border border-white/10 text-gray-100 text-xs rounded-lg focus:outline-none focus:border-yellow-500">
+                                        </div>
+                                        {{-- Operaciones --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Permisos del bot en Google Drive</p>
+                                            <div class="space-y-1.5">
+                                                @foreach([
+                                                    ['k'=>'listar',       'e'=>'📂', 'l'=>'Listar archivos',          'd'=>'Ver lista de archivos y carpetas'],
+                                                    ['k'=>'detalle',      'e'=>'🔍', 'l'=>'Ver detalles',              'd'=>'Metadatos y URL de descarga'],
+                                                    ['k'=>'subir',        'e'=>'⬆', 'l'=>'Subir archivos',              'd'=>'Guardar archivos en Drive'],
+                                                    ['k'=>'descargar',    'e'=>'⬇', 'l'=>'Descargar / compartir',       'd'=>'Enlace de descarga o compartir con el usuario'],
+                                                    ['k'=>'crearCarpeta', 'e'=>'📁', 'l'=>'Crear carpeta',              'd'=>'Organizar contenido creando carpetas'],
+                                                    ['k'=>'compartir',    'e'=>'🔗', 'l'=>'Compartir archivo',          'd'=>'Generar enlace público o enviar por email'],
+                                                    ['k'=>'renombrar',    'e'=>'✏', 'l'=>'Renombrar',                   'd'=>'Cambiar nombre de archivos o carpetas'],
+                                                    ['k'=>'eliminar',     'e'=>'🗑', 'l'=>'Eliminar archivo',           'd'=>'Mover a papelera o eliminar permanentemente'],
+                                                ] as $dri)
+                                                <div class="flex items-center justify-between px-3 py-2 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-base">{{ $dri['e'] }}</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">{{ $dri['l'] }}</p>
+                                                            <p class="text-[10px] text-gray-400">{{ $dri['d'] }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.operaciones.{{ $dri['k'] }} = !selectedNode.config.operaciones.{{ $dri['k'] }}"
+                                                            :class="selectedNode.config?.operaciones?.{{ $dri['k'] }} ? 'bg-yellow-500' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.operaciones?.{{ $dri['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)" class="text-xs text-amber-400">⚠ Conecta este nodo al Bot para activarlo.</p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)" class="text-xs text-green-400">✓ Conectado — permisos activos.</p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO BD EXTERNA (MySQL / MongoDB / PostgreSQL) ── --}}
+                                <template x-if="selectedNode && ['db-mysql','db-mongodb','db-postgresql'].includes(selectedNode.type)">
+                                    <div class="space-y-4">
+                                        {{-- Header --}}
+                                        <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <span class="text-xl" x-text="{'db-mysql':'🐬','db-mongodb':'🍃','db-postgresql':'🐘'}[selectedNode.type]"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-xs font-semibold text-gray-200" x-text="{'db-mysql':'MySQL','db-mongodb':'MongoDB','db-postgresql':'PostgreSQL'}[selectedNode.type] + ' — Base de datos externa'"></p>
+                                                <p class="text-[10px] text-gray-400" x-text="dbConexiones(selectedNode.type).length + ' conexión(es) configurada(s)'"></p>
+                                            </div>
+                                            <template x-if="dbConexiones(selectedNode.type).length === 0">
+                                                <button type="button" @click="modalOpen=false; $dispatch('set-tab','bds')" class="text-[10px] text-emerald-400 hover:underline whitespace-nowrap">Configurar BDs ↗</button>
+                                            </template>
+                                        </div>
+                                        {{-- Selector de conexión --}}
+                                        <template x-if="dbConexiones(selectedNode.type).length > 0">
+                                            <div>
+                                                <label class="block text-xs text-gray-400 mb-1">Conexión a usar</label>
+                                                <select x-model="selectedNode.config.conexionNombre"
+                                                        class="w-full bg-gray-900 border border-white/10 text-gray-100 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500">
+                                                    <option value="">— Seleccionar conexión —</option>
+                                                    <template x-for="db in dbConexiones(selectedNode.type)" :key="db.nombre">
+                                                        <option :value="db.nombre" x-text="db.nombre + (db.host ? ' (' + db.host + ')' : '')"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </template>
+                                        {{-- Tabla / Colección --}}
+                                        <div>
+                                            <label class="block text-xs text-gray-400 mb-1" x-text="selectedNode.type === 'db-mongodb' ? 'Colección (vacío = todas)' : 'Tabla / Vista (vacío = todas)'"></label>
+                                            <input type="text" x-model="selectedNode.config.tabla"
+                                                   :placeholder="selectedNode.type === 'db-mongodb' ? 'mi_coleccion' : 'mi_tabla'"
+                                                   class="w-full px-3 py-2 bg-gray-900 border border-white/10 text-gray-100 text-xs rounded-lg focus:outline-none focus:border-cyan-500">
+                                        </div>
+                                        {{-- Permisos CRUD --}}
+                                        <div>
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Permisos del bot sobre esta BD</p>
+                                            <div class="space-y-1.5">
+                                                @foreach([
+                                                    ['k'=>'consultar','e'=>'👁', 'l'=>'Consultar / Buscar', 'd'=>'El bot puede leer registros',               'c'=>'bg-blue-500'],
+                                                    ['k'=>'crear',    'e'=>'➕', 'l'=>'Insertar registro',  'd'=>'El bot puede insertar nuevos registros',       'c'=>'bg-green-500'],
+                                                    ['k'=>'editar',   'e'=>'✏', 'l'=>'Actualizar registro','d'=>'El bot puede modificar registros existentes',   'c'=>'bg-amber-500'],
+                                                    ['k'=>'borrar',   'e'=>'🗑', 'l'=>'Eliminar registro',  'd'=>'El bot puede eliminar registros',              'c'=>'bg-red-500'],
+                                                ] as $dbi)
+                                                <div class="flex items-center justify-between px-3 py-2.5 bg-gray-900/60 rounded-xl border border-white/5">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <span class="text-base">{{ $dbi['e'] }}</span>
+                                                        <div>
+                                                            <p class="text-xs font-semibold text-gray-200">{{ $dbi['l'] }}</p>
+                                                            <p class="text-[10px] text-gray-400">{{ $dbi['d'] }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            @click="selectedNode.config.permisos.{{ $dbi['k'] }} = !selectedNode.config.permisos.{{ $dbi['k'] }}"
+                                                            :class="selectedNode.config?.permisos?.{{ $dbi['k'] }} ? '{{ $dbi['c'] }}' : 'bg-gray-600'"
+                                                            class="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors">
+                                                        <span :class="selectedNode.config?.permisos?.{{ $dbi['k'] }} ? 'translate-x-4' : 'translate-x-0'" class="inline-block h-4 w-4 rounded-full bg-gray-800 shadow transition-transform"></span>
+                                                    </button>
+                                                </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)" class="text-xs text-amber-400">⚠ Conecta este nodo al Bot para activar sus permisos.</p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)" class="text-xs text-green-400">✓ Conectado — permisos activos en el bot.</p>
+                                    </div>
+                                </template>
+
+                                {{-- ── NODO DB / API (info only) ── --}}
+                                <template x-if="selectedNode && ['db_', 'api_'].some(t => selectedNode.type.startsWith(t))">
+                                    <div class="space-y-3">
+                                        <div class="p-3 rounded-lg bg-gray-700/50 border border-white/10">
+                                            <p class="text-xs font-bold text-gray-300 mb-1">Etiquetas de este nodo</p>
+                                            <template x-for="tag in (nodeTypes[selectedNode?.type]?.tags ?? [])" :key="tag.tag">
+                                                <div class="flex items-start gap-2 mt-2">
+                                                    <button type="button"
+                                                            @click="insertarTag(tag.tag)"
+                                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-900/40 border border-indigo-700/60 text-indigo-300 text-xs font-mono hover:bg-indigo-900/70 hover:border-indigo-500 transition-colors cursor-pointer">
+                                                        <span class="text-indigo-500 text-[10px]">{}</span>
+                                                        <span x-text="tag.tag"></span>
+                                                    </button>
+                                                    <p class="text-xs text-gray-400 mt-0.5" x-text="tag.preview"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <p x-show="!isConnectedToBot(selectedNode?.id)"
+                                           class="text-xs text-amber-400">
+                                            ⚠ Conecta este nodo al Bot para que sus etiquetas sean inyectadas en el contexto.
+                                        </p>
+                                        <p x-show="isConnectedToBot(selectedNode?.id)"
+                                           class="text-xs text-green-400">
+                                            ✓ Conectado — sus etiquetas estarán disponibles en el System Prompt.
+                                        </p>
+                                    </div>
+                                </template>
+
+                            </div>{{-- /modal body --}}
+                        </div>{{-- /modal card --}}
+                    </div>{{-- /modal backdrop --}}
+
+
+
+                    {{-- Hidden inputs to preserve IA model values on form submit --}}
+                    <input type="hidden" name="openai_model" value="{{ $iaModelos['openai'] }}">
+                    <input type="hidden" name="deepseek_model" value="{{ $iaModelos['deepseek'] }}">
+                    <input type="hidden" name="gemini_model" value="{{ $iaModelos['gemini'] }}">
+                    <input type="hidden" name="openai_whisper_activo" value="{{ $iaToggles['openai_whisper'] ? '1' : '0' }}">
+                    <input type="hidden" name="openai_imagen_activo" value="{{ $iaToggles['openai_imagen'] ? '1' : '0' }}">
+                    <input type="hidden" name="gemini_audio_activo" value="{{ $iaToggles['gemini_audio'] ? '1' : '0' }}">
+                </div>{{-- /panel-bot --}}
 
                 {{-- ─── TAB: BASES DE DATOS ─── --}}
                 <div x-show="activeTab === 'dbs'" x-cloak x-data="extDbManager()"
@@ -2232,6 +1851,213 @@
                     </div>
                 </div>
 
+                {{-- ─── TAB: CONECTAR APIs ─── --}}
+                <div x-show="activeTab === 'apis'" x-cloak class="space-y-4"
+                     id="panel-apis" role="tabpanel" aria-labelledby="tab-apis">
+
+                    <div class="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-sm text-emerald-300">
+                        <svg class="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                        </svg>
+                        <span>Administra aquí todas las <strong>claves de acceso</strong> y conexiones externas. La configuración de modelos, etapas y prompts está en sus secciones dedicadas.</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {{-- WhatsApp / Evolution API --}}
+                        <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-100">WhatsApp — Evolution API</p>
+                                    <p class="text-xs text-gray-400">Mensajería y webhooks</p>
+                                </div>
+                                <x-config-badge :configured="$estado['evolution_url'] && $estado['evolution_key']"/>
+                            </div>
+                            <div class="px-5 py-4 space-y-3">
+                                <x-config-field name="evolution_url" label="URL del servidor" tipo="text" placeholder="https://tu-evolution-api.com" :configured="$estado['evolution_url']"/>
+                                <x-config-field name="evolution_key" label="API Key global" tipo="password" placeholder="Tu API Key de Evolution" :configured="$estado['evolution_key']"/>
+                            </div>
+                        </div>
+
+                        {{-- OpenAI --}}
+                        <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-teal-900/40 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 text-teal-400" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0L4.01 14.2A4.501 4.501 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.808 2.768a4.504 4.504 0 0 1-.689 8.122V12.57a.79.79 0 0 0-.412-.719zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.806-2.767a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-100">OpenAI</p>
+                                    <p class="text-xs text-gray-400">GPT · DALL-E · Whisper</p>
+                                </div>
+                                <x-config-badge :configured="$estado['openai_key']"/>
+                            </div>
+                            <div class="px-5 py-4 space-y-2">
+                                <x-config-field name="openai_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['openai_key']"/>
+                                <p class="text-xs text-gray-500">Modelos y capacidades → configura el nodo <strong class="text-teal-400">IA</strong> en el lienzo Bot.</p>
+                            </div>
+                        </div>
+
+                        {{-- DeepSeek --}}
+                        <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-100">DeepSeek</p>
+                                    <p class="text-xs text-gray-400">deepseek-chat · deepseek-reasoner</p>
+                                </div>
+                                <x-config-badge :configured="$estado['deepseek_key']"/>
+                            </div>
+                            <div class="px-5 py-4 space-y-2">
+                                <x-config-field name="deepseek_key" label="API Key" tipo="password" placeholder="sk-..." :configured="$estado['deepseek_key']"/>
+                                <p class="text-xs text-gray-500">Modelos y capacidades → configura el nodo <strong class="text-blue-400">IA</strong> en el lienzo Bot.</p>
+                            </div>
+                        </div>
+
+                        {{-- Gemini --}}
+                        <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-white/5 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-orange-900/40 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2a2 2 0 00-1.82 1.17L3.1 17.47A2 2 0 005 20h14a2 2 0 001.9-2.53L13.82 3.17A2 2 0 0012 2z"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-100">Google Gemini</p>
+                                    <p class="text-xs text-gray-400">gemini-1.5-flash · gemini-1.5-pro</p>
+                                </div>
+                                <x-config-badge :configured="$estado['gemini_key']"/>
+                            </div>
+                            <div class="px-5 py-4 space-y-2">
+                                <x-config-field name="gemini_key" label="API Key" tipo="password" placeholder="AIza..." :configured="$estado['gemini_key']"/>
+                                <p class="text-xs text-gray-500">Modelos y capacidades → configura el nodo <strong class="text-orange-400">IA</strong> en el lienzo Bot.</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{-- Google Calendar & Drive (ancho completo por el flujo OAuth) --}}
+                    <div class="bg-gray-800 rounded-xl shadow-sm border border-white/5 overflow-hidden"
+                         x-data="{ open: {{ ($estado['google_client_id'] || $estado['google_client_secret'] || $googleConectado) ? 'true' : 'false' }} }">
+                        <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-700/30 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                    </svg>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-sm font-semibold text-gray-100">Google (Calendar & Drive)</p>
+                                    @if($googleConectado)
+                                        <p class="text-xs text-green-400 flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
+                                            Conectado: {{ $googleEmail }}
+                                        </p>
+                                    @else
+                                        <p class="text-xs text-gray-400">OAuth2 — Sin conectar</p>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <x-config-badge :configured="$googleConectado"/>
+                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                        </button>
+                        <div x-show="open" x-collapse class="border-t border-white/5">
+                            <div class="px-5 py-5 space-y-5">
+                                {{-- Paso 1: Credenciales OAuth2 --}}
+                                <div>
+                                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                                        Paso 1 — Credenciales OAuth2 (Google Cloud Console)
+                                    </p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <x-config-field name="google_client_id" label="Client ID" tipo="password" placeholder="12345-abc.apps.googleusercontent.com" :configured="$estado['google_client_id']"/>
+                                        <x-config-field name="google_client_secret" label="Client Secret" tipo="password" placeholder="GOCSPX-..." :configured="$estado['google_client_secret']"/>
+                                    </div>
+                                    <p class="mt-2 text-xs text-gray-400">
+                                        Crea las credenciales en
+                                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-500 hover:underline">Google Cloud Console</a>
+                                        como «Aplicación web». Agrega
+                                        <code class="bg-gray-700 px-1 rounded text-xs font-mono">{{ route('configuracion.google.callback') }}</code>
+                                        como URI de redireccionamiento autorizado.
+                                    </p>
+                                </div>
+                                {{-- Paso 2: Autorizar cuenta --}}
+                                <div class="border-t border-white/5 pt-4">
+                                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                                        Paso 2 — Autorizar cuenta de Google
+                                    </p>
+                                    @if($googleConectado)
+                                        <div class="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p class="text-sm font-semibold text-green-400">Cuenta conectada</p>
+                                                    <p class="text-xs text-green-600">{{ $googleEmail }}</p>
+                                                </div>
+                                            </div>
+                                            <button type="button"
+                                                    onclick="if(confirm('¿Desconectar la cuenta de Google? El bot no podrá acceder a Calendar ni Drive.')){const f=document.createElement('form');f.method='POST';f.action='{{ route('configuracion.google.revoke') }}';const c=document.createElement('input');c.type='hidden';c.name='_token';c.value=document.querySelector('meta[name=csrf-token]').content;f.appendChild(c);const m=document.createElement('input');m.type='hidden';m.name='_method';m.value='DELETE';f.appendChild(m);document.body.appendChild(f);f.submit();}"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-500/10 hover:bg-red-100 border border-red-500/30 rounded-lg transition-colors">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                                </svg>
+                                                Desconectar
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="bg-gray-700/50 rounded-xl border border-white/10 px-4 py-4 flex items-center justify-between gap-4">
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-200 mb-0.5">Sin cuenta conectada</p>
+                                                <p class="text-xs text-gray-400">Guarda primero el Client ID y Client Secret, luego haz clic en «Conectar con Google».</p>
+                                            </div>
+                                            @if($estado['google_client_id'] && $estado['google_client_secret'])
+                                                <a href="{{ route('configuracion.google.redirect') }}"
+                                                   class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg border border-white/10 shadow-sm transition-colors">
+                                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                                    </svg>
+                                                    Conectar con Google
+                                                </a>
+                                            @else
+                                                <span class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 text-sm font-semibold rounded-lg border border-white/10 cursor-not-allowed select-none"
+                                                      title="Guarda primero el Client ID y Client Secret">
+                                                    Conectar con Google
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
             </div>{{-- /content --}}
         </div>
 
@@ -2247,13 +2073,472 @@ function configPage() {
         preparar(e) {
             // Nada especial — el form envía todo normalmente
         },
+        init() {
+            // Listen for tab switch events from modals
+            this.$el.addEventListener('set-tab', (e) => {
+                this.activeTab = e.detail;
+            });
+        },
     };
 }
 
 /**
- * Inserta [TAG] en el textarea del system_prompt en la posición actual del cursor.
- * También destellea el textarea para feedback visual.
+ * N8N-style node canvas for Bot configuration.
+ * Manages palette → canvas drag/drop, connection drawing, node modals.
  */
+function botCanvas() {
+    // Node type registry
+    const nodeTypes = {
+        'bot': {
+            icon: '🤖', label: 'Bot', sub: 'Cerebro central', desc: 'Configuración del cerebro del bot',
+            singleton: true, fixed: true, tags: []
+        },
+        'memoria': {
+            icon: '💬', label: 'Memoria BD', sub: 'Historial activo', desc: 'Historial de conversación (siempre activo)',
+            singleton: true, fixed: true, tags: []
+        },
+        'system-prompt': {
+            icon: '📝', label: 'System Prompt', sub: 'Instrucciones base', desc: 'Prompt del sistema y prompts guardados',
+            singleton: true, fixed: false,
+            tags: [{ tag: 'HORA_ACTUAL', preview: 'Fecha y hora actual según zona horaria configurada' }]
+        },
+        'etapas-ia': {
+            icon: '🔄', label: 'Etapas IA', sub: 'Anti-ciclo', desc: 'Guía por etapas para la IA (anti-ciclo)',
+            singleton: true, fixed: false, tags: []
+        },
+        'flujo-pasos': {
+            icon: '📋', label: 'Flujo por Pasos', sub: 'Conversación guiada', desc: 'Flujo conversacional paso a paso',
+            singleton: true, fixed: false, tags: []
+        },
+        'pipeline': {
+            icon: '🎬', label: 'Pipeline Media', sub: 'Imagen/Audio/Video', desc: 'Procesamiento de medios entrantes',
+            singleton: true, fixed: false, tags: []
+        },
+        'ia': {
+            icon: '🧠', label: 'IA', sub: 'Proveedor · Modelo', desc: 'Configura el proveedor de IA, modelo y capacidades (voz/imagen)',
+            singleton: true, fixed: false, tags: []
+        },
+        'whatsapp': {
+            icon: '📱', label: 'WhatsApp', sub: 'Evolution API', desc: 'Mensajería, grupos y eventos de WhatsApp vía Evolution API',
+            singleton: true, fixed: false, tags: []
+        },
+        'google-calendar': {
+            icon: '📅', label: 'G. Calendar', sub: 'Agendar · Consultar', desc: 'Gestión de eventos y citas en Google Calendar',
+            singleton: true, fixed: false, tags: []
+        },
+        'google-drive': {
+            icon: '📂', label: 'G. Drive', sub: 'Archivos · Subir', desc: 'Gestión de archivos y carpetas en Google Drive',
+            singleton: true, fixed: false, tags: []
+        },
+        'db-mysql': {
+            icon: '🐬', label: 'MySQL', sub: 'Base de datos', desc: 'Conexión a base de datos MySQL externa',
+            singleton: false, fixed: false, tags: []
+        },
+        'db-mongodb': {
+            icon: '🍃', label: 'MongoDB', sub: 'NoSQL', desc: 'Conexión a base de datos MongoDB externa',
+            singleton: false, fixed: false, tags: []
+        },
+        'db-postgresql': {
+            icon: '🐘', label: 'PostgreSQL', sub: 'Base de datos', desc: 'Conexión a base de datos PostgreSQL externa',
+            singleton: false, fixed: false, tags: []
+        },
+        // Catalog, DB, API types are added dynamically in init()
+    };
+
+    // PHP data injected from Blade
+    const phpCatalogs = @json($canvasCatalogs);
+    const phpCatalogsWithFiles = new Set(@json($catalogsWithFiles));
+    const phpDbs      = @json($canvasDbs);
+    const phpApis     = @json($canvasApis);
+    const phpExtDbs   = @json($extDbs);
+    const savedLayout = @json($botCanvasLayout);
+
+    const modeLabels = { ia: 'Solo IA', pasos: 'Por pasos', hibrido: 'Híbrido' };
+
+    return {
+        nodes: [],
+        edges: [],
+        dragging: null,
+        connecting: null,
+        selectedNode: null,
+        modalOpen: false,
+        botMode: @js($botModoRespuesta ?? 'ia'),
+        nodeTypes: nodeTypes,
+        extDbs: phpExtDbs,
+
+        init() {
+            // Register dynamic node types from PHP
+            phpCatalogs.forEach(t => {
+                const key = 'catalogo_' + t.tag;
+                nodeTypes[key] = {
+                    icon: '📖', label: t.label || t.tag, sub: '[' + t.tag + ']',
+                    desc: 'Catálogo: ' + (t.label || t.tag),
+                    singleton: true, fixed: false,
+                    hasFiles: phpCatalogsWithFiles.has(t.tag),
+                    tags: [{ tag: t.tag, preview: t.preview || 'Datos del catálogo ' + (t.label || t.tag) }]
+                };
+            });
+            phpDbs.forEach(t => {
+                const key = 'db_' + t.tag;
+                nodeTypes[key] = {
+                    icon: '🗄', label: t.label || t.tag, sub: '[' + t.tag + ']',
+                    desc: 'Base de datos: ' + (t.label || t.tag),
+                    singleton: true, fixed: false,
+                    tags: [{ tag: t.tag, preview: t.preview || 'Datos BD ' + (t.label || t.tag) }]
+                };
+            });
+            phpApis.forEach(t => {
+                const key = 'api_' + t.tag;
+                nodeTypes[key] = {
+                    icon: '⚡', label: t.label || t.tag, sub: '[' + t.tag + ']',
+                    desc: 'API: ' + (t.label || t.tag),
+                    singleton: true, fixed: false,
+                    tags: [{ tag: t.tag, preview: t.preview || 'Datos API ' + (t.label || t.tag) }]
+                };
+            });
+
+            // Restore saved layout OR set default layout
+            if (savedLayout && savedLayout.nodes && savedLayout.nodes.length > 0) {
+                this.nodes = savedLayout.nodes;
+                this.edges = savedLayout.edges || [];
+                // Ensure bot + memoria always exist
+                if (!this.nodes.find(n => n.id === 'bot')) {
+                    this.nodes.unshift({ id: 'bot', type: 'bot', x: 320, y: 220 });
+                }
+                if (!this.nodes.find(n => n.id === 'memoria')) {
+                    this.nodes.push({ id: 'memoria', type: 'memoria', x: 320, y: 340 });
+                }
+                if (!this.edges.find(e => e.from === 'memoria' && e.to === 'bot')) {
+                    this.edges.push({ id: 'e_memoria', from: 'memoria', to: 'bot' });
+                }
+                // Ensure catalog nodes that were saved before CRUD feature have default permisos
+                this.nodes.forEach(n => {
+                    if (n.type?.startsWith('catalogo_') && !n.permisos) {
+                        n.permisos = { consultar: true, crear: false, editar: false, borrar: false, media: false, media_enviar: false, media_guardar: false };
+                    } else if (n.type?.startsWith('catalogo_') && n.permisos && n.permisos.media_enviar === undefined) {
+                        n.permisos.media_enviar  = false;
+                        n.permisos.media_guardar = false;
+                    }
+                    if (n.type === 'whatsapp' && !n.config)        n.config = { mensajeria: { texto: true, imagen: true, video: false, audio: false, documento: false, ubicacion: false, contacto: false, sticker: false, encuesta: false, lista: false, botones: false }, grupos: { crear: false, listar: false, miembros: false, addParticipantes: false, removeParticipantes: false, promoverAdmin: false, destituirAdmin: false, actualizarNombre: false, actualizarDesc: false, salir: false }, mensajes: { eliminar: false, reaccionar: true, marcarLeido: true, obtener: false, archivar: false }, contactos: { buscar: false, verificar: false, fotoPerfil: false }, eventos: { message: true, connectionUpdate: true, sendMessage: false, contactsUpdate: false, presenceUpdate: false, chatsUpdate: false, groupUpdate: false, groupParticipants: false, qrcodeUpdated: true, labelsEdit: false } };
+                    if (n.type === 'google-calendar' && !n.config) n.config = { calendarId: '', operaciones: { listar: true, detalle: false, crear: false, actualizar: false, eliminar: false, invitar: false } };
+                    if (n.type === 'google-drive'    && !n.config) n.config = { carpetaId: '', operaciones: { listar: true, detalle: false, subir: false, descargar: false, crearCarpeta: false, compartir: false, eliminar: false, renombrar: false } };
+                    if (['db-mysql','db-mongodb','db-postgresql'].includes(n.type) && !n.config) n.config = { conexionNombre: '', tabla: '', permisos: { consultar: true, crear: false, editar: false, borrar: false } };
+                });
+            } else {
+                // Default: bot in center, system-prompt and memoria connected
+                this.nodes = [
+                    { id: 'bot',           type: 'bot',           x: 360, y: 200 },
+                    { id: 'memoria',       type: 'memoria',       x: 180, y: 320 },
+                    { id: 'system-prompt', type: 'system-prompt', x: 180, y: 100 },
+                ];
+                this.edges = [
+                    { id: 'e_memoria', from: 'memoria', to: 'bot' },
+                    { id: 'e_sysprompt', from: 'system-prompt', to: 'bot' },
+                ];
+            }
+
+            // Watch botMode and auto-sync canvas nodes
+            this.$watch('botMode', mode => this.applyModeNodes(mode));
+        },
+
+        // ─── Palette ───────────────────────────────────────────────────────
+
+        // Auto-add/remove mode-specific nodes when Bot mode changes.
+        // 'ia'     → needs: ia, system-prompt
+        // 'pasos'  → needs: flujo-pasos
+        // 'hibrido'→ needs: ia, system-prompt, flujo-pasos
+        applyModeNodes(mode) {
+            const want = {
+                ia:      ['ia', 'system-prompt'],
+                pasos:   ['flujo-pasos'],
+                hibrido: ['ia', 'system-prompt', 'flujo-pasos'],
+            };
+            // All manageable types across all modes
+            const allManaged = ['ia', 'system-prompt', 'flujo-pasos'];
+            const desired    = want[mode] ?? [];
+
+            // Remove nodes that belong to another mode (not desired) AND have NO user-set data
+            // We only auto-remove types that we auto-added (all three managed types)
+            const toRemove = allManaged.filter(t => !desired.includes(t));
+            toRemove.forEach(type => {
+                const idx = this.nodes.findIndex(n => n.type === type);
+                if (idx !== -1) {
+                    const nodeId = this.nodes[idx].id;
+                    this.nodes.splice(idx, 1);
+                    this.edges = this.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+                }
+            });
+
+            // Add nodes that are desired but not yet on canvas
+            const botNode = this.nodes.find(n => n.type === 'bot');
+            const botX = botNode?.x ?? 360;
+            const botY = botNode?.y ?? 200;
+
+            // Layout offsets relative to bot node
+            const offsets = {
+                'ia':            { dx: -220, dy: -140 },
+                'system-prompt': { dx: -220, dy:    0  },
+                'flujo-pasos':   { dx: -220, dy:  140  },
+            };
+
+            desired.forEach(type => {
+                if (!this.isOnCanvas(type)) {
+                    const { dx, dy } = offsets[type] ?? { dx: -200, dy: 0 };
+                    const id = type + '_auto';
+                    this.nodes.push({ id, type, x: Math.max(0, botX + dx), y: Math.max(10, botY + dy) });
+                    if (!this.edges.find(e => e.from === id && e.to === 'bot')) {
+                        this.edges.push({ id: 'e_' + type, from: id, to: 'bot' });
+                    }
+                }
+            });
+        },
+
+        get palette() {
+            return Object.keys(this.nodeTypes)
+                .filter(type => {
+                    const t = this.nodeTypes[type];
+                    if (t.fixed) return false;
+                    if (t.singleton && this.isOnCanvas(type)) return false;
+                    return true;
+                })
+                .map(type => ({ type, ...this.nodeTypes[type] }));
+        },
+
+        isOnCanvas(type) {
+            return this.nodes.some(n => n.type === type);
+        },
+
+        // ─── Drag from palette ─────────────────────────────────────────────
+        _paletteDragType: null,
+        startPaletteDrag(type, event) {
+            const nt = this.nodeTypes[type];
+            if (nt?.singleton && this.isOnCanvas(type)) {
+                event.preventDefault();
+                return;
+            }
+            this._paletteDragType = type;
+            event.dataTransfer.effectAllowed = 'copy';
+            event.dataTransfer.setData('text/plain', type);
+        },
+
+        onCanvasDrop(event) {
+            const type = event.dataTransfer.getData('text/plain') || this._paletteDragType;
+            this._paletteDragType = null;
+            if (!type || !this.nodeTypes[type]) return;
+            if (this.nodeTypes[type].singleton && this.isOnCanvas(type)) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const x = event.clientX - rect.left - 66;
+            const y = event.clientY - rect.top - 30;
+            const id = type + '_' + Date.now();
+            const newNode = { id, type, x: Math.max(0, x), y: Math.max(0, y) };
+            if (type.startsWith('catalogo_')) {
+                newNode.permisos = { consultar: true, crear: false, editar: false, borrar: false, media: false, media_enviar: false, media_guardar: false };
+            }
+            if (type === 'whatsapp')       newNode.config = { mensajeria: { texto: true, imagen: true, video: false, audio: false, documento: false, ubicacion: false, contacto: false, sticker: false, encuesta: false, lista: false, botones: false }, grupos: { crear: false, listar: false, miembros: false, addParticipantes: false, removeParticipantes: false, promoverAdmin: false, destituirAdmin: false, actualizarNombre: false, actualizarDesc: false, salir: false }, mensajes: { eliminar: false, reaccionar: true, marcarLeido: true, obtener: false, archivar: false }, contactos: { buscar: false, verificar: false, fotoPerfil: false }, eventos: { message: true, connectionUpdate: true, sendMessage: false, contactsUpdate: false, presenceUpdate: false, chatsUpdate: false, groupUpdate: false, groupParticipants: false, qrcodeUpdated: true, labelsEdit: false } };
+            if (type === 'google-calendar') newNode.config = { calendarId: '', operaciones: { listar: true, detalle: false, crear: false, actualizar: false, eliminar: false, invitar: false } };
+            if (type === 'google-drive')    newNode.config = { carpetaId: '', operaciones: { listar: true, detalle: false, subir: false, descargar: false, crearCarpeta: false, compartir: false, eliminar: false, renombrar: false } };
+            if (['db-mysql','db-mongodb','db-postgresql'].includes(type)) newNode.config = { conexionNombre: '', tabla: '', permisos: { consultar: true, crear: false, editar: false, borrar: false } };
+            this.nodes.push(newNode);
+        },
+
+        // ─── Node drag (reposition) ────────────────────────────────────────
+        startDrag(nodeId, event) {
+            if (this.connecting) return;
+            const node = this.nodes.find(n => n.id === nodeId);
+            if (!node) return;
+            this.dragging = {
+                id: nodeId,
+                offsetX: event.clientX - node.x,
+                offsetY: event.clientY - node.y,
+            };
+        },
+
+        onMouseMove(event) {
+            if (this.dragging) {
+                const node = this.nodes.find(n => n.id === this.dragging.id);
+                if (node) {
+                    node.x = Math.max(0, event.clientX - this.dragging.offsetX);
+                    node.y = Math.max(0, event.clientY - this.dragging.offsetY);
+                }
+            }
+            if (this.connecting) {
+                this.connecting.curX = event.clientX - this._canvasRect().left;
+                this.connecting.curY = event.clientY - this._canvasRect().top;
+            }
+        },
+
+        onMouseUp(event) {
+            this.dragging = null;
+            if (this.connecting && !event.target.closest('[\\@mouseup\\.stop]')) {
+                this.connecting = null;
+            }
+        },
+
+        _canvasEl() {
+            return document.querySelector('#panel-bot .relative.flex-1');
+        },
+
+        _canvasRect() {
+            const el = this._canvasEl();
+            return el ? el.getBoundingClientRect() : { left: 0, top: 0 };
+        },
+
+        _nodeCenter(nodeId) {
+            const node = this.nodes.find(n => n.id === nodeId);
+            if (!node) return { x: 0, y: 0 };
+            return { x: node.x + 66, y: node.y + 28 };
+        },
+
+        // ─── Connection drawing ────────────────────────────────────────────
+        startConnect(fromId, event) {
+            this.dragging = null; // cancel any drag
+            const node = this.nodes.find(n => n.id === fromId);
+            if (!node) return;
+            const rect = this._canvasRect();
+            const x1 = node.x + 132 + 3; // right port
+            const y1 = node.y + 28;
+            this.connecting = { fromId, x1, y1, curX: x1, curY: y1 };
+        },
+
+        endConnect(toId) {
+            if (!this.connecting || this.connecting.fromId === toId) {
+                this.connecting = null;
+                return;
+            }
+            const fromId = this.connecting.fromId;
+            this.connecting = null;
+            // Only connect to bot
+            if (toId !== 'bot') return;
+            // Avoid duplicates
+            if (this.edges.find(e => e.from === fromId && e.to === toId)) return;
+            this.edges.push({ id: 'e_' + fromId + '_' + toId, from: fromId, to: toId });
+        },
+
+        // ─── Edge management ──────────────────────────────────────────────
+        removeEdge(edgeId) {
+            // Prevent removing the memoria connection
+            const edge = this.edges.find(e => e.id === edgeId);
+            if (edge && edge.from === 'memoria') return;
+            this.edges = this.edges.filter(e => e.id !== edgeId);
+        },
+
+        isConnectedToBot(nodeId) {
+            if (nodeId === 'bot') return true;
+            return this.edges.some(e => e.from === nodeId && e.to === 'bot');
+        },
+
+        // ─── SVG edges rendered as HTML string (x-for inside SVG breaks; use x-html instead) ─────
+        get edgesHtml() {
+            return this.edges.map(edge => {
+                const d   = this.edgePath(edge);
+                const mid = this.edgeMid(edge);
+                return `<path d="${d}" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="none" opacity="0.7"/>` +
+                       `<circle cx="${mid.x}" cy="${mid.y}" r="7" fill="#ef4444" opacity="0.85" ` +
+                       `class="pointer-events-auto cursor-pointer" data-edge-id="${edge.id}" title="Quitar conexión"/>` +
+                       `<text x="${mid.x}" y="${mid.y + 4}" text-anchor="middle" font-size="9" ` +
+                       `fill="white" class="pointer-events-none select-none">✕</text>`;
+            }).join('\n');
+        },
+
+        onSvgEdgeClick(event) {
+            const edgeId = event.target.getAttribute('data-edge-id');
+            if (edgeId) this.removeEdge(edgeId);
+        },
+
+        // ─── SVG path helpers ──────────────────────────────────────────────
+        edgePath(edge) {
+            const from = this.nodes.find(n => n.id === edge.from);
+            const to   = this.nodes.find(n => n.id === edge.to);
+            if (!from || !to) return '';
+            const x1 = from.x + 132 + 3;
+            const y1 = from.y + 28;
+            const x2 = to.x - 3;  // bot left port
+            const y2 = to.y + 28;
+            const cx1 = x1 + Math.abs(x2 - x1) * 0.5;
+            const cx2 = x2 - Math.abs(x2 - x1) * 0.5;
+            return `M ${x1},${y1} C ${cx1},${y1} ${cx2},${y2} ${x2},${y2}`;
+        },
+
+        tempEdgePath() {
+            if (!this.connecting) return '';
+            const { x1, y1, curX, curY } = this.connecting;
+            const cx1 = x1 + Math.abs(curX - x1) * 0.5;
+            const cx2 = curX - Math.abs(curX - x1) * 0.5;
+            return `M ${x1},${y1} C ${cx1},${y1} ${cx2},${curY} ${curX},${curY}`;
+        },
+
+        edgeMid(edge) {
+            const from = this.nodes.find(n => n.id === edge.from);
+            const to   = this.nodes.find(n => n.id === edge.to);
+            if (!from || !to) return { x: 0, y: 0 };
+            return {
+                x: (from.x + 132 + to.x) / 2,
+                y: (from.y + to.y + 56) / 2,
+            };
+        },
+
+        // ─── Node style ───────────────────────────────────────────────────
+        nodeCardStyle(node) {
+            return `left: ${node.x}px; top: ${node.y}px;`;
+        },
+
+        // ─── Modal ────────────────────────────────────────────────────────
+        openModal(nodeId) {
+            if (this.dragging) return; // don't open if we just dragged
+            this.selectedNode = this.nodes.find(n => n.id === nodeId) || null;
+            this.modalOpen = !!this.selectedNode;
+        },
+
+        deleteNode(nodeId) {
+            if (nodeId === 'bot' || nodeId === 'memoria') return;
+            this.nodes = this.nodes.filter(n => n.id !== nodeId);
+            this.edges = this.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+            if (this.selectedNode?.id === nodeId) {
+                this.selectedNode = null;
+                this.modalOpen = false;
+            }
+        },
+
+        // ─── Connected tags (for System Prompt modal) ─────────────────────
+        connectedTags() {
+            const tags = [];
+            // Always include hora_actual if system-prompt or bot nodes exist
+            this.edges.forEach(edge => {
+                if (edge.to !== 'bot') return;
+                const node = this.nodes.find(n => n.id === edge.from);
+                if (!node) return;
+                const nt = this.nodeTypes[node.type];
+                if (nt?.tags) tags.push(...nt.tags);
+            });
+            return tags;
+        },
+
+        // ─── DB connections filtered by driver ────────────────────────────
+        dbConexiones(tipo) {
+            const driverMap = { 'db-mysql': 'mysql', 'db-mongodb': 'mongodb', 'db-postgresql': 'pgsql' };
+            const driver = driverMap[tipo] ?? '';
+            return driver ? this.extDbs.filter(d => d.driver === driver) : this.extDbs;
+        },
+
+        // ─── Canvas serialization ─────────────────────────────────────────
+        getCanvasJson() {
+            return JSON.stringify({
+                nodes: this.nodes.map(n => {
+                    const data = { id: n.id, type: n.type, x: n.x, y: n.y };
+                    if (n.type?.startsWith('catalogo_') && n.permisos) {
+                        data.permisos = n.permisos;
+                    }
+                    if (['whatsapp','google-calendar','google-drive','db-mysql','db-mongodb','db-postgresql'].includes(n.type) && n.config) {
+                        data.config = n.config;
+                    }
+                    return data;
+                }),
+                edges: this.edges.map(e => ({ id: e.id, from: e.from, to: e.to })),
+            });
+        },
+    };
+}
+
 function insertarTag(tag) {
     const ta = document.getElementById('system_prompt');
     if (!ta) return;
@@ -2423,6 +2708,101 @@ function extDbManager() {
                     tablas_columnas,
                 };
             }));
+        },
+    };
+}
+
+/**
+ * Alpine component for the IA canvas node modal.
+ * Manages provider selection, model selection, and capability toggles.
+ */
+function iaNodeManager() {
+    return {
+        proveedor: @js($botProveedor ?? 'openai'),
+
+        openai: {
+            modelo:    @js($iaModelos['openai']   ?? 'gpt-4o'),
+            customOn:  false,
+            customVal: '',
+            whisper:   {{ ($iaToggles['openai_whisper'] ?? false) ? 'true' : 'false' }},
+            imagen:    {{ ($iaToggles['openai_imagen']  ?? false) ? 'true' : 'false' }},
+            modelos: [
+                { id: 'gpt-4o',        label: 'GPT-4o',        tag: 'Recomendado' },
+                { id: 'gpt-4o-mini',   label: 'GPT-4o Mini',   tag: 'Rápido'      },
+                { id: 'gpt-4-turbo',   label: 'GPT-4 Turbo',   tag: null          },
+                { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', tag: 'Económico'   },
+                { id: 'o1',            label: 'o1',            tag: 'Razonamiento' },
+                { id: 'o3-mini',       label: 'o3-mini',       tag: null           },
+            ],
+            elegir(id) {
+                if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                else { this.customOn = false; this.modelo = id; }
+            },
+            get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
+        },
+
+        deepseek: {
+            modelo:    @js($iaModelos['deepseek']  ?? 'deepseek-chat'),
+            customOn:  false,
+            customVal: '',
+            modelos: [
+                { id: 'deepseek-chat',     label: 'DeepSeek Chat',     tag: 'Recomendado'   },
+                { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner', tag: 'R1 · Avanzado' },
+                { id: 'deepseek-coder',    label: 'DeepSeek Coder',    tag: 'Programación'  },
+            ],
+            elegir(id) {
+                if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                else { this.customOn = false; this.modelo = id; }
+            },
+            get modeloFinal() { return this.customOn ? this.customVal : this.modelo; },
+        },
+
+        gemini: {
+            modelo:    @js($iaModelos['gemini']    ?? 'gemini-1.5-flash'),
+            customOn:  false,
+            customVal: '',
+            audio:     {{ ($iaToggles['gemini_audio']  ?? false) ? 'true' : 'false' }},
+            vision:    {{ ($iaToggles['gemini_vision'] ?? false) ? 'true' : 'false' }},
+            modelos: [
+                { id: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash',  tag: 'Más rápido',   audio: true,  vision: true  },
+                { id: 'gemini-2.0-flash',     label: 'Gemini 2.0 Flash',  tag: 'Estable',      audio: true,  vision: true  },
+                { id: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash',  tag: 'Rápido',       audio: true,  vision: true  },
+                { id: 'gemini-1.5-flash-8b',  label: 'Flash 1.5 8B',      tag: 'Ultra rápido', audio: true,  vision: true  },
+                { id: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro',    tag: 'Más potente',  audio: true,  vision: true  },
+                { id: 'gemini-1.0-pro',       label: 'Gemini 1.0 Pro',    tag: 'Básico',       audio: false, vision: false },
+            ],
+            elegir(id) {
+                if (id === '__custom__') { this.customOn = true; this.modelo = ''; }
+                else {
+                    this.customOn = false;
+                    this.modelo   = id;
+                    const m = this.modelos.find(m => m.id === id);
+                    if (m && !m.audio)  this.audio  = false;
+                    if (m && !m.vision) this.vision = false;
+                }
+            },
+            get modeloFinal()   { return this.customOn ? this.customVal : this.modelo; },
+            get soportaAudio()  { if (this.customOn) return true; const m = this.modelos.find(m => m.id === this.modelo); return m ? m.audio  : true; },
+            get soportaVision() { if (this.customOn) return true; const m = this.modelos.find(m => m.id === this.modelo); return m ? m.vision : true; },
+        },
+
+        init() {
+            // Restore custom values from saved models
+            const o = this.openai;
+            if (!o.modelos.find(m => m.id === o.modelo) && o.modelo) { o.customOn = true; o.customVal = o.modelo; }
+            const d = this.deepseek;
+            if (!d.modelos.find(m => m.id === d.modelo) && d.modelo) { d.customOn = true; d.customVal = d.modelo; }
+            const g = this.gemini;
+            if (!g.modelos.find(m => m.id === g.modelo) && g.modelo) { g.customOn = true; g.customVal = g.modelo; }
+        },
+
+        setProveedor(p) { this.proveedor = p; },
+
+        modeloActual(prov) {
+            if (prov === 'openai')   return this.openai.modeloFinal   || 'Sin modelo';
+            if (prov === 'deepseek') return this.deepseek.modeloFinal || 'Sin modelo';
+            if (prov === 'gemini')   return this.gemini.modeloFinal   || 'Sin modelo';
+            return '';
         },
     };
 }

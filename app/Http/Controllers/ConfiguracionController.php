@@ -109,6 +109,7 @@ class ConfiguracionController extends Controller
             'openai_whisper' => Configuracion::get('openai_whisper_activo', '0') === '1',
             'openai_imagen'  => Configuracion::get('openai_imagen_activo',  '0') === '1',
             'gemini_audio'   => Configuracion::get('gemini_audio_activo',   '0') === '1',
+            'gemini_vision'  => Configuracion::get('gemini_vision_activo',  '0') === '1',
         ];
 
         // Toggles de análisis de medios del bot (imagen/audio entrante) — legacy
@@ -163,6 +164,7 @@ class ConfiguracionController extends Controller
         } catch (\Exception) {}
 
         $botTimezone    = Configuracion::get('bot_timezone', '');
+        $botCanvasLayout = json_decode(Configuracion::get('bot_canvas_layout', ''), true) ?: null;
 
         $savedPrompts   = collect();
         $promptActivoId = null;
@@ -198,6 +200,7 @@ class ConfiguracionController extends Controller
             'savedPrompts'          => $savedPrompts,
             'promptActivoId'        => $promptActivoId,
             'botTimezone'           => $botTimezone,
+            'botCanvasLayout'       => $botCanvasLayout,
             'googleConectado'    => $googleConectado,
             'googleEmail'        => $googleEmail,
         ]);
@@ -288,6 +291,15 @@ class ConfiguracionController extends Controller
             $guardados++;
         }
 
+        // Guardar layout del canvas N8N
+        if ($request->has('bot_canvas_layout')) {
+            $layout = trim((string) $request->input('bot_canvas_layout', ''));
+            if ($layout !== '' && $layout !== '{}') {
+                Configuracion::set('bot_canvas_layout', $layout, 'bot', 'Layout del canvas de nodos del bot');
+            }
+            $guardados++;
+        }
+
         // Guardar system_prompt
         if ($request->has('system_prompt')) {
             $prompt = $request->input('system_prompt', '');
@@ -311,8 +323,9 @@ class ConfiguracionController extends Controller
         // Guardar toggles de capacidades de IA (siempre guardan aunque sean '0')
         $iaToggleCampos = [
             'openai_whisper_activo' => 'Whisper — transcripción de audio',
-            'openai_imagen_activo'  => 'DALL-E — generación de imágenes',
+            'openai_imagen_activo'  => 'DALL-E / Vision — lectura de imágenes',
             'gemini_audio_activo'   => 'Gemini — audio nativo',
+            'gemini_vision_activo'  => 'Gemini — lectura de imágenes',
         ];
         foreach ($iaToggleCampos as $campo => $desc) {
             if ($request->has($campo)) {
@@ -433,7 +446,7 @@ class ConfiguracionController extends Controller
         $clavesValidas = collect($this->campos)
             ->flatMap(fn($g) => array_keys($g['claves']))
             ->push('system_prompt', 'bot_ia_proveedor', 'ext_dbs', 'bot_prompt_verificacion',
-                   'openai_whisper_activo', 'openai_imagen_activo', 'gemini_audio_activo')
+                   'openai_whisper_activo', 'openai_imagen_activo', 'gemini_audio_activo', 'gemini_vision_activo')
             ->toArray();
 
         if (in_array($clave, $clavesValidas)) {

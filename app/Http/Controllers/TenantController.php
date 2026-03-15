@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\BienvenidaUsuario;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class TenantController extends Controller
@@ -99,15 +101,24 @@ class TenantController extends Controller
             }
             $user = $usuarioExistente;
         } else {
+            // Generar contraseña temporal para el nuevo anfitrión
+            $plainPassword = Str::password(12, true, true, false);
+
             $user = User::create([
-                'name'              => $data['nombre'] . ' Admin',
-                'username'          => $data['slug'] . '-admin',
-                'email'             => $data['admin_email'],
-                'password'          => Hash::make($data['admin_password']),
-                'tenant_id'         => $tenant->id,
-                'email_verified_at' => now(),
+                'name'                 => $data['nombre'] . ' Admin',
+                'username'             => $data['slug'] . '-admin',
+                'email'                => $data['admin_email'],
+                'password'             => Hash::make($plainPassword),
+                'tenant_id'            => $tenant->id,
+                'email_verified_at'    => now(),
+                'must_change_password' => true,
             ]);
             $user->assignRole('anfitrion');
+
+            try {
+                Mail::to($user->email)
+                    ->send(new BienvenidaUsuario($user, $plainPassword, 'anfitrión'));
+            } catch (\Throwable) {}
         }
 
         return response()->json([
@@ -170,5 +181,31 @@ class TenantController extends Controller
         $tenant->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * El super_admin "entra" al contexto de un tenant para configurarlo.
+     * POST /admin/negocios/{id}/impersonate
+     */
+    public function impersonate(string $id)
+    {
+        $tenant = Tenant::findOrFail($id);
+
+        session(['tenancy_impersonate_id' => $tenant->id]);
+
+        return redirect()->route('configuracion.index')
+            ->with('success', "Entraste al negocio «{$tenant->nombre}». Configura el bot y sal cuando termines.");
+    }
+
+    /**
+     * El super_admin sale del contexto del tenant impersonado.
+     * DELETE /admin/negocios/impersonate
+     */
+    public function exitImpersonation()
+    {
+        session()->forget('tenancy_impersonate_id');
+
+        return redirect()->route('admin.negocios.index')
+            ->with('success', 'Saliste del contexto del negocio.');
     }
 }

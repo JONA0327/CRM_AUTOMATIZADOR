@@ -35,7 +35,7 @@ Route::middleware(['auth', 'verified', 'tenant.auth'])->group(function () {
 // ──────────────────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
 
-    // ── Catálogos dinámicos — todos los roles del tenant ──
+    // ── Catálogos dinámicos — cualquier usuario con acceso al tenant ──
     Route::prefix('catalogo/{module}')->name('catalogo.')->group(function () {
         Route::get('/',        [CatalogRecordController::class, 'index'])->name('index');
         Route::post('/',       [CatalogRecordController::class, 'store'])->name('store');
@@ -46,7 +46,7 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
         Route::post('/{id}/whatsapp-verify/{fieldSlug}', [CatalogRecordController::class, 'verificarWhatsapp'])->name('whatsapp-verify');
     });
 
-    // ── Bot: conversaciones y contactos — todos los roles del tenant ──
+    // ── Bot: conversaciones — usuarios con permiso ver.conversaciones ──
     Route::prefix('bot')->name('bot.')->group(function () {
         Route::get('/conversaciones',          [BotController::class, 'conversaciones'])->name('conversaciones');
         Route::get('/contactos',               [BotController::class, 'listarContactos'])->name('contactos');
@@ -54,28 +54,44 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
         Route::delete('/conversaciones-all',   [BotController::class, 'eliminarTodasConversaciones'])->name('conversaciones.eliminar-todo');
         Route::delete('/conversaciones/{phone}', [BotController::class, 'eliminarConversacionesPorTelefono'])->name('conversaciones.eliminar')->where('phone', '.+');
 
-        // ── Gestión de instancias y configuración — solo anfitrion ──
-        Route::middleware('role:anfitrion')->group(function () {
-            Route::get('/',                        [BotController::class, 'index'])->name('index');
-            Route::get('/conectar',                [BotController::class, 'conectar'])->name('conectar');
-            Route::post('/crear-instancia',        [BotController::class, 'crearInstancia'])->name('crear');
-            Route::get('/estado/{instancia}',      [BotController::class, 'estadoConexion'])->name('estado');
-            Route::get('/qr/{instancia}',          [BotController::class, 'refrescarQr'])->name('qr');
-            Route::delete('/eliminar/{instancia}', [BotController::class, 'eliminarInstancia'])->name('eliminar');
-            Route::post('/toggle',                 [BotController::class, 'toggleBot'])->name('toggle');
-            Route::get('/diagnostico',             [BotController::class, 'diagnostico'])->name('diagnostico');
-            Route::get('/config/{instancia}',      [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
-            Route::post('/config/{instancia}',     [BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
-            Route::get('/logs/{instancia}',        [BotController::class, 'getLogs'])->name('logs')->where('instancia', '.+');
-            Route::post('/pairing-code/{instancia}', [BotController::class, 'pairingCode'])->name('pairing-code')->where('instancia', '.+');
-            Route::post('/registrar-instancia',    [BotController::class, 'registrarInstancia'])->name('registrar');
-            Route::post('/toggle-instance',        [BotController::class, 'toggleInstance'])->name('toggle-instance');
-            Route::post('/set-default',            [BotController::class, 'setDefault'])->name('set-default');
+        // ── Ver instancias + conectar QR — anfitrion y super_admin ──
+        Route::get('/',                [BotController::class, 'index'])->name('index');
+        Route::get('/conectar',        [BotController::class, 'conectar'])->name('conectar');
+        Route::get('/estado/{instancia}',     [BotController::class, 'estadoConexion'])->name('estado');
+        Route::get('/qr/{instancia}',         [BotController::class, 'refrescarQr'])->name('qr');
+        Route::post('/pairing-code/{instancia}', [BotController::class, 'pairingCode'])->name('pairing-code')->where('instancia', '.+');
+        Route::post('/registrar-instancia',   [BotController::class, 'registrarInstancia'])->name('registrar');
+        Route::post('/set-default',           [BotController::class, 'setDefault'])->name('set-default');
+
+        // ── Crear instancia — requiere permiso instancias.crear ──
+        Route::post('/crear-instancia',  [BotController::class, 'crearInstancia'])->name('crear');
+
+        // ── Eliminar instancia — requiere permiso instancias.eliminar ──
+        Route::delete('/eliminar/{instancia}', [BotController::class, 'eliminarInstancia'])->name('eliminar');
+
+        // ── Pausar/reanudar bot — requiere permiso instancias.pausar ──
+        Route::post('/toggle',          [BotController::class, 'toggleBot'])->name('toggle');
+        Route::post('/toggle-instance', [BotController::class, 'toggleInstance'])->name('toggle-instance');
+
+        // ── Diagnóstico, logs y config — solo super_admin ──
+        Route::middleware('role:super_admin')->group(function () {
+            Route::get('/diagnostico',        [BotController::class, 'diagnostico'])->name('diagnostico');
+            Route::get('/logs/{instancia}',   [BotController::class, 'getLogs'])->name('logs')->where('instancia', '.+');
+            Route::get('/config/{instancia}', [BotController::class, 'getConfig'])->name('config.get')->where('instancia', '.+');
+            Route::post('/config/{instancia}',[BotController::class, 'setConfig'])->name('config.set')->where('instancia', '.+');
         });
     });
 
-    // ── Rutas exclusivas para anfitrion ──
-    Route::middleware('role:anfitrion')->group(function () {
+    // ── Gestión de colaboradores — solo anfitrion ──
+    Route::middleware('role:anfitrion')->prefix('colaboradores')->name('colaboradores.')->group(function () {
+        Route::get('/',                   [CollaboratorController::class, 'index'])->name('index');
+        Route::post('/',                  [CollaboratorController::class, 'store'])->name('store');
+        Route::delete('/{id}',            [CollaboratorController::class, 'destroy'])->name('destroy');
+        Route::put('/{id}/permisos',      [CollaboratorController::class, 'updatePermisos'])->name('permisos.update');
+    });
+
+    // ── Configuración del bot — solo super_admin (mientras impersona o tiene tenant) ──
+    Route::middleware('role:super_admin')->group(function () {
 
         // Admin no-code de módulos y campos
         Route::prefix('admin/modulos')->name('admin.modulos.')->group(function () {
@@ -107,13 +123,6 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::get('/google/callback',  [GoogleAuthController::class, 'callback'])->name('google.callback');
             Route::delete('/google/revoke', [GoogleAuthController::class, 'revoke'])->name('google.revoke');
         });
-
-        // Gestión de colaboradores del negocio
-        Route::prefix('colaboradores')->name('colaboradores.')->group(function () {
-            Route::get('/',        [CollaboratorController::class, 'index'])->name('index');
-            Route::post('/',       [CollaboratorController::class, 'store'])->name('store');
-            Route::delete('/{id}', [CollaboratorController::class, 'destroy'])->name('destroy');
-        });
     });
 });
 
@@ -124,6 +133,11 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('admin')->na
     Route::get('/negocios',         [TenantController::class, 'index'])->name('negocios.index');
     Route::post('/negocios',        [TenantController::class, 'store'])->name('negocios.store');
     Route::put('/negocios/{id}',    [TenantController::class, 'update'])->name('negocios.update');
+
+    // Impersonar / salir — deben ir ANTES del delete con {id} para que "impersonate" no sea capturado como wildcard
+    Route::post('/negocios/{id}/impersonate',  [TenantController::class, 'impersonate'])->name('negocios.impersonate');
+    Route::delete('/negocios/impersonate',     [TenantController::class, 'exitImpersonation'])->name('negocios.impersonate.exit');
+
     Route::delete('/negocios/{id}', [TenantController::class, 'destroy'])->name('negocios.destroy');
 
     // Aliases de compatibilidad con el nombre anterior

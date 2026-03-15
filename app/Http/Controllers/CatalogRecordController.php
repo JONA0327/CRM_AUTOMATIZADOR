@@ -39,6 +39,8 @@ class CatalogRecordController extends Controller
      */
     public function store(Request $request, string $module): JsonResponse
     {
+        abort_unless(auth()->user()->can('catalogos.editar'), 403, 'No tienes permiso para crear registros.');
+
         $modulo = CatalogModule::where('slug', $module)->firstOrFail();
         $datos  = $this->validarYLimpiar($request, $modulo);
 
@@ -61,6 +63,8 @@ class CatalogRecordController extends Controller
      */
     public function update(Request $request, string $module, int $id): JsonResponse
     {
+        abort_unless(auth()->user()->can('catalogos.editar'), 403, 'No tienes permiso para editar registros.');
+
         $modulo = CatalogModule::where('slug', $module)->firstOrFail();
         $record = CatalogRecord::where('module_id', $modulo->id)->findOrFail($id);
         $datos  = $this->validarYLimpiar($request, $modulo);
@@ -82,6 +86,8 @@ class CatalogRecordController extends Controller
      */
     public function destroy(string $module, int $id): JsonResponse
     {
+        abort_unless(auth()->user()->can('catalogos.editar'), 403, 'No tienes permiso para eliminar registros.');
+
         $modulo = CatalogModule::where('slug', $module)->firstOrFail();
         CatalogRecord::where('module_id', $modulo->id)->findOrFail($id)->delete();
 
