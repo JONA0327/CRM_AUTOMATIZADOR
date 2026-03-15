@@ -2989,7 +2989,7 @@ function savedPromptsManager() {
             }
             this.guardando = true;
             try {
-                const res = await axios.post('{{ route("configuracion.prompts.store") }}', { nombre, contenido }, {
+                const res = await axios.post('{{ url('/configuracion/prompts') }}', { nombre, contenido }, {
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 });
                 if (res.data.success) {
@@ -3118,7 +3118,7 @@ function savedEtapasManager() {
             }
             this.guardando = true;
             try {
-                const res = await axios.post('{{ route("configuracion.etapas.store") }}', { nombre, contenido }, {
+                const res = await axios.post('{{ url('/configuracion/etapas') }}', { nombre, contenido }, {
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 });
                 if (res.data.success) {
@@ -3253,7 +3253,7 @@ function savedFlujoPasosManager() {
 
             this.guardando = true;
             try {
-                const res = await axios.post('{{ route("configuracion.flujos-pasos.store") }}', { nombre, contenido }, {
+                const res = await axios.post('{{ url('/configuracion/flujos-pasos') }}', { nombre, contenido }, {
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 });
                 if (res.data.success) {

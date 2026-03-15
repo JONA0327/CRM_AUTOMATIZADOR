@@ -313,7 +313,7 @@ function botConversaciones() {
         async limpiarLogs() {
             if (!confirm('¿Limpiar el archivo de logs del sistema?')) return;
             try {
-                await axios.delete('{{ route("admin.logs.clear", ["canal" => "sistema"]) }}', {
+                await axios.delete('{{ url('/admin/logs/sistema') }}', {
                     headers: { 'X-CSRF-TOKEN': this._csrf },
                 });
                 alert('Logs limpiados correctamente.');
