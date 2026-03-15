@@ -615,12 +615,45 @@
 
                                 {{-- ── NODO FLUJO POR PASOS ── --}}
                                 <template x-if="selectedNode?.type === 'flujo-pasos'">
-                                    <div x-data="{ chars: {{ strlen($botFlujoPasos ?? '') }}, max: 12000 }" class="space-y-3">
+                                    <div x-data="{
+                                            chars: {{ strlen($botFlujoPasos ?? '') }},
+                                            max: 12000,
+                                            insertarTagFlujo(tag) {
+                                                const ta = $el.querySelector('textarea[name=bot_flujo_pasos]');
+                                                if (!ta) return;
+                                                const s = ta.selectionStart, e = ta.selectionEnd;
+                                                ta.value = ta.value.slice(0,s) + '[' + tag + ']' + ta.value.slice(e);
+                                                ta.dispatchEvent(new Event('input'));
+                                                ta.selectionStart = ta.selectionEnd = s + tag.length + 2;
+                                                ta.focus();
+                                            }
+                                        }" class="space-y-3">
+
+                                        {{-- Etiquetas disponibles de nodos conectados --}}
+                                        <div>
+                                            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Etiquetas de nodos conectados</p>
+                                            <div x-show="connectedTags().length > 0" class="flex flex-wrap gap-1.5">
+                                                <template x-for="tag in connectedTags()" :key="tag.tag">
+                                                    <button type="button"
+                                                            @click="insertarTagFlujo(tag.tag)"
+                                                            :title="'Insertar en mensaje de step: ' + tag.preview"
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-900/40 border border-amber-700/60 text-amber-300 text-xs font-mono hover:bg-amber-900/70 hover:border-amber-500 transition-colors cursor-pointer select-none">
+                                                        <span class="text-amber-500 text-[10px]">{}</span>
+                                                        <span x-text="tag.tag"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                            <p x-show="connectedTags().length === 0" class="text-xs text-gray-500 italic">
+                                                Conecta nodos al Bot para que sus etiquetas estén disponibles en los mensajes de steps.
+                                            </p>
+                                            <p class="text-xs text-gray-500 mt-1">Puedes usar <span class="font-mono text-amber-400">[TAG]</span> dentro del campo <code class="bg-gray-700 px-1 rounded">mensaje</code> de cualquier step.</p>
+                                        </div>
+
                                         <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Flujo conversacional por pasos</p>
                                         <p class="text-xs text-gray-400">JSON con claves <code class="bg-gray-700 px-1 rounded text-xs">inicio</code> y <code class="bg-gray-700 px-1 rounded text-xs">steps</code>. Cada step puede tener <code class="bg-gray-700 px-1 rounded text-xs">mensaje</code> y <code class="bg-gray-700 px-1 rounded text-xs">opciones</code>.</p>
                                         <textarea name="bot_flujo_pasos" rows="15" maxlength="12000"
                                             @input="chars = $event.target.value.length"
-                                            class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-y"
+                                            class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-y"
                                             placeholder='{"inicio":"menu","steps":{"menu":{"mensaje":"Hola\n1) Ventas\n2) Soporte","opciones":{"1|ventas":"ventas","2|soporte":"soporte"}}}}'
                                         >{{ $botFlujoPasos }}</textarea>
                                         <div class="flex justify-end">

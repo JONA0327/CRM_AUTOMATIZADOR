@@ -471,13 +471,15 @@ class BotController extends Controller
             return ['handled' => false, 'response' => null];
         }
 
+        $resolver = app(PromptTagResolverService::class);
+
         $fallbackGlobal = (string) ($flow['fallback'] ?? 'No entendi tu opcion. Escribe menu para ver las opciones.');
         $mensajeNorm = mb_strtolower(trim($mensaje));
         $stateKey = "bot_flow_state:{$instancia}:{$telefono}";
 
         if (in_array($mensajeNorm, ['menu', 'inicio', 'reset', 'reiniciar'], true)) {
             Cache::forever($stateKey, $inicio);
-            $respInicio = (string) ($steps[$inicio]['mensaje'] ?? $fallbackGlobal);
+            $respInicio = $resolver->resolve((string) ($steps[$inicio]['mensaje'] ?? $fallbackGlobal), $mensaje);
             return ['handled' => true, 'response' => $respInicio];
         }
 
@@ -496,7 +498,7 @@ class BotController extends Controller
                     $nextStepId = (string) $nextStepId;
                     if (isset($steps[$nextStepId]) && is_array($steps[$nextStepId])) {
                         Cache::forever($stateKey, $nextStepId);
-                        $respuesta = (string) ($steps[$nextStepId]['mensaje'] ?? $fallbackGlobal);
+                        $respuesta = $resolver->resolve((string) ($steps[$nextStepId]['mensaje'] ?? $fallbackGlobal), $mensaje);
                         return ['handled' => true, 'response' => $respuesta];
                     }
                 }
