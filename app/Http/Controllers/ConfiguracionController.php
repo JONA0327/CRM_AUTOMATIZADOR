@@ -168,10 +168,12 @@ class ConfiguracionController extends Controller
 
         $savedPrompts   = collect();
         $savedEtapas    = collect();
+        $savedFlujosPasos = collect();
         $promptActivoId = null;
         try {
             $savedPrompts   = SavedPrompt::where('tipo', 'prompt')->orderBy('nombre')->get();
             $savedEtapas    = SavedPrompt::where('tipo', 'etapas')->orderBy('nombre')->get();
+            $savedFlujosPasos = SavedPrompt::where('tipo', 'flujo_pasos')->orderBy('nombre')->get();
             $promptActivoId = (int) (Configuracion::get('bot_prompt_activo', '0')) ?: null;
         } catch (\Exception) {}
 
@@ -201,6 +203,7 @@ class ConfiguracionController extends Controller
             'catalogMediaConfig'    => $catalogMediaConfig,
             'savedPrompts'          => $savedPrompts,
             'savedEtapas'           => $savedEtapas,
+            'savedFlujosPasos'      => $savedFlujosPasos,
             'promptActivoId'        => $promptActivoId,
             'botTimezone'           => $botTimezone,
             'botCanvasLayout'       => $botCanvasLayout,
@@ -510,6 +513,7 @@ class ConfiguracionController extends Controller
 
         $prompt = SavedPrompt::create([
             'nombre'    => trim($request->nombre),
+            'tipo'      => 'prompt',
             'contenido' => $request->contenido,
         ]);
 
@@ -527,7 +531,7 @@ class ConfiguracionController extends Controller
             'contenido' => ['required', 'string', 'max:8000'],
         ]);
 
-        $prompt = SavedPrompt::findOrFail($id);
+        $prompt = SavedPrompt::where('tipo', 'prompt')->findOrFail($id);
         $prompt->update([
             'nombre'    => trim($request->nombre),
             'contenido' => $request->contenido,
@@ -584,6 +588,47 @@ class ConfiguracionController extends Controller
     public function destroyEtapa(int $id): JsonResponse
     {
         SavedPrompt::where('tipo', 'etapas')->findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    // ── Flujo por pasos guardado ─────────────────────────────────────────────
+
+    public function storeFlujoPasos(Request $request): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:12000'],
+        ]);
+
+        $flujo = SavedPrompt::create([
+            'nombre'    => trim($request->nombre),
+            'tipo'      => 'flujo_pasos',
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'flujo' => $flujo]);
+    }
+
+    public function updateFlujoPasos(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:12000'],
+        ]);
+
+        $flujo = SavedPrompt::where('tipo', 'flujo_pasos')->findOrFail($id);
+        $flujo->update([
+            'nombre'    => trim($request->nombre),
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'flujo' => $flujo]);
+    }
+
+    public function destroyFlujoPasos(int $id): JsonResponse
+    {
+        SavedPrompt::where('tipo', 'flujo_pasos')->findOrFail($id)->delete();
 
         return response()->json(['success' => true]);
     }

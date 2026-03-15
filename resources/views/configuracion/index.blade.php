@@ -670,19 +670,60 @@
 
                                 {{-- ── NODO FLUJO POR PASOS ── --}}
                                 <template x-if="selectedNode?.type === 'flujo-pasos'">
-                                    <div x-data="{
-                                            chars: {{ strlen($botFlujoPasos ?? '') }},
-                                            max: 12000,
-                                            insertarTagFlujo(tag) {
-                                                const ta = $el.querySelector('textarea[name=bot_flujo_pasos]');
-                                                if (!ta) return;
-                                                const s = ta.selectionStart, e = ta.selectionEnd;
-                                                ta.value = ta.value.slice(0,s) + '[' + tag + ']' + ta.value.slice(e);
-                                                ta.dispatchEvent(new Event('input'));
-                                                ta.selectionStart = ta.selectionEnd = s + tag.length + 2;
-                                                ta.focus();
-                                            }
-                                        }" class="space-y-3">
+                                    <div x-data="savedFlujoPasosManager()" x-init="init()" class="space-y-3">
+
+                                        {{-- Flujos guardados --}}
+                                        <div>
+                                            <div class="flex items-center justify-between mb-2">
+                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Flujos guardados</p>
+                                                <span class="text-xs text-gray-500" x-text="flujos.length + ' guardado(s)'"></span>
+                                            </div>
+                                            <template x-if="flujos.length > 0">
+                                                <div class="space-y-1 max-h-32 overflow-y-auto pr-1 mb-3">
+                                                    <template x-for="f in flujos" :key="f.id">
+                                                        <div class="group flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all"
+                                                             :class="flujoActivo === f.id ? 'border-amber-500/60 bg-amber-500/15' : 'border-white/10 hover:border-white/20'">
+                                                            <button type="button" @click="cargarFlujo(f)"
+                                                                    :title="flujoActivo === f.id ? 'Activo' : 'Cargar'"
+                                                                    :class="flujoActivo === f.id ? 'bg-amber-500' : 'bg-gray-600'"
+                                                                    class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                                <span :class="flujoActivo === f.id ? 'translate-x-4' : 'translate-x-0'"
+                                                                      class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200"></span>
+                                                            </button>
+                                                            <button type="button" @click="cargarFlujo(f)" class="flex-1 text-left min-w-0">
+                                                                <span class="text-xs font-medium truncate"
+                                                                      :class="flujoActivo === f.id ? 'text-amber-300' : 'text-gray-200'"
+                                                                      x-text="f.nombre"></span>
+                                                            </button>
+                                                            <button type="button" @click="editarFlujo(f)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-amber-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                            </button>
+                                                            <button type="button" @click="eliminarFlujo(f)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <div class="flex items-center gap-2 mb-3">
+                                                <input type="text" x-model="nuevoNombre" placeholder="Nombre para guardar…"
+                                                       class="flex-1 text-xs px-2.5 py-1.5 border border-white/10 bg-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                                                       @keydown.enter.prevent="editandoId ? actualizarFlujo() : guardarFlujo()">
+                                                <template x-if="editandoId">
+                                                    <button type="button" @click="cancelarEdicion()"
+                                                            class="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-white/10 rounded-lg">✕</button>
+                                                </template>
+                                                <button type="button"
+                                                        @click="editandoId ? actualizarFlujo() : guardarFlujo()"
+                                                        :disabled="!nuevoNombre.trim() || guardando"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg transition-colors disabled:opacity-50"
+                                                        x-text="editandoId ? 'Actualizar' : 'Guardar'">
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         {{-- Etiquetas disponibles de nodos conectados --}}
                                         <div>
@@ -706,7 +747,7 @@
 
                                         <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Flujo conversacional por pasos</p>
                                         <p class="text-xs text-gray-400">JSON con claves <code class="bg-gray-700 px-1 rounded text-xs">inicio</code> y <code class="bg-gray-700 px-1 rounded text-xs">steps</code>. Cada step puede tener <code class="bg-gray-700 px-1 rounded text-xs">mensaje</code> y <code class="bg-gray-700 px-1 rounded text-xs">opciones</code>.</p>
-                                        <textarea name="bot_flujo_pasos" rows="15" maxlength="12000"
+                                        <textarea id="bot_flujo_pasos_textarea" name="bot_flujo_pasos" rows="15" maxlength="12000"
                                             @input="chars = $event.target.value.length"
                                             class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-y"
                                             placeholder='{"inicio":"menu","steps":{"menu":{"mensaje":"Hola\n1) Ventas\n2) Soporte","opciones":{"1|ventas":"ventas","2|soporte":"soporte"}}}}'
@@ -3131,6 +3172,126 @@ function savedEtapasManager() {
                 if (this.etapaActiva === e.id) this.etapaActiva = null;
             } catch (e) {
                 alert('No se pudo eliminar la etapa.');
+            }
+        },
+    };
+}
+
+/**
+ * Gestion de flujos por pasos guardados.
+ */
+function savedFlujoPasosManager() {
+    return {
+        chars: {{ strlen($botFlujoPasos ?? '') }},
+        max: 12000,
+        flujos: @json($savedFlujosPasos->values()),
+        nuevoNombre: '',
+        guardando: false,
+        flujoActivo: null,
+        editandoId: null,
+
+        init() {},
+
+        insertarTagFlujo(tag) {
+            const ta = document.getElementById('bot_flujo_pasos_textarea');
+            if (!ta) return;
+            const s = ta.selectionStart;
+            const e = ta.selectionEnd;
+            ta.value = ta.value.slice(0, s) + '[' + tag + ']' + ta.value.slice(e);
+            ta.dispatchEvent(new Event('input'));
+            ta.selectionStart = ta.selectionEnd = s + tag.length + 2;
+            ta.focus();
+        },
+
+        cargarFlujo(f) {
+            const ta = document.getElementById('bot_flujo_pasos_textarea');
+            if (!ta) return;
+            ta.value = f.contenido;
+            ta.dispatchEvent(new Event('input'));
+            this.flujoActivo = f.id;
+            ta.classList.add('ring-2', 'ring-amber-400');
+            setTimeout(() => ta.classList.remove('ring-2', 'ring-amber-400'), 1200);
+        },
+
+        editarFlujo(f) {
+            this.editandoId = f.id;
+            this.nuevoNombre = f.nombre;
+            this.cargarFlujo(f);
+        },
+
+        cancelarEdicion() {
+            this.editandoId = null;
+            this.nuevoNombre = '';
+        },
+
+        async guardarFlujo() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre) return;
+            const ta = document.getElementById('bot_flujo_pasos_textarea');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea de flujo está vacío. Escribe el JSON primero.');
+                return;
+            }
+
+            this.guardando = true;
+            try {
+                const res = await axios.post('{{ route("configuracion.flujos-pasos.store") }}', { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    this.flujos.push(res.data.flujo);
+                    this.flujos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    this.flujoActivo = res.data.flujo.id;
+                    this.nuevoNombre = '';
+                }
+            } catch (e) {
+                alert('No se pudo guardar el flujo.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async actualizarFlujo() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre || !this.editandoId) return;
+            const ta = document.getElementById('bot_flujo_pasos_textarea');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea de flujo está vacío.');
+                return;
+            }
+
+            this.guardando = true;
+            try {
+                const res = await axios.put(`{{ url('/configuracion/flujos-pasos') }}/${this.editandoId}`, { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    const idx = this.flujos.findIndex(f => f.id === this.editandoId);
+                    if (idx !== -1) this.flujos[idx] = res.data.flujo;
+                    this.flujos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    this.flujoActivo = res.data.flujo.id;
+                    this.editandoId = null;
+                    this.nuevoNombre = '';
+                }
+            } catch (e) {
+                alert('No se pudo actualizar el flujo.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async eliminarFlujo(f) {
+            if (!confirm(`¿Eliminar el flujo "${f.nombre}"?`)) return;
+            try {
+                await axios.delete(`{{ url('/configuracion/flujos-pasos') }}/${f.id}`, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                this.flujos = this.flujos.filter(x => x.id !== f.id);
+                if (this.flujoActivo === f.id) this.flujoActivo = null;
+            } catch (e) {
+                alert('No se pudo eliminar el flujo.');
             }
         },
     };

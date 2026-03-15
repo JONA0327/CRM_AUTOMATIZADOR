@@ -118,6 +118,9 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::post('/etapas',           [ConfiguracionController::class, 'storeEtapa'])->name('etapas.store');
             Route::put('/etapas/{id}',       [ConfiguracionController::class, 'updateEtapa'])->name('etapas.update');
             Route::delete('/etapas/{id}',    [ConfiguracionController::class, 'destroyEtapa'])->name('etapas.destroy');
+            Route::post('/flujos-pasos',        [ConfiguracionController::class, 'storeFlujoPasos'])->name('flujos-pasos.store');
+            Route::put('/flujos-pasos/{id}',    [ConfiguracionController::class, 'updateFlujoPasos'])->name('flujos-pasos.update');
+            Route::delete('/flujos-pasos/{id}', [ConfiguracionController::class, 'destroyFlujoPasos'])->name('flujos-pasos.destroy');
             Route::post('/pipeline',         [ConfiguracionController::class, 'savePipeline'])->name('pipeline.save');
             Route::post('/catalog-media',    [ConfiguracionController::class, 'saveCatalogMedia'])->name('catalog-media.save');
 
