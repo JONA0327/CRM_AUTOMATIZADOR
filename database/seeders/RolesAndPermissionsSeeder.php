@@ -76,6 +76,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver.bot',
             'instancias.ver',
             'instancias.conectar',
+            'instancias.pausar',
             'catalogos.ver',
             'ver.conversaciones',
             'gestionar.colaboradores',

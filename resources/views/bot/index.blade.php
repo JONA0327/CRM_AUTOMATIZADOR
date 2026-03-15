@@ -535,6 +535,12 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">
+                    @php
+                        $canPauseInstances = auth()->user()->can('instancias.pausar')
+                            || auth()->user()->hasRole('anfitrion')
+                            || auth()->user()->hasRole('super_admin')
+                            || (!auth()->user()->tenant_id && session('tenancy_impersonate_id'));
+                    @endphp
                     @foreach ($instancias as $inst)
                         @php
                             // Evolution API v2: campos planos en la raíz del objeto
@@ -594,6 +600,12 @@
                                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
                                             body:    JSON.stringify({ instancia: '{{ $nombre }}' }),
                                         });
+                                        if (!res.ok) {
+                                            if (res.status === 403) {
+                                                alert('No tienes permiso para pausar o reanudar esta instancia.');
+                                            }
+                                            return;
+                                        }
                                         const data = await res.json();
                                         if (data.success) this.activo = data.activo;
                                     } catch(e) {} finally { this.cargando = false; }
@@ -660,6 +672,7 @@
                                             </span>
                                         </div>
                                         {{-- Toggle individual del bot (solo si está registrado) --}}
+                                        @if($canPauseInstances)
                                         <div x-show="registrado" class="flex items-center gap-1.5 mt-0.5">
                                             <button @click="toggleActivo()" :disabled="cargando"
                                                     class="relative inline-flex h-4 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60"
@@ -671,6 +684,7 @@
                                             <span class="text-xs" :class="activo ? 'text-emerald-400' : 'text-gray-500'"
                                                   x-text="activo ? 'Activo' : 'Pausado'"></span>
                                         </div>
+                                        @endif
                                     </div>
                                 </div>
                             </td>

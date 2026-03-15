@@ -31,6 +31,45 @@ class BotController extends Controller
         $this->apiKey = Configuracion::get('evolution_key', config('services.evolution.key', ''));
     }
 
+    /**
+     * Determina si el usuario puede pausar/reanudar bot o instancias.
+     */
+    private function canPauseInstances(): bool
+    {
+        $user = auth()->user();
+
+        $isSuperAdminImpersonating = $user
+            && !$user->tenant_id
+            && !empty(session('tenancy_impersonate_id'));
+
+        return $user
+            && ($user->can('instancias.pausar')
+                || $user->hasRole('anfitrion')
+                || $user->hasRole('super_admin')
+                || $isSuperAdminImpersonating);
+    }
+
+    /**
+     * Tenant objetivo para operaciones de instancias en contexto tenant/impersonación.
+     */
+    private function currentTenantId(): ?string
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return null;
+        }
+
+        if (!empty($user->tenant_id)) {
+            return (string) $user->tenant_id;
+        }
+
+        if (!empty(session('tenancy_impersonate_id'))) {
+            return (string) session('tenancy_impersonate_id');
+        }
+
+        return null;
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // VISTAS / ADMIN
     // ──────────────────────────────────────────────────────────────────────────
@@ -78,7 +117,7 @@ class BotController extends Controller
      */
     public function toggleBot()
     {
-        abort_unless(auth()->user()->can('instancias.pausar'), 403, 'No tienes permiso para pausar o reanudar el bot.');
+        abort_unless($this->canPauseInstances(), 403, 'No tienes permiso para pausar o reanudar el bot.');
 
         $actual = Configuracion::get('bot_activo', '0') === '1';
         $nuevo  = $actual ? '0' : '1';
@@ -892,7 +931,7 @@ class BotController extends Controller
         $request->validate(['instancia' => ['required', 'string', 'max:100']]);
 
         $instancia = $request->instancia;
-        $tenantId  = auth()->user()->tenant_id;
+        $tenantId  = $this->currentTenantId();
 
         if (!$tenantId) {
             return response()->json(['success' => false, 'message' => 'Sin tenant asignado.'], 422);
@@ -918,12 +957,17 @@ class BotController extends Controller
      */
     public function toggleInstance(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->can('instancias.pausar'), 403, 'No tienes permiso para pausar instancias.');
+        abort_unless($this->canPauseInstances(), 403, 'No tienes permiso para pausar instancias.');
 
         $request->validate(['instancia' => ['required', 'string']]);
 
+        $tenantId = $this->currentTenantId();
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'No hay tenant activo para esta operación.'], 422);
+        }
+
         $inst = TenantInstance::where('instance_name', $request->instancia)
-            ->where('tenant_id', auth()->user()->tenant_id)
+            ->where('tenant_id', $tenantId)
             ->firstOrFail();
 
         $inst->update(['activo' => !$inst->activo]);
@@ -938,7 +982,10 @@ class BotController extends Controller
     {
         $request->validate(['instancia' => ['required', 'string']]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $tenantId = $this->currentTenantId();
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'No hay tenant activo para esta operación.'], 422);
+        }
 
         TenantInstance::where('tenant_id', $tenantId)->update(['is_default' => false]);
         TenantInstance::where('instance_name', $request->instancia)
