@@ -243,6 +243,10 @@ class BotController extends Controller
             ?? '';
         $caption = data_get($data, 'message.imageMessage.caption', ''); // caption de imagen (compat)
 
+        // Contexto enriquecido cuando el usuario comparte una tarjeta de anuncio/publicación
+        // (ej. Facebook/Instagram con preview en WhatsApp)
+        $contextoAnuncio = $this->extraerContextoAnuncio($data);
+
         // Texto que se guardará en BD
         $mensajeParaGuardar = $texto;
 
@@ -371,6 +375,18 @@ class BotController extends Controller
                         return response()->json(['status' => 'audio_no_transcripcion']);
                     }
                 }
+            }
+        }
+
+        // Si viene contexto de anuncio, se añade al texto para que la IA sepa de qué publicación llegó
+        if (!empty($contextoAnuncio)) {
+            $texto = trim((string) $texto);
+            $texto = trim($texto . "\n\n[CONTEXTO_ANUNCIO]\n" . $contextoAnuncio);
+
+            if (!empty(trim($mensajeParaGuardar))) {
+                $mensajeParaGuardar = trim($mensajeParaGuardar . "\n\n[CONTEXTO_ANUNCIO]\n" . $contextoAnuncio);
+            } else {
+                $mensajeParaGuardar = "[CONTEXTO_ANUNCIO]\n" . $contextoAnuncio;
             }
         }
 
@@ -550,6 +566,67 @@ class BotController extends Controller
         }
 
         return ['handled' => false, 'response' => null];
+    }
+
+    /**
+     * Extrae contexto útil de anuncios/publicaciones compartidas en WhatsApp.
+     * Evolution suele enviar esto dentro de contextInfo.externalAdReply.
+     */
+    private function extraerContextoAnuncio(array $data): string
+    {
+        $contextInfo =
+            data_get($data, 'message.extendedTextMessage.contextInfo')
+            ?? data_get($data, 'message.imageMessage.contextInfo')
+            ?? data_get($data, 'message.videoMessage.contextInfo')
+            ?? data_get($data, 'message.documentMessage.contextInfo')
+            ?? [];
+
+        $externalAd = is_array($contextInfo) ? ($contextInfo['externalAdReply'] ?? null) : null;
+        $externalAd = is_array($externalAd) ? $externalAd : [];
+
+        $partes = [];
+
+        $title = trim((string) ($externalAd['title'] ?? ''));
+        $body  = trim((string) ($externalAd['body'] ?? ''));
+        $sourceUrl = trim((string) (
+            $externalAd['sourceUrl']
+            ?? $externalAd['canonicalUrl']
+            ?? $externalAd['matchedText']
+            ?? ''
+        ));
+
+        if ($title !== '') {
+            $partes[] = 'Titulo anuncio: ' . $title;
+        }
+        if ($body !== '') {
+            $partes[] = 'Texto anuncio: ' . $body;
+        }
+        if ($sourceUrl !== '') {
+            $partes[] = 'URL anuncio: ' . $sourceUrl;
+        }
+
+        // A veces el contenido viene como mensaje citado dentro del contextInfo
+        $quotedConversation = trim((string) data_get($contextInfo, 'quotedMessage.conversation', ''));
+        $quotedExtended     = trim((string) data_get($contextInfo, 'quotedMessage.extendedTextMessage.text', ''));
+        $quotedImageCaption = trim((string) data_get($contextInfo, 'quotedMessage.imageMessage.caption', ''));
+        $quotedVideoCaption = trim((string) data_get($contextInfo, 'quotedMessage.videoMessage.caption', ''));
+
+        $quoted = collect([$quotedConversation, $quotedExtended, $quotedImageCaption, $quotedVideoCaption])
+            ->filter(fn ($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!empty($quoted)) {
+            $partes[] = 'Contenido compartido: ' . implode(' | ', $quoted);
+        }
+
+        // Metadata adicional útil para clasificar que viene de un anuncio/post compartido
+        if (!empty(data_get($contextInfo, 'isForwarded')) || (int) data_get($contextInfo, 'forwardingScore', 0) > 0) {
+            $partes[] = 'Tipo: mensaje reenviado/compartido';
+        }
+
+        return implode("\n", $partes);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
