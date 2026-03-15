@@ -584,10 +584,65 @@
 
                                 {{-- ── NODO ETAPAS IA ── --}}
                                 <template x-if="selectedNode?.type === 'etapas-ia'">
-                                    <div class="space-y-4">
+                                    <div x-data="savedEtapasManager()" x-init="init()" class="space-y-4">
+
+                                        {{-- Etapas guardadas --}}
+                                        <div>
+                                            <div class="flex items-center justify-between mb-2">
+                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Etapas guardadas</p>
+                                                <span class="text-xs text-gray-500" x-text="etapas.length + ' guardada(s)'"></span>
+                                            </div>
+                                            <template x-if="etapas.length > 0">
+                                                <div class="space-y-1 max-h-32 overflow-y-auto pr-1 mb-3">
+                                                    <template x-for="e in etapas" :key="e.id">
+                                                        <div class="group flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all"
+                                                             :class="etapaActiva === e.id ? 'border-purple-500/60 bg-purple-500/15' : 'border-white/10 hover:border-white/20'">
+                                                            <button type="button" @click="cargarEtapa(e)"
+                                                                    :title="etapaActiva === e.id ? 'Activa' : 'Cargar'"
+                                                                    :class="etapaActiva === e.id ? 'bg-purple-500' : 'bg-gray-600'"
+                                                                    class="relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none">
+                                                                <span :class="etapaActiva === e.id ? 'translate-x-4' : 'translate-x-0'"
+                                                                      class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform duration-200"></span>
+                                                            </button>
+                                                            <button type="button" @click="cargarEtapa(e)" class="flex-1 text-left min-w-0">
+                                                                <span class="text-xs font-medium truncate"
+                                                                      :class="etapaActiva === e.id ? 'text-purple-300' : 'text-gray-200'"
+                                                                      x-text="e.nombre"></span>
+                                                            </button>
+                                                            <button type="button" @click="editarEtapa(e)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-purple-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                            </button>
+                                                            <button type="button" @click="eliminarEtapa(e)"
+                                                                    class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded transition-all">
+                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" x-model="nuevoNombre" placeholder="Nombre para guardar…"
+                                                       class="flex-1 text-xs px-2.5 py-1.5 border border-white/10 bg-gray-700 text-gray-100 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition"
+                                                       @keydown.enter.prevent="editandoId ? actualizarEtapa() : guardarEtapa()">
+                                                <template x-if="editandoId">
+                                                    <button type="button" @click="cancelarEdicion()"
+                                                            class="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-200 border border-white/10 rounded-lg">✕</button>
+                                                </template>
+                                                <button type="button"
+                                                        @click="editandoId ? actualizarEtapa() : guardarEtapa()"
+                                                        :disabled="!nuevoNombre.trim() || guardando"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg transition-colors disabled:opacity-50"
+                                                        x-text="editandoId ? 'Actualizar' : 'Guardar'">
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {{-- Ayuda + Textarea --}}
                                         <div x-data="{ ayuda: false, chars: {{ strlen($botPasosIA ?? '') }}, max: 8000 }">
                                             <div class="flex items-center justify-between mb-2">
-                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Etapas de conversación (anti-ciclo)</p>
+                                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Contenido de las etapas</p>
                                                 <button type="button" @click="ayuda = !ayuda"
                                                         class="text-xs text-purple-400 hover:text-purple-200">¿Cómo funciona?</button>
                                             </div>
@@ -599,7 +654,7 @@
   { "desde": 2, "hasta": 9999, "nombre": "Cierre", "instruccion": "Resuelve o deriva." }
 ]</pre>
                                             </div>
-                                            <textarea name="bot_pasos_ia" rows="12" maxlength="8000"
+                                            <textarea id="bot_pasos_ia_textarea" name="bot_pasos_ia" rows="12" maxlength="8000"
                                                 @input="chars = $event.target.value.length"
                                                 class="w-full px-3 py-2.5 border border-white/10 bg-gray-700 text-white rounded-lg text-xs font-mono leading-relaxed focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition resize-y"
                                                 placeholder='[{"desde":1,"hasta":1,"nombre":"Bienvenida","instruccion":"..."}]'
@@ -2966,6 +3021,116 @@ function savedPromptsManager() {
                 if (this.promptActivo === p.id) this.promptActivo = null;
             } catch (e) {
                 alert('No se pudo eliminar el prompt.');
+            }
+        },
+    };
+}
+
+/**
+ * Gestión de etapas IA guardadas (mismo patrón que savedPromptsManager).
+ */
+function savedEtapasManager() {
+    return {
+        etapas: @json($savedEtapas->values()),
+        nuevoNombre: '',
+        guardando: false,
+        etapaActiva: null,
+        editandoId: null,
+
+        init() {},
+
+        cargarEtapa(e) {
+            const ta = document.getElementById('bot_pasos_ia_textarea');
+            if (!ta) return;
+            ta.value = e.contenido;
+            ta.dispatchEvent(new Event('input'));
+            this.etapaActiva = e.id;
+            ta.classList.add('ring-2', 'ring-purple-400');
+            setTimeout(() => ta.classList.remove('ring-2', 'ring-purple-400'), 1200);
+        },
+
+        editarEtapa(e) {
+            this.editandoId = e.id;
+            this.nuevoNombre = e.nombre;
+            const ta = document.getElementById('bot_pasos_ia_textarea');
+            if (ta) {
+                ta.value = e.contenido;
+                ta.dispatchEvent(new Event('input'));
+            }
+            this.etapaActiva = e.id;
+        },
+
+        cancelarEdicion() {
+            this.editandoId = null;
+            this.nuevoNombre = '';
+        },
+
+        async guardarEtapa() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre) return;
+            const ta = document.getElementById('bot_pasos_ia_textarea');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea de etapas está vacío. Escribe el JSON primero.');
+                return;
+            }
+            this.guardando = true;
+            try {
+                const res = await axios.post('{{ route("configuracion.etapas.store") }}', { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    this.etapas.push(res.data.etapa);
+                    this.etapas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    this.etapaActiva = res.data.etapa.id;
+                    this.nuevoNombre = '';
+                }
+            } catch (e) {
+                alert('No se pudo guardar la etapa.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async actualizarEtapa() {
+            const nombre = this.nuevoNombre.trim();
+            if (!nombre || !this.editandoId) return;
+            const ta = document.getElementById('bot_pasos_ia_textarea');
+            const contenido = ta?.value ?? '';
+            if (!contenido.trim()) {
+                alert('El textarea de etapas está vacío.');
+                return;
+            }
+            this.guardando = true;
+            try {
+                const res = await axios.put(`{{ url('/configuracion/etapas') }}/${this.editandoId}`, { nombre, contenido }, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                if (res.data.success) {
+                    const idx = this.etapas.findIndex(e => e.id === this.editandoId);
+                    if (idx !== -1) this.etapas[idx] = res.data.etapa;
+                    this.etapas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    this.etapaActiva = res.data.etapa.id;
+                    this.editandoId = null;
+                    this.nuevoNombre = '';
+                }
+            } catch (e) {
+                alert('No se pudo actualizar la etapa.');
+            } finally {
+                this.guardando = false;
+            }
+        },
+
+        async eliminarEtapa(e) {
+            if (!confirm(`¿Eliminar la etapa "${e.nombre}"?`)) return;
+            try {
+                await axios.delete(`{{ url('/configuracion/etapas') }}/${e.id}`, {
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                });
+                this.etapas = this.etapas.filter(x => x.id !== e.id);
+                if (this.etapaActiva === e.id) this.etapaActiva = null;
+            } catch (e) {
+                alert('No se pudo eliminar la etapa.');
             }
         },
     };

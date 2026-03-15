@@ -115,6 +115,9 @@ Route::middleware(['auth', 'verified', 'tenant.required'])->group(function () {
             Route::post('/prompts',          [ConfiguracionController::class, 'storePrompt'])->name('prompts.store');
             Route::put('/prompts/{id}',      [ConfiguracionController::class, 'updatePrompt'])->name('prompts.update');
             Route::delete('/prompts/{id}',   [ConfiguracionController::class, 'destroyPrompt'])->name('prompts.destroy');
+            Route::post('/etapas',           [ConfiguracionController::class, 'storeEtapa'])->name('etapas.store');
+            Route::put('/etapas/{id}',       [ConfiguracionController::class, 'updateEtapa'])->name('etapas.update');
+            Route::delete('/etapas/{id}',    [ConfiguracionController::class, 'destroyEtapa'])->name('etapas.destroy');
             Route::post('/pipeline',         [ConfiguracionController::class, 'savePipeline'])->name('pipeline.save');
             Route::post('/catalog-media',    [ConfiguracionController::class, 'saveCatalogMedia'])->name('catalog-media.save');
 

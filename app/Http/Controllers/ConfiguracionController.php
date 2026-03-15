@@ -167,9 +167,11 @@ class ConfiguracionController extends Controller
         $botCanvasLayout = json_decode(Configuracion::get('bot_canvas_layout', ''), true) ?: null;
 
         $savedPrompts   = collect();
+        $savedEtapas    = collect();
         $promptActivoId = null;
         try {
-            $savedPrompts   = SavedPrompt::orderBy('nombre')->get();
+            $savedPrompts   = SavedPrompt::where('tipo', 'prompt')->orderBy('nombre')->get();
+            $savedEtapas    = SavedPrompt::where('tipo', 'etapas')->orderBy('nombre')->get();
             $promptActivoId = (int) (Configuracion::get('bot_prompt_activo', '0')) ?: null;
         } catch (\Exception) {}
 
@@ -198,6 +200,7 @@ class ConfiguracionController extends Controller
             'modulosConArchivos'    => $modulosConArchivos,
             'catalogMediaConfig'    => $catalogMediaConfig,
             'savedPrompts'          => $savedPrompts,
+            'savedEtapas'           => $savedEtapas,
             'promptActivoId'        => $promptActivoId,
             'botTimezone'           => $botTimezone,
             'botCanvasLayout'       => $botCanvasLayout,
@@ -539,7 +542,48 @@ class ConfiguracionController extends Controller
      */
     public function destroyPrompt(int $id): JsonResponse
     {
-        SavedPrompt::findOrFail($id)->delete();
+        SavedPrompt::where('tipo', 'prompt')->findOrFail($id)->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    // ── Etapas IA guardadas ───────────────────────────────────────────────────
+
+    public function storeEtapa(Request $request): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:8000'],
+        ]);
+
+        $etapa = SavedPrompt::create([
+            'nombre'    => trim($request->nombre),
+            'tipo'      => 'etapas',
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'etapa' => $etapa]);
+    }
+
+    public function updateEtapa(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'nombre'    => ['required', 'string', 'max:100'],
+            'contenido' => ['required', 'string', 'max:8000'],
+        ]);
+
+        $etapa = SavedPrompt::where('tipo', 'etapas')->findOrFail($id);
+        $etapa->update([
+            'nombre'    => trim($request->nombre),
+            'contenido' => $request->contenido,
+        ]);
+
+        return response()->json(['success' => true, 'etapa' => $etapa]);
+    }
+
+    public function destroyEtapa(int $id): JsonResponse
+    {
+        SavedPrompt::where('tipo', 'etapas')->findOrFail($id)->delete();
 
         return response()->json(['success' => true]);
     }

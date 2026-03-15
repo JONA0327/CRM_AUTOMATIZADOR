@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class SavedPrompt extends Model
 {
-    protected $fillable = ['nombre', 'contenido'];
+    protected $fillable = ['nombre', 'tipo', 'contenido'];
 }
