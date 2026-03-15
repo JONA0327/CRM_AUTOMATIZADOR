@@ -1575,9 +1575,9 @@
                     <input type="hidden" name="openai_model" value="{{ $iaModelos['openai'] }}">
                     <input type="hidden" name="deepseek_model" value="{{ $iaModelos['deepseek'] }}">
                     <input type="hidden" name="gemini_model" value="{{ $iaModelos['gemini'] }}">
-                    <input type="hidden" name="openai_whisper_activo" value="{{ $iaToggles['openai_whisper'] ? '1' : '0' }}">
-                    <input type="hidden" name="openai_imagen_activo" value="{{ $iaToggles['openai_imagen'] ? '1' : '0' }}">
-                    <input type="hidden" name="gemini_audio_activo" value="{{ $iaToggles['gemini_audio'] ? '1' : '0' }}">
+                    {{-- Nota: los toggles openai_whisper_activo, openai_imagen_activo, etc.
+                         ya tienen sus propios <input type="hidden" :value="..."> reactivos
+                         dentro de cada bloque de proveedor — NO duplicar aquí. --}}
                 </div>{{-- /panel-bot --}}
 
                 {{-- ─── TAB: BASES DE DATOS ─── --}}
